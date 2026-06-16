@@ -1,6 +1,24 @@
 import DesktopOnly from "../components/DesktopOnly";
+import { loginAction } from "./actions";
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams?: Promise<{
+    error?: string | string[];
+  }>;
+};
+
+const loginErrorMessages: Record<string, string> = {
+  invalid: "Invalid user ID, email, or password.",
+  database: "Unable to connect to the database. Please try again later.",
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  const errorCode = Array.isArray(params?.error)
+    ? params?.error[0]
+    : params?.error;
+  const errorMessage = errorCode ? loginErrorMessages[errorCode] : undefined;
+
   return (
     <DesktopOnly>
       <section className="login-scene flex min-h-screen flex-1 items-center justify-center bg-[#fbfaf4] px-10 py-12 font-sans text-[#1d2b22]">
@@ -60,21 +78,43 @@ export default function LoginPage() {
               <p>Care starts with a quick check-in.</p>
             </div>
 
-            <form className="login-panel flex flex-col gap-5" aria-label="Sign in">
+            <form
+              action={loginAction}
+              className="login-panel flex flex-col gap-5"
+              aria-label="Sign in"
+            >
+              <fieldset className="login-mode-fieldset">
+                <legend>Sign in with</legend>
+                <label>
+                  <input
+                    defaultChecked
+                    name="loginMode"
+                    type="radio"
+                    value="userid"
+                  />
+                  User ID
+                </label>
+                <label>
+                  <input name="loginMode" type="radio" value="useremail" />
+                  Email
+                </label>
+              </fieldset>
+
               <div className="flex flex-col gap-2 text-left">
                 <label
                   className="text-sm font-medium text-[#304536]"
-                  htmlFor="email"
+                  htmlFor="identifier"
                 >
-                  Email
+                  User ID or email
                 </label>
                 <input
                   className="login-input"
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="you@example.com"
+                  id="identifier"
+                  name="identifier"
+                  type="text"
+                  autoComplete="username"
+                  placeholder="shisa or shisa@a.com"
+                  required
                 />
               </div>
 
@@ -92,6 +132,7 @@ export default function LoginPage() {
                   type="password"
                   autoComplete="current-password"
                   placeholder="Enter your password"
+                  required
                 />
               </div>
 
@@ -109,7 +150,13 @@ export default function LoginPage() {
                 </a>
               </div>
 
-              <button className="login-button" type="button">
+              {errorMessage ? (
+                <p className="login-error" role="alert">
+                  {errorMessage}
+                </p>
+              ) : null}
+
+              <button className="login-button" type="submit">
                 Sign in
               </button>
 
