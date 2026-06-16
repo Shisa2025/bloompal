@@ -13,14 +13,23 @@ if (!databaseUrl) {
 
 const sql = neon(databaseUrl);
 
-const statements = [
-  "DROP TABLE IF EXISTS care_tasks",
-  "DROP TABLE IF EXISTS plants",
-  "DROP TABLE IF EXISTS users",
-];
+const tableRows = await sql.query(`
+  SELECT schemaname, tablename
+  FROM pg_tables
+  WHERE schemaname = 'public'
+  ORDER BY tablename
+`);
 
-for (const statement of statements) {
-  await sql.query(statement);
+for (const table of tableRows) {
+  await sql.query(
+    `DROP TABLE IF EXISTS ${quoteIdentifier(table.schemaname)}.${quoteIdentifier(
+      table.tablename,
+    )} CASCADE`,
+  );
 }
 
-console.log("Database tables deleted.");
+console.log(`Deleted ${tableRows.length} database table(s).`);
+
+function quoteIdentifier(value) {
+  return `"${String(value).replaceAll('"', '""')}"`;
+}
