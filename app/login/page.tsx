@@ -1,5 +1,6 @@
 import DesktopOnly from "../components/DesktopOnly";
 import { loginAction } from "./actions";
+import Link from "next/link";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -162,12 +163,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
               <p className="text-center text-sm text-[#5f6f63]">
                 New to BloomPal?{" "}
-                <a
+                <Link
                   className="font-semibold text-[#52735a]"
-                  href="#create-account"
+                  href="/signup"
                 >
                   Create an account
-                </a>
+                </Link>
               </p>
             </form>
           </section>
