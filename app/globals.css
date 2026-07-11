@@ -656,6 +656,10 @@ body {
   pointer-events: none;
 }
 
+.dashboard-three-layer-interactive {
+  pointer-events: auto;
+}
+
 .dashboard-three-stage {
   width: 100%;
   height: 100%;
@@ -787,6 +791,1001 @@ body {
   outline-offset: 0.15rem;
 }
 
+.dashboard-gaming-board {
+  position: fixed;
+  top: 7.25rem;
+  right: max(1.5rem, calc((100vw - 70rem) / 2));
+  z-index: 2;
+  display: flex;
+  width: min(20rem, calc(100vw - 3rem));
+  flex-direction: column;
+  gap: 1rem;
+  border: 1px solid rgb(62 93 88 / 16%);
+  border-radius: 0.75rem;
+  background: rgb(255 253 247 / 82%);
+  box-shadow: 0 1.35rem 3.5rem rgb(50 71 68 / 16%);
+  padding: 1rem;
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.dashboard-gaming-board-heading p,
+.dashboard-gaming-board-heading h2,
+.dashboard-gaming-board-status p,
+.dashboard-gaming-board-status strong {
+  margin: 0;
+}
+
+.dashboard-gaming-board-heading p {
+  color: #52735a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dashboard-gaming-board-heading h2 {
+  margin-top: 0.18rem;
+  color: #1d2b22;
+  font-size: 1.45rem;
+  line-height: 1.15;
+}
+
+.dashboard-gaming-board-status {
+  display: grid;
+  gap: 0.4rem;
+  border: 1px solid rgb(82 115 90 / 12%);
+  border-radius: 0.6rem;
+  background: rgb(241 248 240 / 72%);
+  padding: 0.85rem;
+}
+
+.dashboard-gaming-board-status span {
+  color: #4e8c88;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.dashboard-gaming-board-status strong {
+  color: #26372d;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.dashboard-gaming-board-status p {
+  color: #5f6f63;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.dashboard-game-button {
+  display: inline-flex;
+  min-height: 2.85rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.55rem;
+  background: #52735a;
+  color: #fffdf7;
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+  box-shadow: 0 0.8rem 1.65rem rgb(82 115 90 / 18%);
+}
+
+.dashboard-game-button:hover {
+  background: #45664d;
+  transform: translateY(-1px);
+}
+
+.dashboard-game-button:focus-visible {
+  outline: 0.25rem solid rgb(107 155 116 / 26%);
+  outline-offset: 0.15rem;
+}
+
+.dashboard-table-flower-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  background: rgb(29 43 34 / 16%);
+  padding: 1.5rem;
+  backdrop-filter: blur(4px);
+}
+
+.dashboard-table-flower-dialog {
+  display: grid;
+  width: min(27rem, 100%);
+  gap: 1rem;
+  border: 1px solid rgb(62 93 88 / 16%);
+  border-radius: 0.75rem;
+  background: rgb(255 253 247 / 94%);
+  box-shadow: 0 1.6rem 4rem rgb(34 49 41 / 22%);
+  padding: 1rem;
+}
+
+.dashboard-table-flower-heading p,
+.dashboard-table-flower-heading h2,
+.dashboard-table-flower-empty strong,
+.dashboard-table-flower-empty p,
+.dashboard-table-flower-error {
+  margin: 0;
+}
+
+.dashboard-table-flower-heading p {
+  color: #52735a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dashboard-table-flower-heading h2 {
+  margin-top: 0.18rem;
+  color: #1d2b22;
+  font-size: 1.35rem;
+  line-height: 1.15;
+}
+
+.dashboard-table-flower-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-table-flower-option {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 2.45rem minmax(0, 1fr);
+  gap: 0.16rem 0.65rem;
+  align-items: center;
+  border: 1px solid rgb(82 115 90 / 14%);
+  border-radius: 0.5rem;
+  background: rgb(255 255 255 / 62%);
+  color: #26372d;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.65rem;
+  text-align: left;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.dashboard-table-flower-option:hover:not(:disabled),
+.dashboard-table-flower-option.is-selected {
+  border-color: rgb(82 115 90 / 32%);
+  background: #f1f8f0;
+  box-shadow: 0 0.8rem 1.6rem rgb(82 115 90 / 12%);
+  transform: translateY(-1px);
+}
+
+.dashboard-table-flower-option:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.dashboard-table-flower-option strong,
+.dashboard-table-flower-option > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-table-flower-option strong {
+  font-size: 0.92rem;
+  line-height: 1.15;
+}
+
+.dashboard-table-flower-option > span:last-child {
+  color: #5f6f63;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.dashboard-table-flower-icon {
+  position: relative;
+  grid-row: span 2;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 999px;
+  background: #efe1ca;
+}
+
+.dashboard-table-flower-icon::before {
+  content: "";
+  position: absolute;
+  left: 0.82rem;
+  top: 1.18rem;
+  width: 0.72rem;
+  height: 0.58rem;
+  border-radius: 0 0 0.18rem 0.18rem;
+  background: #b7654d;
+}
+
+.dashboard-table-flower-icon::after {
+  content: "";
+  position: absolute;
+  left: 0.72rem;
+  top: 0.96rem;
+  width: 0.92rem;
+  height: 0.16rem;
+  border-radius: 999px;
+  background: #d08a65;
+}
+
+.dashboard-table-flower-icon span {
+  position: absolute;
+  left: 1.08rem;
+  top: 0.56rem;
+  width: 0.16rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #52735a;
+}
+
+.dashboard-table-flower-icon span::before,
+.dashboard-table-flower-icon span::after {
+  content: "";
+  position: absolute;
+  top: 0.05rem;
+  width: 0.42rem;
+  height: 0.28rem;
+  border-radius: 999px 0 999px 999px;
+  background: #6a9a66;
+}
+
+.dashboard-table-flower-icon span::before {
+  right: 0.1rem;
+  transform: rotate(-28deg);
+}
+
+.dashboard-table-flower-icon span::after {
+  left: 0.1rem;
+  transform: scaleX(-1) rotate(-28deg);
+}
+
+.dashboard-table-flower-empty {
+  display: grid;
+  justify-items: start;
+  gap: 0.55rem;
+  border: 1px solid rgb(82 115 90 / 12%);
+  border-radius: 0.5rem;
+  background: rgb(241 248 240 / 72%);
+  padding: 0.85rem;
+}
+
+.dashboard-table-flower-empty-icon {
+  position: relative;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: #efe1ca;
+}
+
+.dashboard-table-flower-empty-icon::before {
+  content: "";
+  position: absolute;
+  left: 0.76rem;
+  top: 1.22rem;
+  width: 1rem;
+  height: 0.72rem;
+  border-radius: 0 0 0.22rem 0.22rem;
+  background: #b7654d;
+}
+
+.dashboard-table-flower-empty-icon::after {
+  content: "";
+  position: absolute;
+  left: 0.64rem;
+  top: 1.02rem;
+  width: 1.24rem;
+  height: 0.18rem;
+  border-radius: 999px;
+  background: #d08a65;
+}
+
+.dashboard-table-flower-empty strong {
+  color: #26372d;
+  font-size: 1rem;
+}
+
+.dashboard-table-flower-empty p {
+  color: #5f6f63;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.dashboard-table-flower-error {
+  border: 1px solid rgb(139 65 55 / 18%);
+  border-radius: 0.5rem;
+  background: #fff4ee;
+  color: #8b4137;
+  font-size: 0.86rem;
+  font-weight: 700;
+  padding: 0.7rem 0.8rem;
+}
+
+.dashboard-table-flower-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.dashboard-table-flower-secondary {
+  min-height: 2.5rem;
+  border: 1px solid rgb(82 115 90 / 16%);
+  border-radius: 0.55rem;
+  background: rgb(255 255 255 / 68%);
+  color: #304536;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0.7rem 0.85rem;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.dashboard-table-flower-secondary:hover:not(:disabled) {
+  border-color: rgb(82 115 90 / 32%);
+  background: #f1f8f0;
+  transform: translateY(-1px);
+}
+
+.dashboard-table-flower-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.dashboard-table-flower-option:focus-visible,
+.dashboard-table-flower-secondary:focus-visible {
+  outline: 0.25rem solid rgb(107 155 116 / 26%);
+  outline-offset: 0.15rem;
+}
+
+.watering-shell {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgb(255 253 247 / 72%) 0%, transparent 22rem),
+    linear-gradient(135deg, #efe3d0 0%, #d7c7aa 54%, #b9c7bd 100%);
+  padding: 1.25rem;
+}
+
+.watering-game {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 1.1rem;
+  width: min(100%, 82rem);
+  min-height: calc(100vh - 2.5rem);
+  margin: 0 auto;
+}
+
+.watering-header {
+  display: flex;
+  min-height: 4.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid rgb(82 115 90 / 14%);
+  border-radius: 0.75rem;
+  background: rgb(255 253 247 / 78%);
+  box-shadow: 0 1.15rem 3rem rgb(72 93 72 / 12%);
+  padding: 0.85rem 1rem;
+  backdrop-filter: blur(18px);
+}
+
+.watering-header p,
+.watering-header h1 {
+  margin: 0;
+}
+
+.watering-header p,
+.watering-panel-kicker,
+.watering-stage-copy p,
+.watering-reward-copy p {
+  color: #52735a;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.watering-header h1 {
+  margin-top: 0.12rem;
+  color: #1d2b22;
+  font-size: 1.6rem;
+  line-height: 1.15;
+}
+
+.watering-secondary-link,
+.watering-primary-link,
+.watering-text-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.55rem;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.watering-secondary-link {
+  min-height: 2.65rem;
+  border: 1px solid rgb(82 115 90 / 14%);
+  background: rgb(255 255 255 / 68%);
+  color: #304536;
+  padding: 0 0.9rem;
+}
+
+.watering-layout {
+  display: grid;
+  gap: 1.1rem;
+  min-height: 0;
+}
+
+.watering-layout-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.watering-playfield {
+  display: grid;
+  grid-template-columns: minmax(18rem, 0.86fr) minmax(20rem, 1fr) minmax(18rem, 0.76fr);
+  gap: 1.1rem;
+  min-height: 0;
+}
+
+.watering-main-panel,
+.watering-camera-panel,
+.watering-sprout-panel,
+.watering-guide-panel,
+.watering-progress-panel {
+  min-height: 0;
+  border: 1px solid rgb(82 115 90 / 14%);
+  border-radius: 0.75rem;
+  background: rgb(255 253 247 / 74%);
+  box-shadow: 0 1.25rem 3.25rem rgb(72 93 72 / 12%);
+  backdrop-filter: blur(18px);
+}
+
+.watering-main-panel {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 1rem;
+}
+
+.watering-reward-main-panel {
+  place-items: stretch;
+  align-items: center;
+}
+
+.watering-camera-column,
+.watering-side-column {
+  display: grid;
+  min-height: 0;
+}
+
+.watering-side-column {
+  align-content: start;
+  gap: 1.1rem;
+}
+
+.watering-seed-stage {
+  display: grid;
+  width: min(100%, 45rem);
+  gap: 1.25rem;
+}
+
+.watering-stage-copy,
+.watering-panel-heading,
+.watering-sprout-heading,
+.watering-reward-copy {
+  display: grid;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.watering-stage-copy p,
+.watering-stage-copy h2,
+.watering-panel-heading p,
+.watering-panel-heading h2,
+.watering-sprout-heading p,
+.watering-sprout-heading h2,
+.watering-reward-copy p,
+.watering-reward-copy h2 {
+  margin: 0;
+}
+
+.watering-stage-copy h2,
+.watering-panel-heading h2,
+.watering-sprout-heading h2,
+.watering-reward-copy h2,
+.watering-guide-panel h2,
+.watering-progress-panel h2 {
+  color: #1d2b22;
+  font-size: 1.55rem;
+  line-height: 1.16;
+  margin: 0;
+}
+
+.watering-seed-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.watering-seed-card {
+  display: grid;
+  min-height: 13rem;
+  place-items: center;
+  border: 1px solid rgb(82 115 90 / 14%);
+  border-radius: 0.65rem;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 82%), rgb(239 247 235 / 78%)),
+    #f5f0df;
+  color: #26372d;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 1rem;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.watering-seed-card:hover:not(:disabled) {
+  border-color: rgb(82 115 90 / 28%);
+  box-shadow: 0 1rem 2rem rgb(72 93 72 / 14%);
+  transform: translateY(-2px);
+}
+
+.watering-seed-card:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.watering-seed-visual {
+  position: relative;
+  width: 4.4rem;
+  height: 5.4rem;
+  border-radius: 55% 45% 54% 46%;
+  background:
+    radial-gradient(circle at 38% 28%, rgb(255 255 255 / 44%), transparent 24%),
+    linear-gradient(145deg, #c99a63 0%, #8c5f38 100%);
+  box-shadow:
+    inset -0.35rem -0.5rem 0 rgb(82 57 35 / 14%),
+    0 1.1rem 1.6rem rgb(72 93 72 / 12%);
+  transform: rotate(-12deg);
+}
+
+.watering-seed-visual::before {
+  content: "";
+  position: absolute;
+  left: 2.2rem;
+  top: -0.45rem;
+  width: 1.55rem;
+  height: 0.7rem;
+  border-radius: 999px 0 999px 999px;
+  background: #6e986b;
+  transform: rotate(28deg);
+}
+
+.watering-camera-panel,
+.watering-reward-panel {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.watering-camera-panel,
+.watering-sprout-panel,
+.watering-guide-panel,
+.watering-progress-panel {
+  padding: 1rem;
+}
+
+.watering-panel-heading,
+.watering-sprout-heading {
+  text-align: left;
+}
+
+.watering-panel-heading p,
+.watering-sprout-heading p {
+  color: #52735a;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.watering-panel-heading h2,
+.watering-sprout-heading h2 {
+  font-size: 1.12rem;
+}
+
+.watering-video-wrap {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.65rem;
+  background:
+    linear-gradient(135deg, rgb(43 63 62 / 92%), rgb(72 101 92 / 88%)),
+    #26372d;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 12%);
+}
+
+.watering-sprout-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.85rem;
+}
+
+.watering-sprout-stage-shell {
+  position: relative;
+  overflow: hidden;
+  min-height: 24rem;
+  border-radius: 0.65rem;
+  background: #f8efe2;
+  box-shadow: inset 0 0 0 1px rgb(82 115 90 / 10%);
+}
+
+.watering-sprout-stage {
+  width: 100%;
+  height: 100%;
+}
+
+.watering-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.watering-camera-footer {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #4c6253;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.watering-text-button {
+  border: 0;
+  background: #e5f0dd;
+  color: #304536;
+  cursor: pointer;
+  padding: 0.58rem 0.72rem;
+}
+
+.watering-error {
+  margin: 0;
+  border: 1px solid rgb(180 73 82 / 18%);
+  border-radius: 0.55rem;
+  background: #fff0f1;
+  color: #9d3742;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.5;
+  padding: 0.75rem 0.85rem;
+}
+
+.watering-overlay-message {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(29 43 34 / 46%);
+  color: #fffdf7;
+  font-weight: 900;
+}
+
+.watering-drop {
+  position: absolute;
+  top: 12%;
+  width: 1.25rem;
+  height: 1.75rem;
+  border-radius: 999px 999px 999px 0;
+  background: #6cbbe6;
+  box-shadow: 0 0.45rem 1rem rgb(108 187 230 / 24%);
+  opacity: 0;
+  transform: rotate(-35deg);
+  animation: watering-drop 680ms ease-out forwards;
+}
+
+.watering-drop-left {
+  left: 37%;
+}
+
+.watering-drop-right {
+  right: 37%;
+}
+
+.watering-progress-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.watering-guide-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.watering-panel-kicker {
+  display: block;
+  margin: 0 0 0.25rem;
+}
+
+.watering-progress-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.watering-progress-row {
+  display: grid;
+  gap: 0.55rem;
+  border: 1px solid rgb(82 115 90 / 12%);
+  border-radius: 0.6rem;
+  background: rgb(255 255 255 / 58%);
+  padding: 0.85rem;
+}
+
+.watering-progress-row > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.watering-progress-row span {
+  color: #52735a;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.watering-progress-row strong {
+  color: #1d2b22;
+  font-size: 1.15rem;
+}
+
+.watering-progress-row p {
+  min-height: 1.15rem;
+  margin: 0;
+  color: #5f6f63;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.watering-progress-track {
+  overflow: hidden;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: rgb(82 115 90 / 12%);
+}
+
+.watering-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6cbbe6 0%, #6d9f75 100%);
+  transition: width 180ms ease;
+}
+
+.watering-guide-steps {
+  display: grid;
+  gap: 0.72rem;
+  margin: 0;
+  padding: 0;
+}
+
+.watering-guide-steps li {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: center;
+  list-style: none;
+}
+
+.watering-guide-steps strong,
+.watering-live-hint strong {
+  display: block;
+  color: #26372d;
+  font-size: 0.88rem;
+}
+
+.watering-guide-steps p,
+.watering-live-hint p {
+  margin: 0.16rem 0 0;
+  color: #5f6f63;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.watering-gesture-icon {
+  position: relative;
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 0.55rem;
+  background: #e5f0dd;
+  color: #52735a;
+}
+
+.watering-gesture-icon-fist span {
+  position: relative;
+  width: 1.12rem;
+  height: 1.05rem;
+  border-radius: 0.35rem 0.35rem 0.55rem 0.55rem;
+  background: currentColor;
+}
+
+.watering-gesture-icon-fist span::before {
+  content: "";
+  position: absolute;
+  left: -0.12rem;
+  top: -0.34rem;
+  width: 1.36rem;
+  height: 0.46rem;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      currentColor 0 21%,
+      transparent 21% 27%,
+      currentColor 27% 48%,
+      transparent 48% 54%,
+      currentColor 54% 75%,
+      transparent 75% 81%,
+      currentColor 81% 100%
+    );
+}
+
+.watering-gesture-icon-fist span::after {
+  content: "";
+  position: absolute;
+  right: -0.36rem;
+  top: 0.2rem;
+  width: 0.42rem;
+  height: 0.72rem;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(-24deg);
+}
+
+.watering-gesture-icon-twist::before {
+  content: "";
+  width: 1.34rem;
+  height: 1.34rem;
+  border: 0.18rem solid currentColor;
+  border-left-color: transparent;
+  border-radius: 999px;
+}
+
+.watering-gesture-icon-twist::after {
+  content: "";
+  position: absolute;
+  right: 0.52rem;
+  top: 0.58rem;
+  width: 0;
+  height: 0;
+  border-bottom: 0.38rem solid currentColor;
+  border-left: 0.3rem solid transparent;
+  border-right: 0.3rem solid transparent;
+  transform: rotate(42deg);
+}
+
+.watering-gesture-icon-return::before,
+.watering-gesture-icon-return::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+}
+
+.watering-gesture-icon-return::before {
+  width: 1.32rem;
+  height: 0.18rem;
+  background: currentColor;
+}
+
+.watering-gesture-icon-return::after {
+  right: 0.58rem;
+  width: 0.54rem;
+  height: 0.54rem;
+  border: 0.18rem solid currentColor;
+  border-left: 0;
+  border-bottom: 0;
+  transform: rotate(45deg);
+}
+
+.watering-live-hint {
+  border: 1px solid rgb(76 140 136 / 16%);
+  border-radius: 0.55rem;
+  background: rgb(231 245 243 / 72%);
+  padding: 0.72rem;
+}
+
+.watering-reward-panel {
+  width: min(100%, 52rem);
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  justify-items: center;
+  justify-self: center;
+  gap: 1rem;
+}
+
+.watering-reward-stage {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 40rem;
+  height: clamp(24rem, 56vh, 34rem);
+  min-height: 24rem;
+  border-radius: 0.65rem;
+  background:
+    radial-gradient(circle at 50% 36%, rgb(255 253 247 / 78%), transparent 13rem),
+    linear-gradient(180deg, #dfe9d9 0%, #cdbb9e 100%);
+  box-shadow:
+    inset 0 0 0 1px rgb(82 115 90 / 18%),
+    0 1rem 2.4rem rgb(72 93 72 / 16%);
+}
+
+.watering-reward-stage-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.watering-stage-fallback {
+  width: 100%;
+  height: 100%;
+  background: #f8efe2;
+}
+
+.watering-reward-stage-status {
+  position: absolute;
+  inset: auto 1rem 1rem;
+  border-radius: 0.5rem;
+  background: rgb(255 253 247 / 82%);
+  color: #52735a;
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.35;
+  padding: 0.65rem 0.75rem;
+  text-align: center;
+}
+
+.watering-reward-copy {
+  display: grid;
+  width: min(100%, 18rem);
+  justify-items: stretch;
+  text-align: center;
+}
+
+.watering-primary-link {
+  min-height: 2.85rem;
+  margin-top: 0.55rem;
+  background: #52735a;
+  color: #fffdf7;
+  padding: 0 1rem;
+}
+
 @keyframes flower-spin {
   from {
     rotate: 0deg;
@@ -830,10 +1829,29 @@ body {
   }
 }
 
+@keyframes watering-drop {
+  0% {
+    opacity: 0;
+    translate: 0 -0.6rem;
+    scale: 0.78;
+  }
+
+  25% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    translate: 0 8rem;
+    scale: 1.12;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .flower-loader,
   .flower-petal,
-  .loading-skeleton {
+  .loading-skeleton,
+  .watering-drop {
     animation: none;
   }
 }
