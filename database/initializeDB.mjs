@@ -75,6 +75,19 @@ const statements = [
   )
   `,
   `
+  CREATE TABLE IF NOT EXISTS user_bugs (
+    id TEXT PRIMARY KEY,
+    userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
+    bug_asset VARCHAR(120) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
+    CONSTRAINT user_bugs_asset_check CHECK (
+      bug_asset IN ('Bee.glb', 'Beetle.glb', 'Butterfly.glb', 'Dragonfly.glb', 'Ladybug.glb')
+    )
+  )
+  `,
+  "CREATE INDEX IF NOT EXISTS user_bugs_userid_created_idx ON user_bugs(userid, created_at ASC)",
+  `
   INSERT INTO users (userid, useremail, userpassword, display_name)
   VALUES
     ('shisa', 'shisa@a.com', '123456', 'Shisa')

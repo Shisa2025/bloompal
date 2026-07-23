@@ -1,14 +1,16 @@
 import { cookies } from "next/headers";
-import Link from "next/link";
 import DesktopOnly from "../components/DesktopOnly";
 import { logoutAction } from "./actions";
 import DashboardGardenClient from "./components/DashboardGardenClient";
+import DashboardGamingBoard from "./components/DashboardGamingBoard";
 import {
   getLatestUserPlant,
   getOwnedFlowerAssets,
   getTableFlowerAsset,
   type UserPlant,
 } from "@/database/plants";
+import { getUserBugs } from "@/database/bugs";
+import { getUserSnapshots } from "@/database/snapshots";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -20,12 +22,15 @@ export default async function DashboardPage() {
         getLatestUserPlant(userId),
         getOwnedFlowerAssets(userId),
         getTableFlowerAsset(userId),
+        getUserBugs(userId),
+        getUserSnapshots(userId),
       ])
     : null;
   const latestPlant = dashboardData?.[0] ?? null;
   const ownedFlowerAssets = dashboardData?.[1] ?? [];
   const tableFlowerAsset = dashboardData?.[2] ?? null;
-  const gameHref = userId ? "/games/watering" : "/login";
+  const caughtBugs = dashboardData?.[3] ?? [];
+  const snapshots = dashboardData?.[4] ?? [];
   const boardState = getBoardState(latestPlant, Boolean(userId));
 
   return (
@@ -34,6 +39,8 @@ export default async function DashboardPage() {
         <DashboardGardenClient
           ownedFlowerAssets={ownedFlowerAssets}
           tableFlowerAsset={tableFlowerAsset}
+          caughtBugs={caughtBugs}
+          snapshots={snapshots}
         />
 
         <header className="dashboard-topbar" aria-label="Dashboard account bar">
@@ -55,22 +62,7 @@ export default async function DashboardPage() {
           </div>
         </header>
 
-        <aside className="dashboard-gaming-board" aria-label="Gaming board">
-          <div className="dashboard-gaming-board-heading">
-            <p>Gaming Board</p>
-            <h2>Watering</h2>
-          </div>
-
-          <div className="dashboard-gaming-board-status">
-            <span>{boardState.label}</span>
-            <strong>{boardState.title}</strong>
-            <p>{boardState.description}</p>
-          </div>
-
-          <Link className="dashboard-game-button" href={gameHref}>
-            {userId ? "Start watering" : "Log in to play"}
-          </Link>
-        </aside>
+        <DashboardGamingBoard boardState={boardState} isSignedIn={Boolean(userId)} />
       </main>
     </DesktopOnly>
   );

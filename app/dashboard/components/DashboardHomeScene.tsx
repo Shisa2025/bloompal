@@ -13,6 +13,7 @@ import {
 import { prepareFlowerModelForDisplay } from "@/app/components/threejs/flowerModels";
 
 const maleModelUrl = "/meshes/characters/male.glb";
+const bugModelBaseUrl = "/meshes/bugs/";
 const flowerModelBaseUrl = "/meshes/flowers/";
 const characterFacingOffset = 0;
 
@@ -30,8 +31,18 @@ const characterLookTarget = new THREE.Vector3();
 const tablePotPosition = new THREE.Vector3(-3.12, 1.2, -3.35);
 
 type DashboardHomeSceneProps = {
+  caughtBugs?: DashboardBug[];
+  embedded?: boolean;
+  wallSnapshot?: { id: string; imageData: string } | null;
+  onSnapshotClick?: () => void;
   tableFlowerAsset?: string | null;
+  onBugClick?: (bugId: string) => void;
   onTablePotClick?: () => void;
+};
+
+type DashboardBug = {
+  id: string;
+  bugAsset: string;
 };
 
 function applyTransform(object: THREE.Object3D, transform: Transform = {}) {
@@ -261,6 +272,106 @@ function loadTableFlower({
   };
 }
 
+function addWallSnapshot({ parent, imageData }: { parent: THREE.Group; imageData?: string | null }) {
+  const frame = new THREE.Group();
+  frame.name = "dashboard-wall-snapshot";
+  frame.userData.isSnapshot = true;
+  // Hang the picture on the back wall, centred above the table rather than
+  // floating in the middle of the room.
+  frame.position.set(-2.55, 3.25, -5.91);
+  const frameMaterial = new THREE.MeshStandardMaterial({ color: "#8a5a32", roughness: 0.72 });
+  const photoMaterial = new THREE.MeshBasicMaterial({ color: "#edf1e8" });
+  if (imageData) {
+    new THREE.TextureLoader().load(imageData, (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      photoMaterial.map = texture;
+      photoMaterial.needsUpdate = true;
+    });
+  }
+  frame.add(
+    // The captured image is 480 × 270 (16:9), so keep the displayed photo
+    // and its surrounding frame in the same landscape proportion.
+    createBox([2.64, 1.485, 0.12], frameMaterial, { position: [0, 0, 0] }),
+    createMesh(new THREE.PlaneGeometry(2.38, 1.339), photoMaterial, { position: [0, 0, 0.071] }),
+  );
+  parent.add(frame);
+  return frame;
+}
+
+function loadOrbitingBugs({
+  parent,
+  caughtBugs,
+}: {
+  parent: THREE.Group;
+  caughtBugs: DashboardBug[];
+}) {
+  const loader = new GLTFLoader();
+  const entries = caughtBugs.map((bug, index) => {
+    const root = new THREE.Group();
+    root.name = `dashboard-bug-${bug.id}`;
+    root.userData.bugId = bug.id;
+    parent.add(root);
+    return { root, index, bug };
+  });
+  let disposed = false;
+
+  entries.forEach(({ root, bug }) => {
+    loader.load(
+      `${bugModelBaseUrl}${bug.bugAsset}`,
+      (gltf) => {
+        if (disposed) {
+          disposeObject3D(gltf.scene);
+          return;
+        }
+
+        const model = gltf.scene;
+        const modelRoot = new THREE.Group();
+        const bounds = new THREE.Box3().setFromObject(model);
+        const size = bounds.getSize(new THREE.Vector3());
+        const centre = bounds.getCenter(new THREE.Vector3());
+        const scale = 0.46 / Math.max(size.x, size.y, size.z, 0.001);
+
+        model.position.sub(centre);
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        modelRoot.add(model);
+        modelRoot.scale.setScalar(scale);
+        root.add(modelRoot);
+      },
+      undefined,
+      (error) => console.error("Failed to load dashboard bug.", error),
+    );
+  });
+
+  return {
+    objects: entries.map((entry) => entry.root),
+    update: (elapsed: number) => {
+      entries.forEach(({ root, index }) => {
+        const angle = elapsed * 0.42 + index * ((Math.PI * 2) / Math.max(entries.length, 1));
+        const radius = 0.98;
+        root.position.set(
+          characterPosition.x + Math.cos(angle) * radius,
+          1.22 + Math.sin(elapsed * 1.35 + index * 0.8) * 0.07,
+          characterPosition.z + Math.sin(angle) * radius * 0.54,
+        );
+        // Turn on the ground plane only. `lookAt` can roll an object while it
+        // crosses behind its target, which made some bug models flip upside down.
+        const directionX = characterPosition.x - root.position.x;
+        const directionZ = characterPosition.z - root.position.z;
+        root.rotation.set(0, Math.atan2(directionX, directionZ), 0);
+      });
+    },
+    dispose: () => {
+      disposed = true;
+      entries.forEach(({ root }) => parent.remove(root));
+    },
+  };
+}
+
 function frameCharacterModel(model: THREE.Object3D) {
   const sourceBox = new THREE.Box3().setFromObject(model);
   const sourceSize = sourceBox.getSize(new THREE.Vector3());
@@ -414,7 +525,12 @@ function createMaterials() {
 }
 
 export default function DashboardHomeScene({
+  caughtBugs = [],
+  embedded = false,
+  wallSnapshot = null,
+  onSnapshotClick,
   tableFlowerAsset = null,
+  onBugClick,
   onTablePotClick,
 }: DashboardHomeSceneProps) {
   const setup = useCallback((context: ThreeStageContext) => {
@@ -452,7 +568,9 @@ export default function DashboardHomeScene({
     addRoom(root, materials);
     addFurniture(root, materials);
     const tablePot = addTablePot({ parent: root, materials, tableFlowerAsset });
+    const mountedWallSnapshot = addWallSnapshot({ parent: root, imageData: wallSnapshot?.imageData });
     const maleCharacter = loadMaleCharacter({ camera, root, mixers });
+    const orbitingBugs = loadOrbitingBugs({ parent: root, caughtBugs });
 
     const readPointer = (event: PointerEvent) => {
       const bounds = renderer.domElement.getBoundingClientRect();
@@ -466,24 +584,54 @@ export default function DashboardHomeScene({
 
       return raycaster.intersectObject(tablePot.object, true).length > 0;
     };
+    const isSnapshotHit = () => raycaster.intersectObject(mountedWallSnapshot, true).length > 0;
+
+    const getBugHit = () => {
+      const intersections = raycaster.intersectObjects(orbitingBugs.objects, true);
+
+      for (const intersection of intersections) {
+        let object: THREE.Object3D | null = intersection.object;
+
+        while (object) {
+          const bugId = object.userData.bugId as string | undefined;
+          if (bugId) return bugId;
+          object = object.parent;
+        }
+      }
+
+      return null;
+    };
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!onTablePotClick) {
+      if (!onTablePotClick && !onBugClick && !onSnapshotClick) {
         return;
       }
 
       readPointer(event);
-      renderer.domElement.style.cursor = isTablePotHit() ? "pointer" : "";
+      renderer.domElement.style.cursor = getBugHit() || (onTablePotClick && isTablePotHit()) || (onSnapshotClick && isSnapshotHit()) ? "pointer" : "";
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if (!onTablePotClick) {
+      if (!onTablePotClick && !onBugClick && !onSnapshotClick) {
         return;
       }
 
       readPointer(event);
 
-      if (!isTablePotHit()) {
+      const bugId = getBugHit();
+      if (bugId && onBugClick) {
+        event.preventDefault();
+        onBugClick(bugId);
+        return;
+      }
+
+      if (onSnapshotClick && isSnapshotHit()) {
+        event.preventDefault();
+        onSnapshotClick();
+        return;
+      }
+
+      if (!onTablePotClick || !isTablePotHit()) {
         return;
       }
 
@@ -512,6 +660,7 @@ export default function DashboardHomeScene({
       camera.lookAt(cameraTarget);
       maleCharacter.face();
       mixers.forEach((mixer) => mixer.update(delta));
+      orbitingBugs.update(elapsed);
     };
 
     return {
@@ -519,6 +668,7 @@ export default function DashboardHomeScene({
       onResize,
       dispose: () => {
         maleCharacter.dispose();
+        orbitingBugs.dispose();
         tablePot.dispose();
         renderer.domElement.removeEventListener("pointermove", onPointerMove);
         renderer.domElement.removeEventListener("pointerdown", onPointerDown);
@@ -526,13 +676,14 @@ export default function DashboardHomeScene({
         disposeObject3D(root);
       },
     };
-  }, [onTablePotClick, tableFlowerAsset]);
+  }, [caughtBugs, onBugClick, onSnapshotClick, onTablePotClick, tableFlowerAsset, wallSnapshot]);
 
   return (
     <div
       className={[
         "dashboard-three-layer",
-        onTablePotClick ? "dashboard-three-layer-interactive" : "",
+        embedded ? "dashboard-three-layer-embedded" : "",
+        onTablePotClick || onBugClick || onSnapshotClick ? "dashboard-three-layer-interactive" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -541,6 +692,7 @@ export default function DashboardHomeScene({
       <ThreeStage
         className="dashboard-three-stage"
         setup={setup}
+        preserveDrawingBuffer={embedded}
         fallback={<div className="dashboard-three-fallback" />}
       />
     </div>

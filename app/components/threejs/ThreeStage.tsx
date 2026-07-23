@@ -34,6 +34,7 @@ export type ThreeStageProps = {
   className?: string;
   fallback?: ReactNode;
   ariaLabel?: string;
+  preserveDrawingBuffer?: boolean;
 };
 
 const textureKeys = [
@@ -101,6 +102,7 @@ export default function ThreeStage({
   className,
   fallback,
   ariaLabel,
+  preserveDrawingBuffer = false,
 }: ThreeStageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -138,6 +140,7 @@ export default function ThreeStage({
       alpha: true,
       antialias: true,
       powerPreference: "high-performance",
+      preserveDrawingBuffer,
     });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
@@ -243,7 +246,7 @@ export default function ThreeStage({
         renderer.domElement.remove();
       }
     };
-  }, [setup]);
+  }, [preserveDrawingBuffer, setup]);
 
   return (
     <div
