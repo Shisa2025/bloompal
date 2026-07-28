@@ -2,10 +2,31 @@ import "server-only";
 
 import { neon } from "@neondatabase/serverless";
 
-const databaseUrl = process.env.NEONDBAPIKEY;
+type SqlClient = ReturnType<typeof neon>;
 
-if (!databaseUrl) {
-  throw new Error("Missing NEONDBAPIKEY in .env.local.");
+let cachedSql: SqlClient | null = null;
+
+export function getSql(): SqlClient {
+  if (cachedSql) {
+    return cachedSql;
+  }
+
+  const databaseUrl = process.env.NEONDBAPIKEY;
+
+  if (!databaseUrl) {
+    throw new Error("Missing NEONDBAPIKEY in .env.local.");
+  }
+
+  cachedSql = neon(databaseUrl);
+  return cachedSql;
 }
 
-export const sql = neon(databaseUrl);
+const lazySql = ((strings: TemplateStringsArray, ...values: unknown[]) =>
+  getSql()(strings, ...values)) as SqlClient;
+
+export const sql = new Proxy(lazySql, {
+  get(_target, property, receiver) {
+    const value = Reflect.get(getSql(), property, receiver);
+    return typeof value === "function" ? value.bind(getSql()) : value;
+  },
+});

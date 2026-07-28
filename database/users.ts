@@ -1,6 +1,6 @@
 import "server-only";
 
-import { sql } from "./connection";
+import { getSql } from "./connection";
 
 export type LoginMode = "userid" | "useremail";
 
@@ -35,6 +35,7 @@ export async function createUser({
   const userid = normalizedEmail.split("@")[0];
 
   try {
+    const sql = getSql();
     const rows = (await sql.query(
       `
       INSERT INTO users (userid, useremail, userpassword, display_name)
@@ -76,6 +77,7 @@ export async function verifyUserLogin({
     return null;
   }
 
+  const sql = getSql();
   const rows = (await sql.query(
     mode === "useremail"
       ? `
