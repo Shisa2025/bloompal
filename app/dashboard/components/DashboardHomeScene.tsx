@@ -27,6 +27,7 @@ type Transform = {
 
 const cameraTarget = new THREE.Vector3(0, 1.7, -2.6);
 const characterPosition = new THREE.Vector3(0.2, 0, 1.25);
+const snapshotCameraTarget = new THREE.Vector3(characterPosition.x, 1.55, characterPosition.z);
 const characterLookTarget = new THREE.Vector3();
 const tablePotPosition = new THREE.Vector3(-3.12, 1.2, -3.35);
 
@@ -538,21 +539,31 @@ export default function DashboardHomeScene({
     const root = new THREE.Group();
     const materials = createMaterials();
     const mixers: THREE.AnimationMixer[] = [];
-    const cameraBase = new THREE.Vector3(0, 3.2, 8.25);
+    const viewTarget = embedded ? snapshotCameraTarget : cameraTarget;
+    const cameraBase = embedded
+      ? new THREE.Vector3(characterPosition.x, 3.35, 12.4)
+      : new THREE.Vector3(0, 3.2, 8.25);
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
 
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = embedded ? 0.82 : 1.05;
     scene.background = new THREE.Color("#f7ead7");
     scene.fog = new THREE.Fog("#f7ead7", 11, 21);
     scene.add(root);
 
     camera.position.copy(cameraBase);
-    camera.lookAt(cameraTarget);
+    camera.lookAt(viewTarget);
 
-    const hemisphereLight = new THREE.HemisphereLight("#fff7e6", "#8c735e", 1.2);
-    const windowLight = new THREE.DirectionalLight("#fff1c9", 3.6);
+    const hemisphereLight = new THREE.HemisphereLight(
+      "#fff7e6",
+      "#8c735e",
+      embedded ? 0.9 : 1.2,
+    );
+    const windowLight = new THREE.DirectionalLight(
+      "#fff1c9",
+      embedded ? 2.25 : 3.6,
+    );
 
     windowLight.position.set(3.8, 6.2, 2.3);
     windowLight.castShadow = true;
@@ -645,10 +656,14 @@ export default function DashboardHomeScene({
     const onResize = ({ width, height }: ThreeStageResize) => {
       const compact = width / height < 1.35;
 
-      camera.fov = compact ? 43 : 38;
-      cameraBase.set(0, compact ? 3.45 : 3.2, compact ? 9.5 : 8.25);
+      camera.fov = embedded ? (compact ? 48 : 44) : (compact ? 43 : 38);
+      if (embedded) {
+        cameraBase.set(characterPosition.x, compact ? 3.55 : 3.35, compact ? 13.2 : 12.4);
+      } else {
+        cameraBase.set(0, compact ? 3.45 : 3.2, compact ? 9.5 : 8.25);
+      }
       camera.position.copy(cameraBase);
-      camera.lookAt(cameraTarget);
+      camera.lookAt(viewTarget);
       camera.updateProjectionMatrix();
       maleCharacter.face();
     };
@@ -657,7 +672,7 @@ export default function DashboardHomeScene({
       const cameraDrift = Math.sin(elapsed * 0.18) * 0.12;
 
       camera.position.set(cameraBase.x + cameraDrift, cameraBase.y, cameraBase.z);
-      camera.lookAt(cameraTarget);
+      camera.lookAt(viewTarget);
       maleCharacter.face();
       mixers.forEach((mixer) => mixer.update(delta));
       orbitingBugs.update(elapsed);
@@ -676,7 +691,7 @@ export default function DashboardHomeScene({
         disposeObject3D(root);
       },
     };
-  }, [caughtBugs, onBugClick, onSnapshotClick, onTablePotClick, tableFlowerAsset, wallSnapshot]);
+  }, [caughtBugs, embedded, onBugClick, onSnapshotClick, onTablePotClick, tableFlowerAsset, wallSnapshot]);
 
   return (
     <div

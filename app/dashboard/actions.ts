@@ -8,7 +8,7 @@ import {
   setTableFlowerAsset as saveTableFlowerAsset,
 } from "@/database/plants";
 import { deleteUserBug as removeUserBug, setActiveUserBug } from "@/database/bugs";
-import { setActiveUserSnapshot } from "@/database/snapshots";
+import { deleteUserSnapshot as removeUserSnapshot, setActiveUserSnapshot } from "@/database/snapshots";
 
 export type TableFlowerActionResult =
   | { ok: true; tableFlowerAsset: string | null }
@@ -83,6 +83,17 @@ export async function setActiveSnapshot(snapshotId: string): Promise<{ ok: true 
   const userid = (await cookies()).get("bloompal_user_id")?.value.trim();
   if (!userid) return { ok: false, error: "Please log in before choosing a snapshot." };
   if (!(await setActiveUserSnapshot({ userid, snapshotId }))) return { ok: false, error: "That snapshot could not be found." };
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export async function deleteUserSnapshot(snapshotId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const userid = (await cookies()).get("bloompal_user_id")?.value.trim();
+  if (!userid) return { ok: false, error: "Please log in before deleting a snapshot." };
+  if (!snapshotId) return { ok: false, error: "That snapshot could not be found." };
+  if (!(await removeUserSnapshot({ userid, snapshotId }))) {
+    return { ok: false, error: "That snapshot is no longer in your garden." };
+  }
   revalidatePath("/dashboard");
   return { ok: true };
 }

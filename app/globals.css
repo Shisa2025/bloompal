@@ -386,6 +386,38 @@ body {
   outline-offset: 0.15rem;
 }
 
+.login-admin-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid rgb(82 115 90 / 14%);
+  color: #6b786e;
+  font-size: 0.82rem;
+  padding-top: 1rem;
+}
+
+.login-admin-entry a {
+  border: 1px solid rgb(82 115 90 / 22%);
+  border-radius: 0.5rem;
+  background: #f4f7f1;
+  color: #405d48;
+  font-weight: 700;
+  padding: 0.62rem 0.78rem;
+  text-decoration: none;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.login-admin-entry a:hover {
+  border-color: rgb(82 115 90 / 36%);
+  background: #eaf2e7;
+}
+
+.login-admin-entry a:focus-visible {
+  outline: 0.25rem solid rgb(107 155 116 / 26%);
+  outline-offset: 0.15rem;
+}
+
 .cute-garden {
   position: relative;
   min-height: 23rem;
@@ -1568,6 +1600,63 @@ body {
   border-radius: 0.25rem;
   background: #edf1e8;
   object-fit: cover;
+}
+
+.dashboard-snapshot-option {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  cursor: default;
+}
+
+.dashboard-snapshot-select {
+  display: grid;
+  width: 100%;
+  gap: 0.45rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.8rem 0.8rem 0.65rem;
+  text-align: left;
+}
+
+.dashboard-snapshot-select:disabled,
+.dashboard-snapshot-delete:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.dashboard-snapshot-select > span {
+  color: #5f6f63;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.dashboard-snapshot-select:focus-visible,
+.dashboard-snapshot-delete:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 0.25rem solid rgb(107 155 116 / 26%);
+  outline-offset: -0.2rem;
+}
+
+.dashboard-snapshot-delete {
+  width: 100%;
+  min-height: 2.35rem;
+  border: 0;
+  border-top: 1px solid rgb(157 55 66 / 16%);
+  background: rgb(157 55 66 / 7%);
+  color: #9d3742;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.dashboard-snapshot-delete:hover:not(:disabled) {
+  background: rgb(157 55 66 / 13%);
 }
 
 .dashboard-bug-delete {

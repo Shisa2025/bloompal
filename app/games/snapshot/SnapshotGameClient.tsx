@@ -98,7 +98,7 @@ export default function SnapshotGameClient({
         setSnapshotError("Could not capture the garden scene.");
         return;
       }
-      context.drawImage(sourceCanvas, 0, 0, snapshotCanvas.width, snapshotCanvas.height);
+      drawCanvasCover(context, sourceCanvas, snapshotCanvas.width, snapshotCanvas.height);
       void saveGardenSnapshot(snapshotCanvas.toDataURL("image/jpeg", 0.76)).then((result) => {
         if (!result.ok) { setSnapshotError(result.error); return; }
         setSnapshotTaken(true);
@@ -204,6 +204,40 @@ export default function SnapshotGameClient({
         </div>
       </section>
     </div>
+  );
+}
+
+function drawCanvasCover(
+  context: CanvasRenderingContext2D,
+  source: HTMLCanvasElement,
+  targetWidth: number,
+  targetHeight: number,
+) {
+  const sourceAspect = source.width / source.height;
+  const targetAspect = targetWidth / targetHeight;
+  let sourceWidth = source.width;
+  let sourceHeight = source.height;
+  let sourceX = 0;
+  let sourceY = 0;
+
+  if (sourceAspect > targetAspect) {
+    sourceWidth = source.height * targetAspect;
+    sourceX = (source.width - sourceWidth) / 2;
+  } else if (sourceAspect < targetAspect) {
+    sourceHeight = source.width / targetAspect;
+    sourceY = (source.height - sourceHeight) / 2;
+  }
+
+  context.drawImage(
+    source,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
+    0,
+    0,
+    targetWidth,
+    targetHeight,
   );
 }
 

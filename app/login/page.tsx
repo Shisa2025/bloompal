@@ -170,6 +170,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                   Create an account
                 </Link>
               </p>
+
+              <div className="login-admin-entry">
+                <span>Staff access</span>
+                <Link href="/admin/dashboard">Admin Board Demo</Link>
+              </div>
             </form>
           </section>
         </main>

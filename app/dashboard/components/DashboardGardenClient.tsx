@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
-import { deleteUserBug, setActiveBug, setActiveSnapshot, setTableFlowerAsset } from "../actions";
+import { deleteUserBug, deleteUserSnapshot, setActiveBug, setActiveSnapshot, setTableFlowerAsset } from "../actions";
 import DashboardHomeScene from "./DashboardHomeScene";
 
 type DashboardGardenClientProps = {
@@ -113,6 +113,16 @@ export default function DashboardGardenClient({
       const result = await setActiveSnapshot(snapshotId);
       if (!result.ok) { setActionError(result.error); return; }
       setIsSnapshotSelectorOpen(false);
+      router.refresh();
+    });
+  }, [router]);
+
+  const removeSnapshot = useCallback((snapshotId: string) => {
+    if (!window.confirm("Delete this snapshot permanently?")) return;
+    setActionError(null);
+    startTransition(async () => {
+      const result = await deleteUserSnapshot(snapshotId);
+      if (!result.ok) { setActionError(result.error); return; }
       router.refresh();
     });
   }, [router]);
@@ -289,11 +299,14 @@ export default function DashboardGardenClient({
           <section className="dashboard-table-flower-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboard-snapshot-selector-title">
             <div className="dashboard-table-flower-heading"><p>Garden memories</p><h2 id="dashboard-snapshot-selector-title">Choose a snapshot</h2></div>
             <div className="dashboard-table-flower-grid">
-              {snapshots.map((snapshot, index) => <button className={["dashboard-table-flower-option", snapshot.isActive ? "is-selected" : ""].filter(Boolean).join(" ")} disabled={isPending} key={snapshot.id} type="button" onClick={() => chooseSnapshot(snapshot.id)}>
-                <Image className="dashboard-snapshot-thumbnail" src={snapshot.imageData} alt="Garden snapshot" width={480} height={270} unoptimized />
-                <strong>Snapshot {snapshots.length - index}</strong>
-                <span>{snapshot.isActive ? "On the wall" : "Choose snapshot"}</span>
-              </button>)}
+              {snapshots.map((snapshot, index) => <div className={["dashboard-table-flower-option", "dashboard-snapshot-option", snapshot.isActive ? "is-selected" : ""].filter(Boolean).join(" ")} key={snapshot.id}>
+                <button className="dashboard-snapshot-select" disabled={isPending} type="button" onClick={() => chooseSnapshot(snapshot.id)}>
+                  <Image className="dashboard-snapshot-thumbnail" src={snapshot.imageData} alt={`Garden snapshot ${snapshots.length - index}`} width={480} height={270} unoptimized />
+                  <strong>Snapshot {snapshots.length - index}</strong>
+                  <span>{snapshot.isActive ? "On the wall" : "Choose snapshot"}</span>
+                </button>
+                <button className="dashboard-snapshot-delete" disabled={isPending} type="button" onClick={() => removeSnapshot(snapshot.id)} aria-label={`Delete snapshot ${snapshots.length - index}`}>Delete</button>
+              </div>)}
             </div>
             {actionError ? <p className="dashboard-table-flower-error">{actionError}</p> : null}
             <div className="dashboard-table-flower-actions"><button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setIsSnapshotSelectorOpen(false)}>Close</button></div>

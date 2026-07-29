@@ -28,6 +28,15 @@ export async function setActiveUserSnapshot({ userid, snapshotId }: { userid: st
   return true;
 }
 
+export async function deleteUserSnapshot({ userid, snapshotId }: { userid: string; snapshotId: string }) {
+  await ensureTable();
+  const rows = await sql.query(
+    "DELETE FROM user_snapshots WHERE id = $1 AND userid = $2 RETURNING id",
+    [snapshotId, userid],
+  ) as { id: string }[];
+  return Boolean(rows[0]);
+}
+
 function ensureTable() {
   if (!tableReady) tableReady = (async () => {
     await sql.query("CREATE TABLE IF NOT EXISTS user_snapshots (id TEXT PRIMARY KEY, userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE, image_data TEXT NOT NULL, is_active BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
