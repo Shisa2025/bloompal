@@ -75,12 +75,21 @@ export default function WateringGameClient({
   const countsRef = useRef<WaterCounts>(emptyCounts);
   const burstIdRef = useRef(0);
   const completingRef = useRef(false);
+  const sessionIdRef = useRef("");
+  const runStartedAtRef = useRef(0);
   const lastSignalUiAtRef = useRef(0);
   const cyclesRef = useRef<Record<MotionSide, HandCycle>>({
     left: createHandCycle(),
     right: createHandCycle(),
   });
   const seedOrder = useMemo(() => shuffleSeeds([...seedKeys]), []);
+
+  useEffect(() => {
+    if (!sessionIdRef.current) {
+      sessionIdRef.current = crypto.randomUUID();
+      runStartedAtRef.current = Date.now();
+    }
+  }, []);
 
   useEffect(() => {
     countsRef.current = counts;
@@ -97,6 +106,8 @@ export default function WateringGameClient({
     setSignals(emptySignals);
     setBursts([]);
     setActionError(null);
+    sessionIdRef.current = crypto.randomUUID();
+    runStartedAtRef.current = Date.now();
   }, []);
 
   const addWaterBurst = useCallback((side: MotionSide) => {
@@ -194,7 +205,16 @@ export default function WateringGameClient({
     setPhase("completing");
     setActionError(null);
 
-    const result = await completeWateringRun(plant.id);
+    if (!sessionIdRef.current) {
+      sessionIdRef.current = crypto.randomUUID();
+      runStartedAtRef.current = Date.now();
+    }
+    const result = await completeWateringRun(plant.id, {
+      sessionId: sessionIdRef.current,
+      durationSeconds: (Date.now() - runStartedAtRef.current) / 1000,
+      leftRepetitions: countsRef.current.left,
+      rightRepetitions: countsRef.current.right,
+    });
 
     if (!result.ok) {
       completingRef.current = false;

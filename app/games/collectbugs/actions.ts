@@ -1,25 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
-import { addUserBug, isBugAsset } from "@/database/bugs";
+import { addUserBugWithSession, isBugAsset } from "@/database/bugs";
+import { requireUser } from "@/lib/auth";
+import { validBugMetrics, type GameCompletionMetrics } from "@/lib/game-metrics";
 
-export type CompleteBugHuntResult =
-  | { ok: true }
-  | { ok: false; error: string };
+export type CompleteBugHuntResult = { ok: true } | { ok: false; error: string };
+export type BugCompletionInput = GameCompletionMetrics;
 
-export async function completeBugHunt(bugAsset: string): Promise<CompleteBugHuntResult> {
-  const cookieStore = await cookies();
-  const userid = cookieStore.get("bloompal_user_id")?.value.trim();
-
-  if (!userid) return { ok: false, error: "Please log in before saving a bug." };
+export async function completeBugHunt(bugAsset: string, metrics: BugCompletionInput): Promise<CompleteBugHuntResult> {
+  const { userid } = await requireUser();
   if (!isBugAsset(bugAsset)) return { ok: false, error: "That bug is not available." };
-
-  const bug = await addUserBug({ userid, bugAsset });
-  if (!bug) return { ok: false, error: "Could not save your caught bug." };
-
-  revalidatePath("/dashboard");
-  revalidatePath("/games/collectbugs");
-
+  if (!validBugMetrics(metrics)) return { ok: false, error: "The completed motion result is invalid." };
+  const saved = await addUserBugWithSession({ userid, bugAsset, metrics });
+  if (!saved) return { ok: false, error: "Could not save your caught bug." };
+  revalidatePath("/dashboard"); revalidatePath("/games/collectbugs"); revalidatePath("/admin/dashboard");
   return { ok: true };
 }

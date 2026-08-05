@@ -289,6 +289,69 @@ body {
   padding: 1.35rem;
 }
 
+.login-account-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin: -0.65rem 0 1rem;
+  border-radius: 0.65rem;
+  background: #edf2ec;
+  padding: 0.3rem;
+}
+
+.login-account-tabs a {
+  border-radius: 0.45rem;
+  color: #64736a;
+  font-size: 0.9rem;
+  font-weight: 750;
+  padding: 0.7rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.login-account-tabs a.is-active {
+  background: #fff;
+  color: #365a43;
+  box-shadow: 0 0.2rem 0.8rem rgb(60 86 67 / 10%);
+}
+
+.signup-card {
+  width: min(100%, 34rem);
+  border: 1px solid rgb(82 115 90 / 16%);
+  border-radius: 0.75rem;
+  background: rgb(255 255 255 / 90%);
+  box-shadow: 0 1.5rem 4rem rgb(72 93 72 / 12%);
+  padding: 2rem;
+}
+
+.signup-card .login-heading h1 {
+  margin-top: 0.7rem;
+  font-size: 2rem;
+  line-height: 1.15;
+}
+
+.signup-field {
+  display: grid;
+  gap: 0.45rem;
+  color: #304536;
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.signup-field small {
+  color: #718078;
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+
+.account-form-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  background: #f7f8f2;
+  padding: 2rem;
+}
+
 .login-input {
   width: 100%;
   border: 1px solid rgb(82 115 90 / 22%);
@@ -811,6 +874,7 @@ body {
   font-weight: 800;
   line-height: 1;
   padding: 0.78rem 1rem;
+  text-decoration: none;
   transition:
     background-color 160ms ease,
     transform 160ms ease,

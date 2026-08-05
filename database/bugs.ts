@@ -1,7 +1,9 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import { sql } from "./connection";
+import { sql, withTransaction } from "./connection";
+import { insertCompletedSession, isCompletedSessionReplay } from "./game-sessions";
+import type { GameCompletionMetrics } from "@/lib/game-metrics";
 
 export const bugAssets = [
   "Bee.glb",
@@ -45,16 +47,39 @@ export async function getUserBugs(userid: string): Promise<UserBug[]> {
   return rows.map(toUserBug).filter((bug): bug is UserBug => Boolean(bug));
 }
 
-export async function addUserBug({ userid, bugAsset }: { userid: string; bugAsset: BugAsset }): Promise<UserBug | null> {
-  await ensureBugsTable();
-  // A fresh win always becomes the companion shown in the garden.
-  await sql.query("UPDATE user_bugs SET is_active = FALSE WHERE userid = $1", [userid]);
-  const rows = (await sql.query(
-    `INSERT INTO user_bugs (id, userid, bug_asset, is_active) VALUES ($1, $2, $3, TRUE) RETURNING id, userid, bug_asset, created_at, is_active`,
-    [randomUUID(), userid, bugAsset],
-  )) as UserBugRow[];
+export async function addUserBugWithSession({
+  userid,
+  bugAsset,
+  metrics,
+}: {
+  userid: string;
+  bugAsset: BugAsset;
+  metrics: GameCompletionMetrics;
+}) {
+  return withTransaction(async (client) => {
+    if (await isCompletedSessionReplay(client, userid, metrics.sessionId, "collect_bugs")) return true;
 
-  return toUserBug(rows[0]);
+    await client.query("UPDATE user_bugs SET is_active = FALSE WHERE userid = $1", [userid]);
+    const bugId = randomUUID();
+    const rows = await client.query<{ id: string }>(
+      `
+      INSERT INTO user_bugs (id, userid, bug_asset, is_active)
+      VALUES ($1, $2, $3, TRUE) RETURNING id
+      `,
+      [bugId, userid, bugAsset],
+    );
+    if (!rows[0]) return false;
+
+    await insertCompletedSession({
+      client,
+      userid,
+      activityType: "collect_bugs",
+      metrics,
+      sourceRecordId: bugId,
+      metadata: { bugId, bugAsset },
+    });
+    return true;
+  });
 }
 
 export async function deleteUserBug({ userid, bugId }: { userid: string; bugId: string }): Promise<boolean> {

@@ -1,17 +1,11 @@
-import { cookies } from "next/headers";
-import { redirect, RedirectType } from "next/navigation";
 import DesktopOnly from "../../components/DesktopOnly";
 import CollectBugsGameClient from "./CollectBugsGameClient";
+import { requireUser } from "@/lib/auth";
 
 const bugAssets = ["Bee.glb", "Beetle.glb", "Butterfly.glb", "Dragonfly.glb", "Ladybug.glb"] as const;
 
 export default async function CollectBugsPage() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("bloompal_user_id")?.value.trim();
-
-  if (!userId) {
-    redirect("/login", RedirectType.replace);
-  }
+  await requireUser();
 
   const mysteryBugs = getRandomMysteryBugs();
 

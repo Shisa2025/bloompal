@@ -1,112 +1,32 @@
 import nextEnv from "@next/env";
-import { neon } from "@neondatabase/serverless";
+import pg from "pg";
+import { getDatabasePoolConfig } from "./pool-config.mjs";
 
 const { loadEnvConfig } = nextEnv;
+const { Pool } = pg;
 
 loadEnvConfig(process.cwd());
 
-const databaseUrl = process.env.NEONDBAPIKEY;
-
-if (!databaseUrl) {
-  throw new Error("Missing NEONDBAPIKEY in .env.local.");
-}
-
-const sql = neon(databaseUrl);
-
-const tableRows = await sql.query(`
-  SELECT schemaname, tablename
-  FROM pg_tables
-  WHERE schemaname = 'public'
-  ORDER BY tablename
-`);
-
-for (const table of tableRows) {
-  await sql.query(
-    `DROP TABLE IF EXISTS ${quoteIdentifier(table.schemaname)}.${quoteIdentifier(
-      table.tablename,
-    )} CASCADE`,
+if (process.env.ALLOW_DATABASE_RESET !== "yes-reset-bloompal") {
+  throw new Error(
+    "Database reset refused. Set ALLOW_DATABASE_RESET=yes-reset-bloompal only for a disposable development database.",
   );
 }
 
-const statements = [
-  `
-  CREATE TABLE IF NOT EXISTS users (
-    userid VARCHAR(120) PRIMARY KEY,
-    useremail VARCHAR(255) NOT NULL UNIQUE,
-    userpassword TEXT NOT NULL,
-    display_name VARCHAR(120),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )
-  `,
-  "CREATE INDEX IF NOT EXISTS users_useremail_idx ON users(useremail)",
-  `
-  CREATE TABLE IF NOT EXISTS user_plants (
-    id TEXT PRIMARY KEY,
-    userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
-    seed_key VARCHAR(40) NOT NULL,
-    status VARCHAR(24) NOT NULL DEFAULT 'selected',
-    left_water_count INTEGER NOT NULL DEFAULT 0,
-    right_water_count INTEGER NOT NULL DEFAULT 0,
-    flower_asset VARCHAR(120),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    completed_at TIMESTAMPTZ,
-    CONSTRAINT user_plants_status_check CHECK (status IN ('selected', 'completed')),
-    CONSTRAINT user_plants_seed_key_check CHECK (
-      seed_key IN ('mystery-a', 'mystery-b', 'mystery-c')
-    )
-  )
-  `,
-  `
-  CREATE UNIQUE INDEX IF NOT EXISTS user_plants_one_selected_idx
-  ON user_plants(userid)
-  WHERE status = 'selected'
-  `,
-  `
-  CREATE INDEX IF NOT EXISTS user_plants_userid_updated_idx
-  ON user_plants(userid, updated_at DESC)
-  `,
-  `
-  CREATE TABLE IF NOT EXISTS user_dashboard_settings (
-    userid VARCHAR(120) PRIMARY KEY REFERENCES users(userid) ON DELETE CASCADE,
-    table_flower_asset VARCHAR(120),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )
-  `,
-  `
-  CREATE TABLE IF NOT EXISTS user_bugs (
-    id TEXT PRIMARY KEY,
-    userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
-    bug_asset VARCHAR(120) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    is_active BOOLEAN NOT NULL DEFAULT FALSE,
-    CONSTRAINT user_bugs_asset_check CHECK (
-      bug_asset IN ('Bee.glb', 'Beetle.glb', 'Butterfly.glb', 'Dragonfly.glb', 'Ladybug.glb')
-    )
-  )
-  `,
-  "CREATE INDEX IF NOT EXISTS user_bugs_userid_created_idx ON user_bugs(userid, created_at ASC)",
-  `
-  INSERT INTO users (userid, useremail, userpassword, display_name)
-  VALUES
-    ('shisa', 'shisa@a.com', '123456', 'Shisa')
-  ON CONFLICT (userid) DO UPDATE
-  SET
-    useremail = EXCLUDED.useremail,
-    userpassword = EXCLUDED.userpassword,
-    display_name = EXCLUDED.display_name,
-    updated_at = NOW()
-  `,
-];
+const databaseUrl = process.env.DATABASE_URL ?? process.env.NEONDBAPIKEY;
+if (!databaseUrl) throw new Error("Missing DATABASE_URL (or legacy NEONDBAPIKEY).");
+const pool = new Pool(getDatabasePoolConfig(databaseUrl));
+const tables = await pool.query(`
+  SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename
+`);
 
-for (const statement of statements) {
-  await sql.query(statement);
+for (const { tablename } of tables.rows) {
+  await pool.query(`DROP TABLE IF EXISTS public.${quoteIdentifier(tablename)} CASCADE`);
 }
+await pool.end();
 
-console.log(
-  `Deleted ${tableRows.length} existing table(s). User database initialized.`,
-);
+console.log(`Dropped ${tables.rowCount} development table(s). Rebuilding...`);
+await import("./migrate.mjs");
 
 function quoteIdentifier(value) {
   return `"${String(value).replaceAll('"', '""')}"`;

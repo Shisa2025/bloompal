@@ -1,5 +1,5 @@
-import { cookies } from "next/headers";
 import DesktopOnly from "../components/DesktopOnly";
+import Link from "next/link";
 import { logoutAction } from "./actions";
 import DashboardGardenClient from "./components/DashboardGardenClient";
 import DashboardGamingBoard from "./components/DashboardGamingBoard";
@@ -11,27 +11,19 @@ import {
 } from "@/database/plants";
 import { getUserBugs } from "@/database/bugs";
 import { getUserSnapshots } from "@/database/snapshots";
+import { requireUser } from "@/lib/auth";
 
 export default async function DashboardPage() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("bloompal_user_id")?.value.trim();
-  const displayName = cookieStore.get("bloompal_display_name")?.value.trim();
-  const userName = displayName || userId || "Guest";
-  const dashboardData = userId
-    ? await Promise.all([
-        getLatestUserPlant(userId),
-        getOwnedFlowerAssets(userId),
-        getTableFlowerAsset(userId),
-        getUserBugs(userId),
-        getUserSnapshots(userId),
-      ])
-    : null;
-  const latestPlant = dashboardData?.[0] ?? null;
-  const ownedFlowerAssets = dashboardData?.[1] ?? [];
-  const tableFlowerAsset = dashboardData?.[2] ?? null;
-  const caughtBugs = dashboardData?.[3] ?? [];
-  const snapshots = dashboardData?.[4] ?? [];
-  const boardState = getBoardState(latestPlant, Boolean(userId));
+  const account = await requireUser();
+  const [latestPlant, ownedFlowerAssets, tableFlowerAsset, caughtBugs, snapshots] =
+    await Promise.all([
+      getLatestUserPlant(account.userid),
+      getOwnedFlowerAssets(account.userid),
+      getTableFlowerAsset(account.userid),
+      getUserBugs(account.userid),
+      getUserSnapshots(account.userid),
+    ]);
+  const boardState = getBoardState(latestPlant);
 
   return (
     <DesktopOnly>
@@ -53,7 +45,10 @@ export default async function DashboardPage() {
           </div>
 
           <div className="dashboard-account">
-            <span className="dashboard-user-pill">{userName}</span>
+            <span className="dashboard-user-pill">{account.displayName}</span>
+            <Link className="dashboard-logout-button" href="/change-password">
+              Change password
+            </Link>
             <form action={logoutAction}>
               <button className="dashboard-logout-button" type="submit">
                 Log out
@@ -62,21 +57,13 @@ export default async function DashboardPage() {
           </div>
         </header>
 
-        <DashboardGamingBoard boardState={boardState} isSignedIn={Boolean(userId)} />
+        <DashboardGamingBoard boardState={boardState} isSignedIn />
       </main>
     </DesktopOnly>
   );
 }
 
-function getBoardState(plant: UserPlant | null, isSignedIn: boolean) {
-  if (!isSignedIn) {
-    return {
-      label: "Account needed",
-      title: "Sign in first",
-      description: "Watering saves your seed and bloom rewards to your garden.",
-    };
-  }
-
+function getBoardState(plant: UserPlant | null) {
   if (!plant) {
     return {
       label: "Ready",

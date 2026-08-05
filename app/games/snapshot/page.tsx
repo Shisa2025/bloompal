@@ -1,14 +1,11 @@
-import { cookies } from "next/headers";
-import { redirect, RedirectType } from "next/navigation";
 import DesktopOnly from "../../components/DesktopOnly";
 import { getTableFlowerAsset } from "@/database/plants";
 import { getUserBugs } from "@/database/bugs";
 import SnapshotGameClient from "./SnapshotGameClient";
+import { requireUser } from "@/lib/auth";
 
 export default async function SnapshotPage() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("bloompal_user_id")?.value.trim();
-  if (!userId) redirect("/login", RedirectType.replace);
+  const { userid: userId } = await requireUser();
 
   const [tableFlowerAsset, caughtBugs] = await Promise.all([
     getTableFlowerAsset(userId),

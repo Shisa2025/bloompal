@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { redirect, RedirectType } from "next/navigation";
 import {
   isFlowerAsset,
@@ -9,29 +8,21 @@ import {
 } from "@/database/plants";
 import { deleteUserBug as removeUserBug, setActiveUserBug } from "@/database/bugs";
 import { deleteUserSnapshot as removeUserSnapshot, setActiveUserSnapshot } from "@/database/snapshots";
+import { destroyCurrentSession, requireUser } from "@/lib/auth";
 
 export type TableFlowerActionResult =
   | { ok: true; tableFlowerAsset: string | null }
   | { ok: false; error: string };
 
 export async function logoutAction() {
-  const cookieStore = await cookies();
-
-  cookieStore.delete("bloompal_user_id");
-  cookieStore.delete("bloompal_display_name");
-
+  await destroyCurrentSession();
   redirect("/login", RedirectType.replace);
 }
 
 export async function setTableFlowerAsset(
   asset: string | null,
 ): Promise<TableFlowerActionResult> {
-  const cookieStore = await cookies();
-  const userid = cookieStore.get("bloompal_user_id")?.value.trim();
-
-  if (!userid) {
-    return { ok: false, error: "Please log in before choosing a table flower." };
-  }
+  const { userid } = await requireUser();
 
   if (asset !== null && !isFlowerAsset(asset)) {
     return { ok: false, error: "That flower is not available." };
@@ -52,10 +43,7 @@ export async function setTableFlowerAsset(
 }
 
 export async function deleteUserBug(bugId: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const cookieStore = await cookies();
-  const userid = cookieStore.get("bloompal_user_id")?.value.trim();
-
-  if (!userid) return { ok: false, error: "Please log in before removing a bug." };
+  const { userid } = await requireUser();
   if (!bugId) return { ok: false, error: "That bug could not be found." };
 
   const deleted = await removeUserBug({ userid, bugId });
@@ -66,10 +54,7 @@ export async function deleteUserBug(bugId: string): Promise<{ ok: true } | { ok:
 }
 
 export async function setActiveBug(bugId: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const cookieStore = await cookies();
-  const userid = cookieStore.get("bloompal_user_id")?.value.trim();
-
-  if (!userid) return { ok: false, error: "Please log in before choosing a companion." };
+  const { userid } = await requireUser();
   if (!bugId) return { ok: false, error: "That bug could not be found." };
 
   const activeBug = await setActiveUserBug({ userid, bugId });
@@ -80,16 +65,14 @@ export async function setActiveBug(bugId: string): Promise<{ ok: true } | { ok: 
 }
 
 export async function setActiveSnapshot(snapshotId: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const userid = (await cookies()).get("bloompal_user_id")?.value.trim();
-  if (!userid) return { ok: false, error: "Please log in before choosing a snapshot." };
+  const { userid } = await requireUser();
   if (!(await setActiveUserSnapshot({ userid, snapshotId }))) return { ok: false, error: "That snapshot could not be found." };
   revalidatePath("/dashboard");
   return { ok: true };
 }
 
 export async function deleteUserSnapshot(snapshotId: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const userid = (await cookies()).get("bloompal_user_id")?.value.trim();
-  if (!userid) return { ok: false, error: "Please log in before deleting a snapshot." };
+  const { userid } = await requireUser();
   if (!snapshotId) return { ok: false, error: "That snapshot could not be found." };
   if (!(await removeUserSnapshot({ userid, snapshotId }))) {
     return { ok: false, error: "That snapshot is no longer in your garden." };

@@ -13,6 +13,7 @@ import { completeBugHunt } from "./actions";
 type CollectBugsGameClientProps = { mysteryBugs: readonly string[] };
 type TouchCounts = Record<MotionSide, number>;
 type TouchLatch = Record<MotionSide, boolean>;
+type CompletionSnapshot = { sessionId: string; startedAtMs: number; totalAttempts: number };
 
 const sides: MotionSide[] = ["left", "right"];
 const requiredTouches = thumbTouchFingerNames.length;
@@ -42,8 +43,22 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
   const lastSignalUiAtRef = useRef(0);
   const lastBugUiAtRef = useRef(0);
   const bugPositionRef = useRef(0);
+  const sessionIdRef = useRef("");
+  const runStartedAtRef = useRef(0);
+  const attemptCountRef = useRef(0);
+  const [completion, setCompletion] = useState<CompletionSnapshot | null>(null);
   const isChoosing = selectedBug === null;
   const isComplete = counts.left >= requiredTouches && counts.right >= requiredTouches;
+
+  useEffect(() => {
+    if (isComplete && !completion) {
+      setCompletion({
+        sessionId: sessionIdRef.current,
+        startedAtMs: runStartedAtRef.current,
+        totalAttempts: attemptCountRef.current,
+      });
+    }
+  }, [completion, isComplete]);
 
   const registerTouch = useCallback((side: MotionSide) => {
     setCounts((current) => {
@@ -64,6 +79,7 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
       }
       if (latchesRef.current[side]) return;
       latchesRef.current[side] = true;
+      attemptCountRef.current += 1;
 
       if (Math.abs(bugPositionRef.current) <= centerWindow) registerTouch(side);
       else setTimingHint("Almost - touch when the bug is centred on the stump.");
@@ -157,6 +173,10 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
     setCounts(emptyCounts);
     setSignals(emptySignals);
     setTimingHint("Wait for the bug to reach the centre of the stump.");
+    sessionIdRef.current = crypto.randomUUID();
+    runStartedAtRef.current = Date.now();
+    attemptCountRef.current = 0;
+    setCompletion(null);
     setSelectedBug(index);
   }
 
@@ -164,7 +184,7 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
     <div className="watering-game">
       <header className="watering-header"><div><p>BloomPal Game</p><h1>Collecting bugs</h1></div><Link className="watering-secondary-link" href="/dashboard">Dashboard</Link></header>
       <section className={isChoosing || isComplete ? "watering-layout watering-layout-single" : "watering-playfield"} aria-live="polite">
-        {isChoosing ? <BugPicker mysteryBugs={mysteryBugs} onSelect={startHunt} /> : isComplete ? <BugRewardPanel bugAsset={mysteryBugs[selectedBug ?? 0]} /> : <BugHuntPlayfield bugAsset={mysteryBugs[selectedBug ?? 0]} bugPosition={bugPosition} cameraError={cameraError} cameraStatus={cameraStatus} counts={counts} isComplete={isComplete} signals={signals} timingHint={timingHint} videoRef={videoRef} onRetryCamera={() => setCameraRunId((value) => value + 1)} />}
+        {isChoosing ? <BugPicker mysteryBugs={mysteryBugs} onSelect={startHunt} /> : isComplete && completion ? <BugRewardPanel bugAsset={mysteryBugs[selectedBug ?? 0]} sessionId={completion.sessionId} startedAtMs={completion.startedAtMs} totalAttempts={completion.totalAttempts} /> : <BugHuntPlayfield bugAsset={mysteryBugs[selectedBug ?? 0]} bugPosition={bugPosition} cameraError={cameraError} cameraStatus={cameraStatus} counts={counts} isComplete={isComplete} signals={signals} timingHint={timingHint} videoRef={videoRef} onRetryCamera={() => setCameraRunId((value) => value + 1)} />}
       </section>
     </div>
   );
@@ -174,7 +194,7 @@ function BugPicker({ mysteryBugs, onSelect }: { mysteryBugs: readonly string[]; 
   return <div className="watering-main-panel"><div className="watering-seed-stage"><div className="watering-stage-copy"><p>Mystery bugs</p><h2>Choose one bug</h2></div><div className="watering-seed-grid" aria-label="Choose a mystery bug">{mysteryBugs.map((asset, index) => <button className="watering-seed-card" key={asset} onClick={() => onSelect(index)} type="button"><span className="collectbugs-question-mark" aria-hidden="true">?</span><strong>Bug {index + 1}</strong></button>)}</div></div></div>;
 }
 
-function BugRewardPanel({ bugAsset }: { bugAsset: string }) {
+function BugRewardPanel({ bugAsset, sessionId, startedAtMs, totalAttempts }: { bugAsset: string; sessionId: string; startedAtMs: number; totalAttempts: number }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -182,7 +202,14 @@ function BugRewardPanel({ bugAsset }: { bugAsset: string }) {
   function saveAndReturn() {
     setError(null);
     startTransition(async () => {
-      const result = await completeBugHunt(bugAsset);
+      const result = await completeBugHunt(bugAsset, {
+        sessionId,
+        durationSeconds: (Date.now() - startedAtMs) / 1000,
+        leftRepetitions: requiredTouches,
+        rightRepetitions: requiredTouches,
+        successfulActions: requiredTouches * 2,
+        totalAttempts,
+      });
       if (!result.ok) {
         setError(result.error);
         return;

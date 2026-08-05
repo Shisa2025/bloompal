@@ -1,16 +1,10 @@
-import { cookies } from "next/headers";
-import { redirect, RedirectType } from "next/navigation";
 import DesktopOnly from "../../components/DesktopOnly";
 import { getActiveUserPlant } from "@/database/plants";
 import WateringGameClient from "./WateringGameClient";
+import { requireUser } from "@/lib/auth";
 
 export default async function WateringPage() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("bloompal_user_id")?.value.trim();
-
-  if (!userId) {
-    redirect("/login", RedirectType.replace);
-  }
+  const { userid: userId } = await requireUser();
 
   const activePlant = await getActiveUserPlant(userId);
   const initialPlant = activePlant

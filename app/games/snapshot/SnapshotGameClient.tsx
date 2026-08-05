@@ -43,10 +43,17 @@ export default function SnapshotGameClient({
   const lastSignalUiAtRef = useRef(0);
   const stageRef = useRef<HTMLDivElement>(null);
   const snapshotSavingRef = useRef(false);
+  const sessionIdRef = useRef("");
+  const runStartedAtRef = useRef(0);
   const isComplete = counts.left >= requiredReps && counts.right >= requiredReps;
   // Keep this reference stable while the hand-tracking UI updates. Otherwise
   // the embedded Three.js dashboard is torn down and rebuilt every frame.
   const activeBugs = useMemo(() => caughtBugs.filter((bug) => bug.isActive), [caughtBugs]);
+
+  useEffect(() => {
+    sessionIdRef.current = crypto.randomUUID();
+    runStartedAtRef.current = Date.now();
+  }, []);
 
   const processSignals = useCallback((nextSignals: ThumbFlexSignals, timestampMs: number) => {
     sides.forEach((side) => {
@@ -99,7 +106,12 @@ export default function SnapshotGameClient({
         return;
       }
       drawCanvasCover(context, sourceCanvas, snapshotCanvas.width, snapshotCanvas.height);
-      void saveGardenSnapshot(snapshotCanvas.toDataURL("image/jpeg", 0.76)).then((result) => {
+      void saveGardenSnapshot(snapshotCanvas.toDataURL("image/jpeg", 0.76), {
+        sessionId: sessionIdRef.current,
+        durationSeconds: (Date.now() - runStartedAtRef.current) / 1000,
+        leftRepetitions: countsRef.current.left,
+        rightRepetitions: countsRef.current.right,
+      }).then((result) => {
         if (!result.ok) { setSnapshotError(result.error); return; }
         setSnapshotTaken(true);
       });

@@ -1,32 +1,100 @@
 import "server-only";
 
-import { neon } from "@neondatabase/serverless";
+import { Pool, type PoolClient, type QueryResultRow } from "pg";
 
-type SqlClient = ReturnType<typeof neon>;
+export type DatabaseClient = {
+  query<T extends QueryResultRow = QueryResultRow>(
+    text: string,
+    values?: readonly unknown[],
+  ): Promise<T[]>;
+};
 
-let cachedSql: SqlClient | null = null;
+let cachedPool: Pool | null = null;
 
-export function getSql(): SqlClient {
-  if (cachedSql) {
-    return cachedSql;
-  }
-
-  const databaseUrl = process.env.NEONDBAPIKEY;
+function getDatabaseUrl() {
+  const databaseUrl = process.env.DATABASE_URL ?? process.env.NEONDBAPIKEY;
 
   if (!databaseUrl) {
-    throw new Error("Missing NEONDBAPIKEY in .env.local.");
+    throw new Error("Missing DATABASE_URL (or legacy NEONDBAPIKEY).");
   }
 
-  cachedSql = neon(databaseUrl);
-  return cachedSql;
+  return databaseUrl;
 }
 
-const lazySql = ((strings: TemplateStringsArray, ...values: unknown[]) =>
-  getSql()(strings, ...values)) as SqlClient;
+export function getPool(): Pool {
+  if (cachedPool) return cachedPool;
 
-export const sql = new Proxy(lazySql, {
-  get(_target, property, receiver) {
-    const value = Reflect.get(getSql(), property, receiver);
-    return typeof value === "function" ? value.bind(getSql()) : value;
-  },
-});
+  const databaseUrl = getDatabaseUrl();
+  const sslMode = process.env.DATABASE_SSL_MODE?.trim().toLowerCase();
+
+  cachedPool = new Pool({
+    connectionString: normalizeDatabaseUrl(databaseUrl, sslMode),
+    max: Number(process.env.DATABASE_POOL_MAX ?? 10),
+    ssl:
+      sslMode === "disable"
+        ? false
+        : sslMode === "require"
+          ? { rejectUnauthorized: false }
+          : sslMode === "verify-full"
+            ? {
+                rejectUnauthorized: true,
+                ca: process.env.DATABASE_CA_CERT?.replaceAll("\\n", "\n"),
+              }
+          : undefined,
+  });
+
+  return cachedPool;
+}
+
+function normalizeDatabaseUrl(databaseUrl: string, explicitSslMode?: string) {
+  try {
+    const url = new URL(databaseUrl);
+
+    if (explicitSslMode) {
+      url.searchParams.delete("sslmode");
+      url.searchParams.delete("uselibpqcompat");
+    } else if (
+      url.searchParams.get("sslmode") === "require" &&
+      !url.searchParams.has("uselibpqcompat")
+    ) {
+      url.searchParams.set("sslmode", "verify-full");
+    }
+
+    return url.toString();
+  } catch {
+    return databaseUrl;
+  }
+}
+
+async function queryWith<T extends QueryResultRow = QueryResultRow>(
+  client: Pick<Pool, "query"> | Pick<PoolClient, "query">,
+  text: string,
+  values?: readonly unknown[],
+): Promise<T[]> {
+  const result = await client.query<T>(text, values ? [...values] : undefined);
+  return result.rows;
+}
+
+export const sql: DatabaseClient = {
+  query: (text, values) => queryWith(getPool(), text, values),
+};
+
+export async function withTransaction<T>(
+  operation: (client: DatabaseClient) => Promise<T>,
+): Promise<T> {
+  const poolClient = await getPool().connect();
+
+  try {
+    await poolClient.query("BEGIN");
+    const result = await operation({
+      query: (text, values) => queryWith(poolClient, text, values),
+    });
+    await poolClient.query("COMMIT");
+    return result;
+  } catch (error) {
+    await poolClient.query("ROLLBACK");
+    throw error;
+  } finally {
+    poolClient.release();
+  }
+}

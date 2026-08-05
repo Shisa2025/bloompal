@@ -1,13 +1,11 @@
-import { cookies } from "next/headers";
 import { DashboardShell } from "./_components/dashboard-shell";
+import { requireAdmin } from "@/lib/auth";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("bloompal_user_id")?.value.trim();
-  const displayName = cookieStore.get("bloompal_display_name")?.value.trim();
+  const account = await requireAdmin();
 
   return (
-    <DashboardShell userName={displayName || userId || "Demo Administrator"}>
+    <DashboardShell userName={account.displayName}>
       {children}
     </DashboardShell>
   );

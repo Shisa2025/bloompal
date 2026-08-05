@@ -9,7 +9,7 @@ import styles from "../dashboard.module.css";
 
 const navigation: { href: string; label: string; icon: IconName }[] = [
   { href: "/admin/dashboard", label: "Overview", icon: "overview" },
-  { href: "/admin/dashboard/players", label: "Players", icon: "players" },
+  { href: "/admin/dashboard/users", label: "Users", icon: "players" },
   { href: "/admin/dashboard/sessions", label: "Sessions", icon: "sessions" },
   { href: "/admin/dashboard/motion", label: "Motion records", icon: "motion" },
   { href: "/admin/dashboard/analytics", label: "Analytics", icon: "analytics" },
@@ -85,8 +85,8 @@ export function DashboardShell({
           <div className={styles.sidebarHelp}>
             <span className={styles.helpIcon}><Icon name="activity" size={18} /></span>
             <div>
-              <strong>Prototype workspace</strong>
-              <p>Metrics currently use mock data.</p>
+              <strong>Live workspace</strong>
+              <p>Metrics use assigned-user activity.</p>
             </div>
           </div>
           <div className={styles.userCard}>
@@ -119,16 +119,15 @@ export function DashboardShell({
           >
             <Icon name="menu" />
           </button>
-          <div className={styles.search}>
+          <form action="/admin/dashboard/users" className={styles.search} method="get">
             <Icon name="search" size={18} />
-            <span>Search players, sessions, or reports</span>
-            <kbd>Ctrl K</kbd>
-          </div>
+            <input aria-label="Search users" name="q" placeholder="Search users" />
+            <kbd>Enter</kbd>
+          </form>
           <div className={styles.topbarActions}>
-            <button className={styles.iconButton} aria-label="Notifications" type="button">
-              <Icon name="bell" size={19} />
-              <span className={styles.notificationDot} />
-            </button>
+            <Link className={styles.logoutButton} href="/change-password">
+              Change password
+            </Link>
             <span className={styles.topAvatar}>{userInitials}</span>
             <form action={logoutAction}>
               <button className={styles.logoutButton} type="submit">Log out</button>

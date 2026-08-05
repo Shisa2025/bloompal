@@ -1,15 +1,9 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
-import { redirect, RedirectType } from "next/navigation";
 import DesktopOnly from "../../components/DesktopOnly";
+import { requireUser } from "@/lib/auth";
 
 export default async function TakeSnapshotPage() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("bloompal_user_id")?.value.trim();
-
-  if (!userId) {
-    redirect("/login", RedirectType.replace);
-  }
+  await requireUser();
 
   return (
     <DesktopOnly>

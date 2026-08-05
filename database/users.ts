@@ -1,64 +1,84 @@
 import "server-only";
 
-import { getSql } from "./connection";
+import bcrypt from "bcryptjs";
+import { sql, type DatabaseClient } from "./connection";
 
 export type LoginMode = "userid" | "useremail";
+export type AccountRole = "admin" | "user";
+export type AccountStatus = "active" | "disabled";
 
-export type AuthenticatedUser = {
+export type AuthenticatedAccount = {
   userid: string;
   useremail: string;
-  displayName: string | null;
+  displayName: string;
+  role: AccountRole;
+  adminUserid: string | null;
+  status: AccountStatus;
+  mustChangePassword: boolean;
 };
 
-type UserRow = {
+type AccountRow = {
   userid: string;
   useremail: string;
   display_name: string | null;
+  password_hash: string;
+  role: AccountRole;
+  admin_userid: string | null;
+  account_status: AccountStatus;
+  must_change_password: boolean;
 };
 
-export async function createUser({
-  name,
+const accountColumns = `
+  userid, useremail, display_name, password_hash, role, admin_userid,
+  account_status, must_change_password
+`;
+
+export async function createAccount({
+  userid,
   email,
   password,
+  displayName,
+  role,
+  adminUserid = null,
+  mustChangePassword = false,
+  client = sql,
 }: {
-  name: string;
+  userid: string;
   email: string;
   password: string;
-}): Promise<AuthenticatedUser | null> {
-  const normalizedEmail = email.trim().toLowerCase();
-
-  if (!normalizedEmail || !password || !name) {
-    return null;
-  }
-
-  // Generate userid from email (e.g., "john.doe@example.com" -> "john.doe")
-  const userid = normalizedEmail.split("@")[0];
+  displayName: string;
+  role: AccountRole;
+  adminUserid?: string | null;
+  mustChangePassword?: boolean;
+  client?: DatabaseClient;
+}): Promise<AuthenticatedAccount | null> {
+  const passwordHash = await bcrypt.hash(password, 12);
 
   try {
-    const sql = getSql();
-    const rows = (await sql.query(
+    const rows = await client.query<AccountRow>(
       `
-      INSERT INTO users (userid, useremail, userpassword, display_name)
-      VALUES ($1, $2, $3, $4)
-      RETURNING userid, useremail, display_name
+      INSERT INTO users (
+        userid, useremail, password_hash, display_name, role, admin_userid,
+        must_change_password
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING ${accountColumns}
       `,
-      [userid, normalizedEmail, password, name],
-    )) as UserRow[];
+      [
+        userid,
+        email.trim().toLowerCase(),
+        passwordHash,
+        displayName.trim(),
+        role,
+        adminUserid,
+        mustChangePassword,
+      ],
+    );
 
-    const user = rows[0];
-
-    if (!user) {
-      return null;
-    }
-
-    return {
-      userid: user.userid,
-      useremail: user.useremail,
-      displayName: user.display_name,
-    };
+    return toAccount(rows[0]);
   } catch (error) {
-    console.error("Error creating user:", error);
-    return null;
+    if (isUniqueViolation(error)) return null;
+    throw error;
   }
 }
 
@@ -66,46 +86,84 @@ export async function verifyUserLogin({
   mode,
   identifier,
   password,
+  expectedRole,
 }: {
   mode: LoginMode;
   identifier: string;
   password: string;
-}): Promise<AuthenticatedUser | null> {
+  expectedRole: AccountRole;
+}): Promise<AuthenticatedAccount | null> {
   const normalizedIdentifier = identifier.trim();
+  if (!normalizedIdentifier || !password) return null;
 
-  if (!normalizedIdentifier || !password) {
-    return null;
-  }
+  const rows = await sql.query<AccountRow>(
+    `
+    SELECT ${accountColumns}
+    FROM users
+    WHERE ${mode === "useremail" ? "LOWER(useremail) = LOWER($1)" : "userid = LOWER($1)"}
+      AND role = $2
+      AND account_status = 'active'
+    LIMIT 1
+    `,
+    [normalizedIdentifier, expectedRole],
+  );
+  const row = rows[0];
 
-  const sql = getSql();
-  const rows = (await sql.query(
-    mode === "useremail"
-      ? `
-        SELECT userid, useremail, display_name
-        FROM users
-        WHERE LOWER(useremail) = LOWER($1)
-          AND userpassword = $2
-        LIMIT 1
-        `
-      : `
-        SELECT userid, useremail, display_name
-        FROM users
-        WHERE userid = $1
-          AND userpassword = $2
-        LIMIT 1
-        `,
-    [normalizedIdentifier, password],
-  )) as UserRow[];
+  if (!row || !(await bcrypt.compare(password, row.password_hash))) return null;
 
-  const user = rows[0];
+  await sql.query("UPDATE users SET last_login_at = NOW() WHERE userid = $1", [
+    row.userid,
+  ]);
+  return toAccount(row);
+}
 
-  if (!user) {
-    return null;
-  }
+export async function updateOwnPassword(userid: string, password: string) {
+  const passwordHash = await bcrypt.hash(password, 12);
+  await sql.query(
+    `
+    UPDATE users
+    SET password_hash = $2, must_change_password = FALSE, updated_at = NOW()
+    WHERE userid = $1 AND account_status = 'active'
+    `,
+    [userid, passwordHash],
+  );
+}
 
+export async function verifyCurrentPassword(userid: string, password: string) {
+  if (!password) return false;
+  const rows = await sql.query<{ password_hash: string }>(
+    `
+    SELECT password_hash FROM users
+    WHERE userid = $1 AND account_status = 'active'
+    LIMIT 1
+    `,
+    [userid],
+  );
+  return Boolean(rows[0] && (await bcrypt.compare(password, rows[0].password_hash)));
+}
+
+export async function hashPassword(password: string) {
+  return bcrypt.hash(password, 12);
+}
+
+function toAccount(row: AccountRow | undefined): AuthenticatedAccount | null {
+  if (!row) return null;
   return {
-    userid: user.userid,
-    useremail: user.useremail,
-    displayName: user.display_name,
+    userid: row.userid,
+    useremail: row.useremail,
+    displayName: row.display_name?.trim() || row.userid,
+    role: row.role,
+    adminUserid: row.admin_userid,
+    status: row.account_status,
+    mustChangePassword: Boolean(row.must_change_password),
   };
+}
+
+function isUniqueViolation(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "23505"
+  );
 }

@@ -1,7 +1,9 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import { sql } from "./connection";
+import { sql, withTransaction } from "./connection";
+import { insertCompletedSession, isCompletedSessionReplay } from "./game-sessions";
+import type { GameCompletionMetrics } from "@/lib/game-metrics";
 
 export type UserSnapshot = { id: string; imageData: string; isActive: boolean; createdAt: string };
 type Row = { id: string; image_data: string; is_active: boolean; created_at: string };
@@ -13,11 +15,39 @@ export async function getUserSnapshots(userid: string): Promise<UserSnapshot[]> 
   return rows.map(toSnapshot);
 }
 
-export async function addUserSnapshot({ userid, imageData }: { userid: string; imageData: string }) {
-  await ensureTable();
-  await sql.query("UPDATE user_snapshots SET is_active = FALSE WHERE userid = $1", [userid]);
-  const rows = await sql.query("INSERT INTO user_snapshots (id, userid, image_data, is_active) VALUES ($1, $2, $3, TRUE) RETURNING id, image_data, is_active, created_at", [randomUUID(), userid, imageData]) as Row[];
-  return rows[0] ? toSnapshot(rows[0]) : null;
+export async function addUserSnapshotWithSession({
+  userid,
+  imageData,
+  metrics,
+}: {
+  userid: string;
+  imageData: string;
+  metrics: GameCompletionMetrics;
+}) {
+  return withTransaction(async (client) => {
+    if (await isCompletedSessionReplay(client, userid, metrics.sessionId, "snapshot")) return true;
+
+    await client.query("UPDATE user_snapshots SET is_active = FALSE WHERE userid = $1", [userid]);
+    const snapshotId = randomUUID();
+    const rows = await client.query<{ id: string }>(
+      `
+      INSERT INTO user_snapshots (id, userid, image_data, storage_provider, is_active)
+      VALUES ($1, $2, $3, 'database', TRUE) RETURNING id
+      `,
+      [snapshotId, userid, imageData],
+    );
+    if (!rows[0]) return false;
+
+    await insertCompletedSession({
+      client,
+      userid,
+      activityType: "snapshot",
+      metrics,
+      sourceRecordId: snapshotId,
+      metadata: { snapshotId, storageProvider: "database" },
+    });
+    return true;
+  });
 }
 
 export async function setActiveUserSnapshot({ userid, snapshotId }: { userid: string; snapshotId: string }) {

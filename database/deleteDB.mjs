@@ -1,34 +1,44 @@
 import nextEnv from "@next/env";
-import { neon } from "@neondatabase/serverless";
+import pg from "pg";
+import { getDatabasePoolConfig } from "./pool-config.mjs";
 
 const { loadEnvConfig } = nextEnv;
+const { Pool } = pg;
 
 loadEnvConfig(process.cwd());
 
-const databaseUrl = process.env.NEONDBAPIKEY;
-
-if (!databaseUrl) {
-  throw new Error("Missing NEONDBAPIKEY in .env.local.");
+if (process.env.ALLOW_DATABASE_RESET !== "yes-reset-bloompal") {
+  throw new Error(
+    "Database deletion refused. Set ALLOW_DATABASE_RESET=yes-reset-bloompal only for a disposable development database.",
+  );
 }
 
-const sql = neon(databaseUrl);
+const databaseUrl = process.env.DATABASE_URL ?? process.env.NEONDBAPIKEY;
 
-const tableRows = await sql.query(`
+if (!databaseUrl) {
+  throw new Error("Missing DATABASE_URL (or legacy NEONDBAPIKEY).");
+}
+
+const pool = new Pool(getDatabasePoolConfig(databaseUrl));
+
+const tableRows = await pool.query(`
   SELECT schemaname, tablename
   FROM pg_tables
   WHERE schemaname = 'public'
   ORDER BY tablename
 `);
 
-for (const table of tableRows) {
-  await sql.query(
+for (const table of tableRows.rows) {
+  await pool.query(
     `DROP TABLE IF EXISTS ${quoteIdentifier(table.schemaname)}.${quoteIdentifier(
       table.tablename,
     )} CASCADE`,
   );
 }
 
-console.log(`Deleted ${tableRows.length} database table(s).`);
+await pool.end();
+
+console.log(`Deleted ${tableRows.rowCount} database table(s).`);
 
 function quoteIdentifier(value) {
   return `"${String(value).replaceAll('"', '""')}"`;

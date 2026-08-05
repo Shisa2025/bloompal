@@ -11,6 +11,7 @@ export function BarChart({
   suffix?: string;
   compact?: boolean;
 }) {
+  if (!data.length) return <p className={styles.emptyState}>No activity in this period.</p>;
   const max = Math.max(...data.map((point) => point.value));
   return (
     <div className={`${styles.barChart} ${compact ? styles.barChartCompact : ""}`}>
@@ -33,6 +34,7 @@ export function LineChart({
   data: DataPoint[];
   suffix?: string;
 }) {
+  if (!data.length) return <p className={styles.emptyState}>No activity in this period.</p>;
   const min = Math.min(...data.map((point) => point.value));
   const max = Math.max(...data.map((point) => point.value));
   const range = max - min || 1;
@@ -66,6 +68,7 @@ export function LineChart({
 }
 
 export function HorizontalBars({ data, suffix = "%" }: { data: DataPoint[]; suffix?: string }) {
+  if (!data.length) return <p className={styles.emptyState}>No activity in this period.</p>;
   const max = Math.max(...data.map((point) => point.value));
   return (
     <div className={styles.horizontalBars}>

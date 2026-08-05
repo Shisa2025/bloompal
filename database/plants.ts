@@ -1,7 +1,9 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import { sql } from "./connection";
+import { sql, withTransaction } from "./connection";
+import { insertCompletedSession, isCompletedSessionReplay } from "./game-sessions";
+import type { GameCompletionMetrics } from "@/lib/game-metrics";
 
 export const mysterySeedKeys = ["mystery-a", "mystery-b", "mystery-c"] as const;
 export const flowerAssets = [
@@ -209,52 +211,57 @@ export async function selectUserSeed({
   }
 }
 
-export async function completeUserPlant({
+export async function completeUserPlantWithSession({
   userid,
   plantId,
+  metrics,
 }: {
   userid: string;
   plantId: string;
+  metrics: GameCompletionMetrics;
 }): Promise<UserPlant | null> {
-  const currentRows = (await sql.query(
-    `
-    SELECT id, userid, seed_key, status, left_water_count, right_water_count,
-      flower_asset, created_at, updated_at, completed_at
-    FROM user_plants
-    WHERE id = $1 AND userid = $2
-    LIMIT 1
-    `,
-    [plantId, userid],
-  )) as UserPlantRow[];
-  const current = toUserPlant(currentRows[0]);
+  return withTransaction(async (client) => {
+    const currentRows = await client.query<UserPlantRow>(
+      `
+      SELECT id, userid, seed_key, status, left_water_count, right_water_count,
+        flower_asset, created_at, updated_at, completed_at
+      FROM user_plants WHERE id = $1 AND userid = $2 LIMIT 1
+      `,
+      [plantId, userid],
+    );
+    let plant = toUserPlant(currentRows[0]);
+    if (!plant) return null;
 
-  if (!current) {
-    return null;
-  }
+    if (await isCompletedSessionReplay(client, userid, metrics.sessionId, "watering")) {
+      return plant;
+    }
 
-  if (current.status === "completed") {
-    return current;
-  }
+    if (plant.status !== "completed") {
+      const flowerAsset = getRandomFlowerAsset();
+      const rows = await client.query<UserPlantRow>(
+        `
+        UPDATE user_plants SET status = 'completed', left_water_count = 5,
+          right_water_count = 5, flower_asset = $3, completed_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND userid = $2 AND status = 'selected'
+        RETURNING id, userid, seed_key, status, left_water_count, right_water_count,
+          flower_asset, created_at, updated_at, completed_at
+        `,
+        [plantId, userid, flowerAsset],
+      );
+      plant = toUserPlant(rows[0]);
+      if (!plant) return null;
+    }
 
-  const flowerAsset = getRandomFlowerAsset();
-  const rows = (await sql.query(
-    `
-    UPDATE user_plants
-    SET
-      status = 'completed',
-      left_water_count = 5,
-      right_water_count = 5,
-      flower_asset = $3,
-      completed_at = NOW(),
-      updated_at = NOW()
-    WHERE id = $1 AND userid = $2 AND status = 'selected'
-    RETURNING id, userid, seed_key, status, left_water_count, right_water_count,
-      flower_asset, created_at, updated_at, completed_at
-    `,
-    [plantId, userid, flowerAsset],
-  )) as UserPlantRow[];
-
-  return toUserPlant(rows[0]);
+    await insertCompletedSession({
+      client,
+      userid,
+      activityType: "watering",
+      metrics,
+      sourceRecordId: plant.id,
+      metadata: { plantId: plant.id, flowerAsset: plant.flowerAsset },
+    });
+    return plant;
+  });
 }
 
 function getRandomFlowerAsset(): FlowerAsset {

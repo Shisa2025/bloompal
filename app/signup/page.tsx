@@ -1,71 +1,43 @@
-"use client";
+import Link from "next/link";
+import DesktopOnly from "../components/DesktopOnly";
+import { signupAction } from "./actions";
 
-import { useState } from "react";
-
-export default function SignupPage() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-
-    const response = await fetch("/api/signup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name,
-        email,
-        password,
-      }),
-    });
-
-    const data = await response.json();
-
-    alert(data.message);
-  }
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ role?: string | string[]; error?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const requestedRole = Array.isArray(params?.role) ? params.role[0] : params?.role;
+  const role = requestedRole === "admin" ? "admin" : "user";
+  const error = Array.isArray(params?.error) ? params.error[0] : params?.error;
 
   return (
-    <section className="min-h-screen flex items-center justify-center">
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-4 w-96"
-      >
-        <h1>Create Account</h1>
-
-        <input
-          type="text"
-          placeholder="Name"
-          className="login-input"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-
-        <input
-          type="email"
-          placeholder="Email"
-          className="login-input"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <input
-          type="password"
-          placeholder="Password"
-          className="login-input"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        <button
-          type="submit"
-          className="login-button"
-        >
-          Create Account
-        </button>
-      </form>
-    </section>
+    <DesktopOnly>
+      <section className="login-scene flex min-h-screen items-center justify-center bg-[#fbfaf4] px-10 py-12 font-sans text-[#1d2b22]">
+        <main className="signup-card">
+          <div className="login-heading">
+            <p className="login-kicker">BloomPal</p>
+            <h1>Create {role === "admin" ? "an Admin" : "a User"} account</h1>
+            <p>{role === "admin" ? "A registration code is required." : "New public users start without an assigned Admin."}</p>
+          </div>
+          <div className="login-account-tabs" aria-label="Account type">
+            <Link className={role === "user" ? "is-active" : ""} href="/signup?role=user">User</Link>
+            <Link className={role === "admin" ? "is-active" : ""} href="/signup?role=admin">Admin</Link>
+          </div>
+          <form action={signupAction} className="login-panel flex flex-col gap-4">
+            <input name="accountRole" type="hidden" value={role} />
+            <label className="signup-field">User ID<input className="login-input" name="userid" pattern="[a-z0-9][a-z0-9._-]{2,29}" placeholder="e.g. bloom-user" required /></label>
+            <label className="signup-field">Name<input className="login-input" name="displayName" required /></label>
+            <label className="signup-field">Email<input className="login-input" name="email" type="email" autoComplete="email" required /></label>
+            <label className="signup-field">Password<input className="login-input" name="password" type="password" autoComplete="new-password" minLength={8} required /><small>At least 8 characters with a letter and number.</small></label>
+            {role === "admin" ? <label className="signup-field">Admin registration code<input className="login-input" name="adminCode" type="password" required /></label> : null}
+            {error ? <p className="login-error" role="alert">{error}</p> : null}
+            <button className="login-button" type="submit">Create account</button>
+            <p className="text-center text-sm text-[#5f6f63]">Already registered? <Link className="font-semibold text-[#52735a]" href={`/login?role=${role}`}>Sign in</Link></p>
+          </form>
+        </main>
+      </section>
+    </DesktopOnly>
   );
 }
