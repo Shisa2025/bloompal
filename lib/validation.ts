@@ -15,6 +15,12 @@ export const displayNameSchema = z
   .min(2, "Name must be at least 2 characters.")
   .max(120, "Name must be 120 characters or fewer.");
 
+export const organizationSchema = z
+  .string()
+  .trim()
+  .min(2, "Organization must be at least 2 characters.")
+  .max(120, "Organization must be 120 characters or fewer.");
+
 export const emailSchema = z
   .string()
   .trim()

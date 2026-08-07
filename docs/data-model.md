@@ -16,13 +16,13 @@ users (role=admin)
                     └── 0..1 user_dashboard_settings
 ```
 
-`users.admin_userid` is nullable. A foreign key and trigger ensure that a non-null value references an account whose role is `admin`. Deleting an admin releases its users by setting this field to null.
+`users.admin_userid` is nullable. A foreign key and trigger ensure that a non-null value references an Admin account, and new assignments are accepted only while that Admin is active. Deleting an admin releases its users by setting this field to null.
 
 ## Main tables
 
 ### `users`
 
-Stores the unique user ID and email, bcrypt password hash, display name, role, optional admin owner, account status, forced-password-change flag, and login/audit timestamps. Plaintext password storage has been removed.
+Stores the unique user ID and email, bcrypt password hash, display name, role, optional admin owner, nullable Admin organization, account status, forced-password-change flag, and login/audit timestamps. Database checks prevent User accounts from storing an organization. Plaintext password storage has been removed.
 
 ### `auth_sessions`
 
@@ -41,4 +41,4 @@ Stores one completed activity with its user, activity type, start/end timestamps
 
 ## Data ownership
 
-User game queries are scoped to the authenticated user ID. Admin queries join through `users.admin_userid`, so each admin sees only assigned users and their activity. Publicly registered users remain unassigned until an explicit assignment workflow is introduced.
+User game queries are scoped to the authenticated user ID. Admin queries join through `users.admin_userid`, so each admin sees only assigned users and their activity. During public registration, a User may select an active Admin from the public ID, name, and organization directory or continue unassigned.

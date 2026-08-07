@@ -7,6 +7,12 @@ export type LoginMode = "userid" | "useremail";
 export type AccountRole = "admin" | "user";
 export type AccountStatus = "active" | "disabled";
 
+export type AssignableAdmin = {
+  userid: string;
+  displayName: string;
+  organization: string | null;
+};
+
 export type AuthenticatedAccount = {
   userid: string;
   useremail: string;
@@ -28,6 +34,12 @@ type AccountRow = {
   must_change_password: boolean;
 };
 
+type AssignableAdminRow = {
+  userid: string;
+  display_name: string | null;
+  organization: string | null;
+};
+
 const accountColumns = `
   userid, useremail, display_name, password_hash, role, admin_userid,
   account_status, must_change_password
@@ -39,6 +51,7 @@ export async function createAccount({
   password,
   displayName,
   role,
+  organization = null,
   adminUserid = null,
   mustChangePassword = false,
   client = sql,
@@ -48,6 +61,7 @@ export async function createAccount({
   password: string;
   displayName: string;
   role: AccountRole;
+  organization?: string | null;
   adminUserid?: string | null;
   mustChangePassword?: boolean;
   client?: DatabaseClient;
@@ -59,9 +73,9 @@ export async function createAccount({
       `
       INSERT INTO users (
         userid, useremail, password_hash, display_name, role, admin_userid,
-        must_change_password
+        must_change_password, organization
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING ${accountColumns}
       `,
       [
@@ -72,6 +86,7 @@ export async function createAccount({
         role,
         adminUserid,
         mustChangePassword,
+        role === "admin" ? organization?.trim() || null : null,
       ],
     );
 
@@ -80,6 +95,45 @@ export async function createAccount({
     if (isUniqueViolation(error)) return null;
     throw error;
   }
+}
+
+export async function getAssignableAdmins(
+  client: DatabaseClient = sql,
+): Promise<AssignableAdmin[]> {
+  const rows = await client.query<AssignableAdminRow>(
+    `
+    SELECT userid, display_name, organization
+    FROM users
+    WHERE role = 'admin' AND account_status = 'active'
+    ORDER BY
+      LOWER(COALESCE(organization, '')),
+      LOWER(COALESCE(display_name, userid)),
+      userid
+    `,
+  );
+
+  return rows.map((row) => ({
+    userid: row.userid,
+    displayName: row.display_name?.trim() || row.userid,
+    organization: row.organization?.trim() || null,
+  }));
+}
+
+export async function isAssignableAdmin(
+  userid: string,
+  client: DatabaseClient = sql,
+) {
+  const rows = await client.query<{ userid: string }>(
+    `
+    SELECT userid
+    FROM users
+    WHERE userid = $1 AND role = 'admin' AND account_status = 'active'
+    LIMIT 1
+    `,
+    [userid],
+  );
+
+  return Boolean(rows[0]);
 }
 
 export async function verifyUserLogin({

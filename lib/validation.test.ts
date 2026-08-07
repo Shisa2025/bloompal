@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { accountInputSchema, normalizeDurationSeconds, passwordSchema, useridSchema } from "./validation";
+import {
+  accountInputSchema,
+  normalizeDurationSeconds,
+  organizationSchema,
+  passwordSchema,
+  useridSchema,
+} from "./validation";
 
 describe("account validation", () => {
   it("normalizes a valid account", () => {
@@ -10,6 +16,16 @@ describe("account validation", () => {
     expect(useridSchema.safeParse("A").success).toBe(false);
     expect(passwordSchema.safeParse("password").success).toBe(false);
     expect(passwordSchema.safeParse("12345678").success).toBe(false);
+  });
+
+  it("accepts and trims Unicode organization names", () => {
+    expect(organizationSchema.parse("  幸福养老中心  ")).toBe("幸福养老中心");
+  });
+
+  it("rejects organizations outside the 2-120 character range", () => {
+    expect(organizationSchema.safeParse(" ").success).toBe(false);
+    expect(organizationSchema.safeParse("A").success).toBe(false);
+    expect(organizationSchema.safeParse("A".repeat(121)).success).toBe(false);
   });
 });
 
