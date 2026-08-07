@@ -898,62 +898,176 @@ body {
   right: max(1.5rem, calc((100vw - 70rem) / 2));
   z-index: 2;
   display: flex;
-  width: min(20rem, calc(100vw - 3rem));
+  width: min(23rem, calc(100vw - 3rem));
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.1rem;
   border: 1px solid rgb(62 93 88 / 16%);
   border-radius: 0.75rem;
-  background: rgb(255 253 247 / 82%);
-  box-shadow: 0 1.35rem 3.5rem rgb(50 71 68 / 16%);
-  padding: 1rem;
+  background: rgb(255 253 247 / 90%);
+  box-shadow: 0 1.35rem 3.5rem rgb(50 71 68 / 18%);
+  padding: 1.25rem;
   backdrop-filter: blur(18px) saturate(1.08);
 }
 
-.dashboard-gaming-board-heading p,
+.dashboard-gaming-board.is-collapsed {
+  width: min(14rem, calc(100vw - 3rem));
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  backdrop-filter: none;
+}
+
+@media (min-width: 120rem) {
+  .dashboard-gaming-board {
+    right: 1.5rem;
+    width: min(23rem, calc((100vw - 70rem) / 2 - 3rem));
+  }
+
+  .dashboard-gaming-board.is-collapsed {
+    width: min(14rem, calc((100vw - 70rem) / 2 - 3rem));
+  }
+}
+
+.dashboard-gaming-board-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.dashboard-gaming-board-label {
+  margin: 0;
+  color: #45664d;
+  font-size: 0.8rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dashboard-gaming-board.is-collapsed .dashboard-gaming-board-label {
+  display: none;
+}
+
+.dashboard-gaming-board-toggle {
+  display: inline-flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  border: 1px solid rgb(82 115 90 / 20%);
+  border-radius: 0.65rem;
+  background: #e7f0e1;
+  color: #304536;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.98rem;
+  font-weight: 900;
+  padding: 0.65rem 0.85rem;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.dashboard-gaming-board.is-collapsed .dashboard-gaming-board-toggle {
+  width: 100%;
+  min-height: 3.75rem;
+  border-color: #52735a;
+  border-radius: 0.75rem;
+  background: #52735a;
+  box-shadow: 0 1rem 2rem rgb(50 71 68 / 24%);
+  color: #fffdf7;
+  font-size: 1.12rem;
+}
+
+.dashboard-gaming-board-toggle:hover {
+  background: #dce9d5;
+  transform: translateY(-1px);
+}
+
+.dashboard-gaming-board.is-collapsed .dashboard-gaming-board-toggle:hover {
+  background: #45664d;
+}
+
+.dashboard-gaming-board-toggle:focus-visible {
+  outline: 0.25rem solid rgb(107 155 116 / 36%);
+  outline-offset: 0.18rem;
+}
+
+.dashboard-gaming-board-toggle-icon {
+  display: inline-grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 58%);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.dashboard-gaming-board.is-collapsed .dashboard-gaming-board-toggle-icon {
+  background: rgb(255 255 255 / 16%);
+}
+
+.dashboard-gaming-board-content {
+  display: grid;
+  gap: 1.1rem;
+  animation: dashboard-board-expand 200ms ease-out;
+}
+
+.dashboard-gaming-board-content[hidden] {
+  display: none;
+}
+
+@keyframes dashboard-board-expand {
+  from {
+    opacity: 0;
+    transform: translateY(-0.4rem) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .dashboard-gaming-board-heading h2,
 .dashboard-gaming-board-status p,
 .dashboard-gaming-board-status strong {
   margin: 0;
 }
 
-.dashboard-gaming-board-heading p {
-  color: #52735a;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .dashboard-gaming-board-heading h2 {
-  margin-top: 0.18rem;
   color: #1d2b22;
-  font-size: 1.45rem;
-  line-height: 1.15;
+  font-size: 1.6rem;
+  line-height: 1.2;
 }
 
 .dashboard-game-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  display: grid;
+  gap: 0.9rem;
 }
 
 .dashboard-game-switcher {
-  display: flex;
-  gap: 0.35rem;
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr) 3.25rem;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 .dashboard-game-arrow {
   display: inline-grid;
-  width: 2rem;
-  height: 2rem;
+  width: 3.25rem;
+  height: 3.25rem;
   place-items: center;
-  border: 1px solid rgb(82 115 90 / 18%);
+  border: 1px solid rgb(82 115 90 / 26%);
   border-radius: 999px;
-  background: rgb(255 253 247 / 72%);
-  color: #52735a;
+  background: #fffdf7;
+  color: #45664d;
   cursor: pointer;
-  font-size: 1.05rem;
+  font-size: 1.35rem;
   line-height: 1;
   box-shadow: 0 0.2rem 0.55rem rgb(50 71 68 / 8%);
   transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
@@ -984,17 +1098,24 @@ body {
 }
 
 .dashboard-game-arrow:focus-visible {
-  outline: 0.25rem solid rgb(107 155 116 / 26%);
-  outline-offset: 0.15rem;
+  outline: 0.25rem solid rgb(107 155 116 / 36%);
+  outline-offset: 0.18rem;
+}
+
+.dashboard-game-position {
+  color: #45664d;
+  font-size: 1rem;
+  font-weight: 900;
+  text-align: center;
 }
 
 .dashboard-gaming-board-status {
   display: grid;
-  gap: 0.4rem;
-  border: 1px solid rgb(82 115 90 / 12%);
-  border-radius: 0.6rem;
-  background: rgb(241 248 240 / 72%);
-  padding: 0.85rem;
+  gap: 0.5rem;
+  border: 1px solid rgb(82 115 90 / 18%);
+  border-radius: 0.7rem;
+  background: rgb(241 248 240 / 90%);
+  padding: 1rem;
 }
 
 .dashboard-game-status-enter-1 {
@@ -1030,8 +1151,11 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .dashboard-gaming-board-content,
+  .dashboard-gaming-board-toggle,
   .dashboard-game-arrow,
   .dashboard-game-arrow span {
+    animation: none;
     transition: none;
   }
 
@@ -1042,21 +1166,21 @@ body {
 }
 
 .dashboard-gaming-board-status span {
-  color: #4e8c88;
-  font-size: 0.78rem;
-  font-weight: 800;
+  color: #3f7773;
+  font-size: 0.85rem;
+  font-weight: 900;
 }
 
 .dashboard-gaming-board-status strong {
-  color: #26372d;
-  font-size: 1rem;
-  line-height: 1.25;
+  color: #223128;
+  font-size: 1.12rem;
+  line-height: 1.35;
 }
 
 .dashboard-gaming-board-status p {
-  color: #5f6f63;
-  font-size: 0.88rem;
-  line-height: 1.55;
+  color: #4b5f50;
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
 .dashboard-game-button {
@@ -1085,6 +1209,13 @@ body {
 .dashboard-game-button:focus-visible {
   outline: 0.25rem solid rgb(107 155 116 / 26%);
   outline-offset: 0.15rem;
+}
+
+.dashboard-gaming-board .dashboard-game-button {
+  min-height: 3.5rem;
+  border-radius: 0.65rem;
+  font-size: 1.05rem;
+  padding: 0.7rem 1rem;
 }
 
 .dashboard-game-button-disabled {
