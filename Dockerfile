@@ -8,6 +8,7 @@ WORKDIR /app
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV BUILD_STANDALONE=1
 RUN npm run build
 
 FROM node:20-alpine AS runner
