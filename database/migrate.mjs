@@ -36,6 +36,7 @@ try {
       ADD COLUMN IF NOT EXISTS password_hash TEXT,
       ADD COLUMN IF NOT EXISTS role VARCHAR(16) NOT NULL DEFAULT 'user',
       ADD COLUMN IF NOT EXISTS admin_userid VARCHAR(120),
+      ADD COLUMN IF NOT EXISTS organization VARCHAR(120),
       ADD COLUMN IF NOT EXISTS account_status VARCHAR(16) NOT NULL DEFAULT 'active',
       ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ
@@ -95,6 +96,23 @@ try {
   `);
   await client.query(`
     DO $$ BEGIN
+      ALTER TABLE users ADD CONSTRAINT users_organization_shape_check
+        CHECK (role = 'admin' OR organization IS NULL);
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  `);
+  await client.query(`
+    DO $$ BEGIN
+      ALTER TABLE users ADD CONSTRAINT users_organization_value_check
+        CHECK (
+          organization IS NULL OR (
+            organization = BTRIM(organization)
+            AND CHAR_LENGTH(organization) BETWEEN 2 AND 120
+          )
+        );
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  `);
+  await client.query(`
+    DO $$ BEGIN
       ALTER TABLE users ADD CONSTRAINT users_admin_userid_fkey
         FOREIGN KEY (admin_userid) REFERENCES users(userid) ON DELETE SET NULL;
     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -105,9 +123,14 @@ try {
     BEGIN
       IF NEW.admin_userid IS NOT NULL AND NOT EXISTS (
         SELECT 1 FROM users
-        WHERE userid = NEW.admin_userid AND role = 'admin'
+        WHERE userid = NEW.admin_userid
+          AND role = 'admin'
+          AND account_status = 'active'
       ) THEN
-        RAISE EXCEPTION 'admin_userid must reference an admin account';
+        RAISE EXCEPTION USING
+          MESSAGE = 'admin_userid must reference an active admin account',
+          ERRCODE = '23514',
+          CONSTRAINT = 'users_admin_assignment_active_check';
       END IF;
       RETURN NEW;
     END;

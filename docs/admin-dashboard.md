@@ -4,8 +4,8 @@ BloomPal has separate `admin` and `user` account roles. The admin workspace is a
 
 ## Account model
 
-- An admin self-registers at `/signup?role=admin` with `ADMIN_SIGNUP_CODE`.
-- A public user can self-register and starts without an admin.
+- An admin self-registers at `/signup?role=admin` with an organization and `ADMIN_SIGNUP_CODE`.
+- A public user can self-register, optionally choosing an active Admin by ID, name, or organization. Leaving the selection empty creates an unassigned account.
 - An admin can create users from `/admin/dashboard/users/new`. These users are assigned to that admin and must change their temporary password after their first login.
 - A user belongs to zero or one admin; an admin can manage many users.
 - Admin queries always include the signed-in admin ID. An admin cannot read or mutate another admin's users.
