@@ -2,6 +2,12 @@ import type { MotionResult, MotionSide } from "@/mediapipe/types";
 
 export type ClawSignals = Record<MotionSide, { detected: boolean; claw: boolean; confidence: number; x: number; y: number }>;
 const sides: MotionSide[] = ["left", "right"];
+const fingerJoints = [
+  { mcp: 5, pip: 6, dip: 7, tip: 8 },
+  { mcp: 9, pip: 10, dip: 11, tip: 12 },
+  { mcp: 13, pip: 14, dip: 15, tip: 16 },
+  { mcp: 17, pip: 18, dip: 19, tip: 20 },
+] as const;
 
 export function getClawSignals(result: MotionResult): ClawSignals {
   const signals: ClawSignals = {
@@ -15,13 +21,13 @@ export function getClawSignals(result: MotionResult): ClawSignals {
     const confidence = result.handedness[index]?.[0]?.score ?? 0;
     if (confidence < signals[side].confidence) return;
     const palm = distance(hand[0], hand[9]);
-    const fingers = [[5, 6, 8], [9, 10, 12], [13, 14, 16], [17, 18, 20]] as const;
-    const bentAtMiddleJoint = fingers.filter(([mcp, pip, tip]) => {
-      const angle = jointAngle(hand[mcp], hand[pip], hand[tip]);
-      return angle <= 150;
-    }).length;
-    const foldedTowardPalm = fingers.filter(([mcp, , tip]) => {
-      return distance(hand[0], hand[tip]) < distance(hand[0], hand[mcp]) + palm * 0.68;
+    const angleLandmarks = result.handWorldLandmarks[index]?.length >= 21 ? result.handWorldLandmarks[index] : hand;
+    const hookFingers = fingerJoints.filter(({ mcp, pip, dip, tip }) => {
+      const largeKnuckleAngle = jointAngle(angleLandmarks[0], angleLandmarks[mcp], angleLandmarks[pip]);
+      const middleJointAngle = jointAngle(angleLandmarks[mcp], angleLandmarks[pip], angleLandmarks[dip]);
+      const endJointAngle = jointAngle(angleLandmarks[pip], angleLandmarks[dip], angleLandmarks[tip]);
+
+      return largeKnuckleAngle >= 145 && middleJointAngle <= 150 && endJointAngle <= 160;
     }).length;
     const handBounds = hand.reduce(
       (bounds, point) => ({
@@ -38,10 +44,9 @@ export function getClawSignals(result: MotionResult): ClawSignals {
     };
     signals[side] = {
       detected: true,
-      // Combine joint bend with fingertip folding so the gesture works when
-      // the palm is angled toward or away from the camera. The thumb is not
-      // constrained because a natural claw may keep it open or tucked.
-      claw: palm > 0.025 && bentAtMiddleJoint >= 2 && foldedTowardPalm >= 3,
+      // A hook claw keeps the large MCP knuckles extended while flexing the
+      // PIP and DIP joints. The thumb is intentionally unconstrained.
+      claw: palm > 0.025 && hookFingers >= 3,
       confidence,
       // Match the mirrored webcam using the visual center of the complete
       // hand. This stays intuitive as the fingers open and curl.
@@ -59,9 +64,9 @@ function clampAim(value: number) {
 function distance(a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) {
   return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 }
-function jointAngle(a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }) {
-  const first = { x: a.x - b.x, y: a.y - b.y };
-  const second = { x: c.x - b.x, y: c.y - b.y };
-  const cosine = (first.x * second.x + first.y * second.y) / Math.max(Math.hypot(first.x, first.y) * Math.hypot(second.x, second.y), 0.0001);
+function jointAngle(a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }, c: { x: number; y: number; z: number }) {
+  const first = { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+  const second = { x: c.x - b.x, y: c.y - b.y, z: c.z - b.z };
+  const cosine = (first.x * second.x + first.y * second.y + first.z * second.z) / Math.max(Math.hypot(first.x, first.y, first.z) * Math.hypot(second.x, second.y, second.z), 0.0001);
   return (Math.acos(Math.min(1, Math.max(-1, cosine))) * 180) / Math.PI;
 }

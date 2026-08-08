@@ -48,10 +48,10 @@ export function validFishMetrics(metrics: GameCompletionMetrics) {
 export function validFruitMetrics(metrics: GameCompletionMetrics) {
   return (
     validCommon(metrics) &&
-    metrics.leftRepetitions === 3 &&
-    metrics.rightRepetitions === 3 &&
-    metrics.successfulActions === 6 &&
-    metrics.totalAttempts === 6
+    metrics.leftRepetitions === 5 &&
+    metrics.rightRepetitions === 5 &&
+    metrics.successfulActions === 10 &&
+    metrics.totalAttempts === 10
   );
 }
 

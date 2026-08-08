@@ -12,14 +12,17 @@ const fruits: FruitArtKind[] = ["apple", "pear", "orange", "plum", "peach"];
 type Fruit = FruitArtKind;
 type Phase = "choosing" | "playing" | "saving" | "reward";
 const sides: MotionSide[] = ["left", "right"];
+const requiredRepetitions = 5;
+const totalFruits = requiredRepetitions * sides.length;
 const emptyCounts = { left: 0, right: 0 };
 const emptySignals: ClawSignals = {
   left: { detected: false, claw: false, confidence: 0, x: 0.5, y: 0.5 },
   right: { detected: false, claw: false, confidence: 0, x: 0.5, y: 0.5 },
 };
 const fruitTargets = [
-  { x: 0.25, y: 0.31 }, { x: 0.50, y: 0.25 }, { x: 0.75, y: 0.32 },
-  { x: 0.31, y: 0.50 }, { x: 0.56, y: 0.54 }, { x: 0.76, y: 0.49 },
+  { x: 0.28, y: 0.18 }, { x: 0.50, y: 0.14 }, { x: 0.72, y: 0.20 },
+  { x: 0.17, y: 0.34 }, { x: 0.39, y: 0.32 }, { x: 0.61, y: 0.33 }, { x: 0.83, y: 0.35 },
+  { x: 0.27, y: 0.50 }, { x: 0.50, y: 0.48 }, { x: 0.73, y: 0.51 },
 ] as const;
 
 export default function PluckFruitGameClient({ initialChoices }: { initialChoices: string[] }) {
@@ -47,7 +50,7 @@ export default function PluckFruitGameClient({ initialChoices }: { initialChoice
       if (next[side].claw && !closedRef.current[side]) {
         closedRef.current[side] = true;
         const targetIndex = findTouchedFruit(next[side], pluckedTargetsRef.current);
-        if (targetIndex >= 0 && countsRef.current[side] < 3 && time - lastCountRef.current[side] > 650) {
+        if (targetIndex >= 0 && countsRef.current[side] < requiredRepetitions && time - lastCountRef.current[side] > 650) {
           lastCountRef.current[side] = time;
           const updatedTargets = pluckedTargetsRef.current.map((plucked, index) => plucked || index === targetIndex);
           pluckedTargetsRef.current = updatedTargets;
@@ -98,16 +101,16 @@ export default function PluckFruitGameClient({ initialChoices }: { initialChoice
   }, [phase, process]);
 
   useEffect(() => {
-    if (phase !== "playing" || !selected || counts.left < 3 || counts.right < 3) return;
+    if (phase !== "playing" || !selected || counts.left < requiredRepetitions || counts.right < requiredRepetitions) return;
     const timer = window.setTimeout(() => {
       setPhase("saving");
       void completeFruitPlucking(selected, {
         sessionId: sessionRef.current,
         durationSeconds: (Date.now() - startedRef.current) / 1000,
-        leftRepetitions: 3,
-        rightRepetitions: 3,
-        successfulActions: 6,
-        totalAttempts: 6,
+        leftRepetitions: requiredRepetitions,
+        rightRepetitions: requiredRepetitions,
+        successfulActions: totalFruits,
+        totalAttempts: totalFruits,
       }).then((result) => {
         if (result.ok) setPhase("reward");
         else { setError(result.error); setPhase("playing"); }
@@ -155,18 +158,18 @@ function findTouchedFruit(signal: ClawSignals[MotionSide], pluckedTargets: boole
 function Playfield({ fruit, counts, pluckedTargets, signals, videoRef, saving, error }: { fruit: Fruit; counts: typeof emptyCounts; pluckedTargets: boolean[]; signals: ClawSignals; videoRef: RefObject<HTMLVideoElement | null>; saving: boolean; error: string | null }) {
   const plucked = counts.left + counts.right;
   return <section className="fruit-playfield">
-    <div className="watering-camera-panel"><div className="watering-panel-heading"><p>Webcam</p><h2>Aim, then make a claw</h2></div><div className="watering-video-wrap"><video ref={videoRef} className="watering-video" muted playsInline />{saving ? <div className="watering-overlay-message">Saving fruit</div> : null}</div>{error ? <p className="watering-error">{error}</p> : null}</div>
+    <div className="watering-camera-panel"><div className="watering-panel-heading"><p>Webcam</p><h2>Aim, then make a hook claw</h2></div><div className="watering-video-wrap"><video ref={videoRef} className="watering-video" muted playsInline />{saving ? <div className="watering-overlay-message">Saving fruit</div> : null}</div>{error ? <p className="watering-error">{error}</p> : null}</div>
     <div className="fruit-tree-panel">
       <div className="fruit-tree-crown" />
       {fruitTargets.map((target, index) => {
-        const touching = sides.some((side) => counts[side] < 3 && signals[side].detected && Math.hypot(signals[side].x - target.x, signals[side].y - target.y) <= 0.13);
+        const touching = sides.some((side) => counts[side] < requiredRepetitions && signals[side].detected && Math.hypot(signals[side].x - target.x, signals[side].y - target.y) <= 0.13);
         return <span className={`fruit-tree-fruit ${pluckedTargets[index] ? "is-plucked" : ""} ${!pluckedTargets[index] && touching ? "is-targeted" : ""}`} key={index} style={{ left: `${target.x * 100}%`, top: `${target.y * 100}%` }}><FruitArt kind={fruit} /></span>;
       })}
       <div className="fruit-tree-trunk" />
       {sides.map((side) => signals[side].detected ? <span className={`fruit-hand-target fruit-hand-target-${side} ${signals[side].claw ? "is-claw" : ""}`} key={side} style={{ left: `${signals[side].x * 100}%`, top: `${signals[side].y * 100}%` }}><span />{side === "left" ? "L" : "R"}</span> : null)}
-      <div className="fruit-aim-instruction">Use either hand on any fruit, then make a claw.</div>
+      <div className="fruit-aim-instruction">Keep the large knuckles straight. Bend the middle and end finger joints.</div>
     </div>
-    <aside className="watering-progress-panel"><p className="watering-panel-kicker">Basket progress</p><h2>{plucked}/6 fruits</h2>{sides.map((side) => { const touching = findTouchedFruit(signals[side], pluckedTargets) >= 0; return <div className="watering-progress-row" key={side}><div><span>{side === "left" ? "Left hand" : "Right hand"}</span><strong>{counts[side]}/3</strong></div><div className="watering-progress-track"><span style={{ width: `${counts[side] * 33.34}%` }} /></div><p>{counts[side] >= 3 ? "Complete" : !signals[side].detected ? "Show your hand" : !touching ? "Aim at any fruit" : signals[side].claw ? "Fruit plucked! Open again" : "On target — make a claw"}</p></div>; })}<div className="fruit-gesture-tip"><strong>Touch → claw → open</strong><p>Use either hand on any remaining fruit. Pluck 3 fruits with each hand.</p></div></aside>
+    <aside className="watering-progress-panel"><p className="watering-panel-kicker">Basket progress</p><h2>{plucked}/{totalFruits} fruits</h2>{sides.map((side) => { const touching = findTouchedFruit(signals[side], pluckedTargets) >= 0; return <div className="watering-progress-row" key={side}><div><span>{side === "left" ? "Left hand" : "Right hand"}</span><strong>{counts[side]}/{requiredRepetitions}</strong></div><div className="watering-progress-track"><span style={{ width: `${(counts[side] / requiredRepetitions) * 100}%` }} /></div><p>{counts[side] >= requiredRepetitions ? "Complete" : !signals[side].detected ? "Show your hand" : !touching ? "Aim at any fruit" : signals[side].claw ? "Fruit plucked! Open again" : "On target — bend into a hook claw"}</p></div>; })}<div className="fruit-gesture-tip"><strong>Aim → hook claw → open</strong><p>Keep the large knuckles straight while bending the middle and end joints. Pluck {requiredRepetitions} fruits with each hand.</p></div></aside>
   </section>;
 }
 
