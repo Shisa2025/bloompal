@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DashboardHomeScene from "@/app/dashboard/components/DashboardHomeScene";
 import { createMotionTracker } from "@/mediapipe/motion";
@@ -21,11 +22,14 @@ const emptySignals: ThumbFlexSignals = {
 
 export default function SnapshotGameClient({
   caughtBugs,
+  fruits,
   tableFlowerAsset,
 }: {
   caughtBugs: { id: string; bugAsset: string; isActive: boolean }[];
+  fruits: { id: string; fruitKind: string; createdAt: string }[];
   tableFlowerAsset: string | null;
 }) {
+  const router = useRouter();
   const [counts, setCounts] = useState<Counts>(emptyCounts);
   const [signals, setSignals] = useState<ThumbFlexSignals>(emptySignals);
   const [cameraStatus, setCameraStatus] = useState("Camera idle");
@@ -33,6 +37,7 @@ export default function SnapshotGameClient({
   const [cameraRunId, setCameraRunId] = useState(0);
   const [snapshotTaken, setSnapshotTaken] = useState(false);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
+  const [sceneReady, setSceneReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const trackerRef = useRef<MotionTracker | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -49,6 +54,7 @@ export default function SnapshotGameClient({
   // Keep this reference stable while the hand-tracking UI updates. Otherwise
   // the embedded Three.js dashboard is torn down and rebuilt every frame.
   const activeBugs = useMemo(() => caughtBugs.filter((bug) => bug.isActive), [caughtBugs]);
+  const handleSceneReady = useCallback(() => setSceneReady(true), []);
 
   useEffect(() => {
     sessionIdRef.current = crypto.randomUUID();
@@ -93,7 +99,7 @@ export default function SnapshotGameClient({
   }, []);
 
   useEffect(() => {
-    if (!isComplete || snapshotSavingRef.current) return;
+    if (!isComplete || !sceneReady || snapshotSavingRef.current) return;
     snapshotSavingRef.current = true;
     const timer = window.setTimeout(() => {
       const sourceCanvas = stageRef.current?.querySelector("canvas");
@@ -114,10 +120,11 @@ export default function SnapshotGameClient({
       }).then((result) => {
         if (!result.ok) { setSnapshotError(result.error); return; }
         setSnapshotTaken(true);
+        router.replace("/dashboard");
       });
-    }, 500);
+    }, 250);
     return () => window.clearTimeout(timer);
-  }, [isComplete]);
+  }, [isComplete, router, sceneReady]);
 
   useEffect(() => {
     if (snapshotTaken) return;
@@ -194,7 +201,7 @@ export default function SnapshotGameClient({
         <section className="watering-sprout-panel">
           <div className="watering-sprout-heading"><p>Live growth</p><h2>{snapshotTaken ? "Snapshot taken!" : "Frame your garden"}</h2></div>
           <div ref={stageRef} className={["watering-sprout-stage-shell", "snapshot-garden-stage", snapshotTaken ? "is-captured" : ""].join(" ")}>
-            <DashboardHomeScene caughtBugs={activeBugs} embedded tableFlowerAsset={tableFlowerAsset} />
+            <DashboardHomeScene caughtBugs={activeBugs} embedded fruits={fruits} onSceneReady={handleSceneReady} tableFlowerAsset={tableFlowerAsset} />
             {snapshotTaken ? <div className="snapshot-captured-overlay"><span aria-hidden="true">&#128247;</span><strong>Garden snapshot captured</strong></div> : null}
           </div>
           {snapshotError ? <p className="watering-error">{snapshotError}</p> : null}

@@ -39,6 +39,9 @@ type DashboardHomeSceneProps = {
   tableFlowerAsset?: string | null;
   onBugClick?: (bugId: string) => void;
   onTablePotClick?: () => void;
+  fruits?: { id: string; fruitKind: string }[];
+  onFruitBasketClick?: () => void;
+  onSceneReady?: () => void;
 };
 
 type DashboardBug = {
@@ -414,10 +417,12 @@ function loadMaleCharacter({
   camera,
   root,
   mixers,
+  onReady,
 }: {
   camera: THREE.PerspectiveCamera;
   root: THREE.Group;
   mixers: THREE.AnimationMixer[];
+  onReady?: () => void;
 }) {
   const loader = new GLTFLoader();
   let disposed = false;
@@ -440,6 +445,7 @@ function loadMaleCharacter({
       character.add(gltf.scene);
       root.add(character);
       faceCharacterToCamera(character, camera);
+      onReady?.();
 
       const mixer = new THREE.AnimationMixer(gltf.scene);
       const sitClip =
@@ -525,6 +531,37 @@ function createMaterials() {
   };
 }
 
+function addFruitBasket(parent: THREE.Group, fruits: { id: string; fruitKind: string }[]) {
+  const group = new THREE.Group();
+  group.name = "dashboard-fruit-basket";
+  group.position.set(-1.75, 1.25, -3.36);
+
+  const wicker = new THREE.MeshStandardMaterial({ color: "#b97a3f", roughness: 0.82 });
+  const darkWicker = new THREE.MeshStandardMaterial({ color: "#805027", roughness: 0.88 });
+  const basket = createMesh(new THREE.SphereGeometry(0.5, 24, 14, 0, Math.PI * 2, Math.PI * 0.42, Math.PI * 0.58), wicker, {
+    position: [0, 0.03, 0], scale: [1, 0.72, 0.62], castShadow: true,
+  });
+  const rim = createMesh(new THREE.TorusGeometry(0.42, 0.045, 10, 32), darkWicker, {
+    position: [0, 0.18, 0], rotation: [Math.PI / 2, 0, 0], castShadow: true,
+  });
+  const handle = createMesh(new THREE.TorusGeometry(0.38, 0.035, 10, 28, Math.PI), darkWicker, {
+    position: [0, 0.2, 0], rotation: [0, 0, 0], castShadow: true,
+  });
+  group.add(basket, rim, handle);
+
+  const colors: Record<string, string> = { apple: "#d9473f", pear: "#d7b83d", orange: "#ef8b23", plum: "#76508d", peach: "#ef9b6a" };
+  fruits.slice(-5).forEach((fruit, index) => {
+    const fruitMesh = createMesh(
+      new THREE.SphereGeometry(0.115, 18, 14),
+      new THREE.MeshStandardMaterial({ color: colors[fruit.fruitKind] ?? "#d9473f", roughness: 0.58 }),
+      { position: [-0.22 + (index % 3) * 0.22, 0.22 + Math.floor(index / 3) * 0.15, 0], castShadow: true },
+    );
+    group.add(fruitMesh);
+  });
+  parent.add(group);
+  return group;
+}
+
 export default function DashboardHomeScene({
   caughtBugs = [],
   embedded = false,
@@ -533,6 +570,9 @@ export default function DashboardHomeScene({
   tableFlowerAsset = null,
   onBugClick,
   onTablePotClick,
+  fruits = [],
+  onFruitBasketClick,
+  onSceneReady,
 }: DashboardHomeSceneProps) {
   const setup = useCallback((context: ThreeStageContext) => {
     const { scene, camera, renderer } = context;
@@ -580,8 +620,9 @@ export default function DashboardHomeScene({
     addFurniture(root, materials);
     const tablePot = addTablePot({ parent: root, materials, tableFlowerAsset });
     const mountedWallSnapshot = addWallSnapshot({ parent: root, imageData: wallSnapshot?.imageData });
-    const maleCharacter = loadMaleCharacter({ camera, root, mixers });
+    const maleCharacter = loadMaleCharacter({ camera, root, mixers, onReady: onSceneReady });
     const orbitingBugs = loadOrbitingBugs({ parent: root, caughtBugs });
+    const fruitBasket = addFruitBasket(root, fruits);
 
     const readPointer = (event: PointerEvent) => {
       const bounds = renderer.domElement.getBoundingClientRect();
@@ -596,6 +637,7 @@ export default function DashboardHomeScene({
       return raycaster.intersectObject(tablePot.object, true).length > 0;
     };
     const isSnapshotHit = () => raycaster.intersectObject(mountedWallSnapshot, true).length > 0;
+    const isFruitBasketHit = () => raycaster.intersectObject(fruitBasket, true).length > 0;
 
     const getBugHit = () => {
       const intersections = raycaster.intersectObjects(orbitingBugs.objects, true);
@@ -614,16 +656,16 @@ export default function DashboardHomeScene({
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!onTablePotClick && !onBugClick && !onSnapshotClick) {
+      if (!onTablePotClick && !onBugClick && !onSnapshotClick && !onFruitBasketClick) {
         return;
       }
 
       readPointer(event);
-      renderer.domElement.style.cursor = getBugHit() || (onTablePotClick && isTablePotHit()) || (onSnapshotClick && isSnapshotHit()) ? "pointer" : "";
+      renderer.domElement.style.cursor = getBugHit() || (onTablePotClick && isTablePotHit()) || (onSnapshotClick && isSnapshotHit()) || (onFruitBasketClick && isFruitBasketHit()) ? "pointer" : "";
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if (!onTablePotClick && !onBugClick && !onSnapshotClick) {
+      if (!onTablePotClick && !onBugClick && !onSnapshotClick && !onFruitBasketClick) {
         return;
       }
 
@@ -639,6 +681,12 @@ export default function DashboardHomeScene({
       if (onSnapshotClick && isSnapshotHit()) {
         event.preventDefault();
         onSnapshotClick();
+        return;
+      }
+
+      if (onFruitBasketClick && isFruitBasketHit()) {
+        event.preventDefault();
+        onFruitBasketClick();
         return;
       }
 
@@ -691,14 +739,14 @@ export default function DashboardHomeScene({
         disposeObject3D(root);
       },
     };
-  }, [caughtBugs, embedded, onBugClick, onSnapshotClick, onTablePotClick, tableFlowerAsset, wallSnapshot]);
+  }, [caughtBugs, embedded, fruits, onBugClick, onFruitBasketClick, onSceneReady, onSnapshotClick, onTablePotClick, tableFlowerAsset, wallSnapshot]);
 
   return (
     <div
       className={[
         "dashboard-three-layer",
         embedded ? "dashboard-three-layer-embedded" : "",
-        onTablePotClick || onBugClick || onSnapshotClick ? "dashboard-three-layer-interactive" : "",
+        onTablePotClick || onBugClick || onSnapshotClick || onFruitBasketClick ? "dashboard-three-layer-interactive" : "",
       ]
         .filter(Boolean)
         .join(" ")}

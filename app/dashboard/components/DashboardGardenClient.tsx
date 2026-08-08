@@ -4,14 +4,16 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
-import { deleteUserBug, deleteUserSnapshot, setActiveBug, setActiveSnapshot, setTableFlowerAsset } from "../actions";
+import { deleteUserBug, deleteUserSnapshot, setActiveBug, setActiveSnapshot, setTableFlowerAsset, throwAwayUserFruit } from "../actions";
 import DashboardHomeScene from "./DashboardHomeScene";
+import { BasketArt, FruitArt, type FruitArtKind } from "@/app/components/FruitArt";
 
 type DashboardGardenClientProps = {
   ownedFlowerAssets: string[];
   tableFlowerAsset: string | null;
   caughtBugs: { id: string; bugAsset: string; isActive: boolean }[];
   snapshots: { id: string; imageData: string; isActive: boolean; createdAt: string }[];
+  fruits: { id: string; fruitKind: string; createdAt: string }[];
 };
 
 export default function DashboardGardenClient({
@@ -19,6 +21,7 @@ export default function DashboardGardenClient({
   tableFlowerAsset,
   caughtBugs,
   snapshots,
+  fruits,
 }: DashboardGardenClientProps) {
   const router = useRouter();
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
@@ -30,6 +33,7 @@ export default function DashboardGardenClient({
   const [selectedBug, setSelectedBug] = useState<{ id: string; bugAsset: string } | null>(null);
   const [isBugSelectorOpen, setIsBugSelectorOpen] = useState(false);
   const [isSnapshotSelectorOpen, setIsSnapshotSelectorOpen] = useState(false);
+  const [isFruitBasketOpen, setIsFruitBasketOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const selectedAsset =
     localSelection.serverAsset === tableFlowerAsset
@@ -127,6 +131,16 @@ export default function DashboardGardenClient({
     });
   }, [router]);
 
+  const removeFruit = useCallback((fruitId: string) => {
+    if (!window.confirm("Throw this fruit away?")) return;
+    setActionError(null);
+    startTransition(async () => {
+      const result = await throwAwayUserFruit(fruitId);
+      if (!result.ok) { setActionError(result.error); return; }
+      router.refresh();
+    });
+  }, [router]);
+
   return (
     <>
       <DashboardHomeScene
@@ -144,7 +158,11 @@ export default function DashboardGardenClient({
             setIsSnapshotSelectorOpen(true);
           }
         }}
+        fruits={fruits}
+        onFruitBasketClick={() => { setActionError(null); setIsFruitBasketOpen(true); }}
       />
+
+      {isFruitBasketOpen ? <div className="dashboard-table-flower-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isPending) setIsFruitBasketOpen(false); }}><section className="dashboard-table-flower-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboard-fruit-title"><div className="dashboard-table-flower-heading"><p>Fruit basket</p><h2 id="dashboard-fruit-title">Your harvest</h2></div>{fruits.length ? <div className="dashboard-fruit-grid">{fruits.map((fruit) => <div className="dashboard-fruit-item" key={fruit.id}><FruitArt kind={fruit.fruitKind as FruitArtKind} label={fruit.fruitKind} /><strong>{fruit.fruitKind[0].toUpperCase() + fruit.fruitKind.slice(1)}</strong><button disabled={isPending} onClick={() => removeFruit(fruit.id)} type="button">Throw away</button></div>)}</div> : <div className="dashboard-table-flower-empty"><BasketArt className="dashboard-empty-basket" label="Empty basket" /><strong>Your basket is empty</strong><p>Play Fruit Plucking to fill it.</p><Link className="dashboard-game-button" href="/games/pluckfruit">Pluck fruit</Link></div>}{actionError ? <p className="dashboard-table-flower-error">{actionError}</p> : null}<div className="dashboard-table-flower-actions"><button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setIsFruitBasketOpen(false)}>Close</button></div></section></div> : null}
 
       {isSelectorOpen ? (
         <div

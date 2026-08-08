@@ -32,6 +32,29 @@ export function validSnapshotMetrics(metrics: GameCompletionMetrics) {
   return validCommon(metrics) && metrics.leftRepetitions === 3 && metrics.rightRepetitions === 3;
 }
 
+export function validFishMetrics(metrics: GameCompletionMetrics) {
+  return (
+    validCommon(metrics) &&
+    metrics.leftRepetitions === 3 &&
+    metrics.rightRepetitions === 3 &&
+    metrics.successfulActions === 6 &&
+    typeof metrics.totalAttempts === "number" &&
+    Number.isInteger(metrics.totalAttempts) &&
+    metrics.totalAttempts >= 1 &&
+    metrics.totalAttempts <= 1000
+  );
+}
+
+export function validFruitMetrics(metrics: GameCompletionMetrics) {
+  return (
+    validCommon(metrics) &&
+    metrics.leftRepetitions === 3 &&
+    metrics.rightRepetitions === 3 &&
+    metrics.successfulActions === 6 &&
+    metrics.totalAttempts === 6
+  );
+}
+
 function validCommon(metrics: GameCompletionMetrics) {
   return Boolean(
     metrics &&

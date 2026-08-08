@@ -29,5 +29,7 @@ export function activityLabel(value: string) {
   if (value === "watering") return "Watering";
   if (value === "collect_bugs") return "Collect Bugs";
   if (value === "snapshot") return "Snapshot";
+  if (value === "catch_fish") return "Catching fishes";
+  if (value === "pluck_fruit") return "Fruit Plucking";
   return value;
 }

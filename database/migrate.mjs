@@ -176,6 +176,30 @@ try {
   `);
   await client.query("ALTER TABLE user_snapshots ADD COLUMN IF NOT EXISTS storage_provider VARCHAR(24) NOT NULL DEFAULT 'database'");
   await client.query("ALTER TABLE user_snapshots ADD COLUMN IF NOT EXISTS storage_key TEXT");
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS user_fish (
+      id TEXT PRIMARY KEY,
+      userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
+      fish_kind VARCHAR(32) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT user_fish_kind_check CHECK (
+        fish_kind IN ('goldfish', 'bluefish', 'koi', 'angelfish')
+      )
+    )
+  `);
+  await client.query("CREATE INDEX IF NOT EXISTS user_fish_userid_created_idx ON user_fish(userid, created_at ASC)");
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS user_fruits (
+      id TEXT PRIMARY KEY,
+      userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
+      fruit_kind VARCHAR(24) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT user_fruits_kind_check CHECK (
+        fruit_kind IN ('apple', 'pear', 'orange', 'plum', 'peach')
+      )
+    )
+  `);
+  await client.query("CREATE INDEX IF NOT EXISTS user_fruits_userid_created_idx ON user_fruits(userid, created_at ASC)");
 
   await client.query(`
     CREATE TABLE IF NOT EXISTS game_sessions (
@@ -194,7 +218,7 @@ try {
       result_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CONSTRAINT game_sessions_activity_check CHECK (
-        activity_type IN ('watering', 'collect_bugs', 'snapshot')
+        activity_type IN ('watering', 'collect_bugs', 'snapshot', 'catch_fish')
       ),
       CONSTRAINT game_sessions_status_check CHECK (status IN ('completed', 'failed')),
       CONSTRAINT game_sessions_duration_check CHECK (
@@ -209,6 +233,8 @@ try {
       UNIQUE (activity_type, source_record_id)
     )
   `);
+  await client.query("ALTER TABLE game_sessions DROP CONSTRAINT IF EXISTS game_sessions_activity_check");
+  await client.query("ALTER TABLE game_sessions ADD CONSTRAINT game_sessions_activity_check CHECK (activity_type IN ('watering', 'collect_bugs', 'snapshot', 'catch_fish', 'pluck_fruit'))");
   await client.query("CREATE INDEX IF NOT EXISTS game_sessions_user_started_idx ON game_sessions(userid, started_at DESC)");
   await client.query("CREATE INDEX IF NOT EXISTS game_sessions_activity_started_idx ON game_sessions(activity_type, started_at DESC)");
 

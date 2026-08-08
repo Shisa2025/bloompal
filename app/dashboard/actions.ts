@@ -8,6 +8,8 @@ import {
 } from "@/database/plants";
 import { deleteUserBug as removeUserBug, setActiveUserBug } from "@/database/bugs";
 import { deleteUserSnapshot as removeUserSnapshot, setActiveUserSnapshot } from "@/database/snapshots";
+import { deleteUserFish as removeUserFish } from "@/database/fish";
+import { deleteUserFruit as removeUserFruit } from "@/database/fruits";
 import { destroyCurrentSession, requireUser } from "@/lib/auth";
 
 export type TableFlowerActionResult =
@@ -77,6 +79,24 @@ export async function deleteUserSnapshot(snapshotId: string): Promise<{ ok: true
   if (!(await removeUserSnapshot({ userid, snapshotId }))) {
     return { ok: false, error: "That snapshot is no longer in your garden." };
   }
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export async function releaseUserFish(fishId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { userid } = await requireUser();
+  if (!fishId) return { ok: false, error: "That fish could not be found." };
+  if (!(await removeUserFish({ userid, fishId }))) {
+    return { ok: false, error: "That fish is no longer in your pond." };
+  }
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export async function throwAwayUserFruit(fruitId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { userid } = await requireUser();
+  if (!fruitId) return { ok: false, error: "That fruit could not be found." };
+  if (!(await removeUserFruit({ userid, fruitId }))) return { ok: false, error: "That fruit is no longer in your basket." };
   revalidatePath("/dashboard");
   return { ok: true };
 }

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { logoutAction } from "./actions";
 import DashboardGardenClient from "./components/DashboardGardenClient";
 import DashboardGamingBoard from "./components/DashboardGamingBoard";
+import DashboardPond from "./components/DashboardPond";
+import GameHistoryButton from "./components/GameHistoryButton";
 import {
   getLatestUserPlant,
   getOwnedFlowerAssets,
@@ -11,17 +13,23 @@ import {
 } from "@/database/plants";
 import { getUserBugs } from "@/database/bugs";
 import { getUserSnapshots } from "@/database/snapshots";
+import { getUserFish } from "@/database/fish";
+import { getUserGameHistory } from "@/database/game-sessions";
+import { getUserFruits } from "@/database/fruits";
 import { requireUser } from "@/lib/auth";
 
 export default async function DashboardPage() {
   const account = await requireUser();
-  const [latestPlant, ownedFlowerAssets, tableFlowerAsset, caughtBugs, snapshots] =
+  const [latestPlant, ownedFlowerAssets, tableFlowerAsset, caughtBugs, snapshots, caughtFish, gameHistory, fruits] =
     await Promise.all([
       getLatestUserPlant(account.userid),
       getOwnedFlowerAssets(account.userid),
       getTableFlowerAsset(account.userid),
       getUserBugs(account.userid),
       getUserSnapshots(account.userid),
+      getUserFish(account.userid),
+      getUserGameHistory(account.userid),
+      getUserFruits(account.userid),
     ]);
   const boardState = getBoardState(latestPlant);
 
@@ -33,6 +41,7 @@ export default async function DashboardPage() {
           tableFlowerAsset={tableFlowerAsset}
           caughtBugs={caughtBugs}
           snapshots={snapshots}
+          fruits={fruits}
         />
 
         <header className="dashboard-topbar" aria-label="Dashboard account bar">
@@ -46,6 +55,7 @@ export default async function DashboardPage() {
 
           <div className="dashboard-account">
             <span className="dashboard-user-pill">{account.displayName}</span>
+            <GameHistoryButton history={gameHistory} />
             <Link className="dashboard-logout-button" href="/change-password">
               Change password
             </Link>
@@ -58,6 +68,7 @@ export default async function DashboardPage() {
         </header>
 
         <DashboardGamingBoard boardState={boardState} isSignedIn />
+        <DashboardPond fish={caughtFish} />
       </main>
     </DesktopOnly>
   );

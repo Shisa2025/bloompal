@@ -892,20 +892,120 @@ body {
   outline-offset: 0.15rem;
 }
 
+.dashboard-history-button {
+  background: #e7f0e1;
+  color: #304536;
+  box-shadow: none;
+}
+
+.dashboard-history-button:hover {
+  background: #dce9d5;
+}
+
+.dashboard-table-flower-dialog.dashboard-history-dialog {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(38rem, 100%);
+  height: min(44rem, calc(100vh - 3rem));
+  height: min(44rem, calc(100dvh - 3rem));
+  max-height: none;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.dashboard-history-list {
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  gap: 0.65rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.5rem;
+  scrollbar-color: #8eaa8d #e7eee3;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.dashboard-history-list::-webkit-scrollbar {
+  width: 0.65rem;
+}
+
+.dashboard-history-list::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: #e7eee3;
+}
+
+.dashboard-history-list::-webkit-scrollbar-thumb {
+  border: 0.15rem solid #e7eee3;
+  border-radius: 999px;
+  background: #8eaa8d;
+}
+
+.dashboard-history-list::-webkit-scrollbar-thumb:hover {
+  background: #6f9272;
+}
+
+.dashboard-history-entry {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  border: 1px solid rgb(82 115 90 / 14%);
+  border-radius: 0.6rem;
+  background: rgb(255 255 255 / 68%);
+  padding: 0.75rem;
+}
+
+.dashboard-history-icon,
+.dashboard-history-empty-icon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #e5f0dd;
+  font-size: 1.55rem;
+}
+
+.dashboard-history-entry div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.dashboard-history-entry strong {
+  color: #26372d;
+  font-size: 1rem;
+}
+
+.dashboard-history-entry time {
+  color: #5f6f63;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.dashboard-history-duration {
+  border-radius: 999px;
+  background: #edf5e9;
+  color: #405d48;
+  font-size: 0.85rem;
+  font-weight: 900;
+  padding: 0.5rem 0.7rem;
+  white-space: nowrap;
+}
+
 .dashboard-gaming-board {
   position: fixed;
   top: 7.25rem;
   right: max(1.5rem, calc((100vw - 70rem) / 2));
   z-index: 2;
   display: flex;
-  width: min(23rem, calc(100vw - 3rem));
+  width: min(28rem, calc(100vw - 3rem));
   flex-direction: column;
-  gap: 1.1rem;
+  gap: 1.25rem;
   border: 1px solid rgb(62 93 88 / 16%);
   border-radius: 0.75rem;
   background: rgb(255 253 247 / 90%);
   box-shadow: 0 1.35rem 3.5rem rgb(50 71 68 / 18%);
-  padding: 1.25rem;
+  padding: 1.5rem;
   backdrop-filter: blur(18px) saturate(1.08);
 }
 
@@ -921,7 +1021,7 @@ body {
 @media (min-width: 120rem) {
   .dashboard-gaming-board {
     right: 1.5rem;
-    width: min(23rem, calc((100vw - 70rem) / 2 - 3rem));
+    width: min(28rem, calc((100vw - 70rem) / 2 - 3rem));
   }
 
   .dashboard-gaming-board.is-collapsed {
@@ -939,7 +1039,7 @@ body {
 .dashboard-gaming-board-label {
   margin: 0;
   color: #45664d;
-  font-size: 0.8rem;
+  font-size: 1.4rem;
   font-weight: 900;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -961,7 +1061,7 @@ body {
   color: #304536;
   cursor: pointer;
   font: inherit;
-  font-size: 0.98rem;
+  font-size: 1.12rem;
   font-weight: 900;
   padding: 0.65rem 0.85rem;
   transition:
@@ -972,13 +1072,14 @@ body {
 
 .dashboard-gaming-board.is-collapsed .dashboard-gaming-board-toggle {
   width: 100%;
-  min-height: 3.75rem;
+  min-height: 4.5rem;
   border-color: #52735a;
   border-radius: 0.75rem;
   background: #52735a;
   box-shadow: 0 1rem 2rem rgb(50 71 68 / 24%);
   color: #fffdf7;
-  font-size: 1.12rem;
+  font-size: 1.4rem;
+  padding: 0.9rem 1.2rem;
 }
 
 .dashboard-gaming-board-toggle:hover {
@@ -1008,7 +1109,10 @@ body {
 }
 
 .dashboard-gaming-board.is-collapsed .dashboard-gaming-board-toggle-icon {
+  width: 2rem;
+  height: 2rem;
   background: rgb(255 255 255 / 16%);
+  font-size: 1.5rem;
 }
 
 .dashboard-gaming-board-content {
@@ -1041,7 +1145,7 @@ body {
 
 .dashboard-gaming-board-heading h2 {
   color: #1d2b22;
-  font-size: 1.6rem;
+  font-size: 2rem;
   line-height: 1.2;
 }
 
@@ -1104,7 +1208,7 @@ body {
 
 .dashboard-game-position {
   color: #45664d;
-  font-size: 1rem;
+  font-size: 1.4rem;
   font-weight: 900;
   text-align: center;
 }
@@ -1165,21 +1269,91 @@ body {
   }
 }
 
+.fruit-game-shell { background: radial-gradient(circle at top, #fff5d5, #e4f0cd 60%, #b8d59c); }
+.fruit-playfield { display: grid; grid-template-columns: minmax(20rem, .9fr) minmax(28rem, 1.2fr) minmax(18rem, .75fr); gap: 1rem; padding: 0 1.5rem 1.5rem; }
+.fruit-tree-panel { position: relative; min-height: 34rem; overflow: hidden; border: 1px solid rgb(69 97 57 / 18%); border-radius: 2rem; background: radial-gradient(circle at 18% 15%, rgb(255 255 255 / 48%) 0 1.8rem, transparent 1.9rem), linear-gradient(#ccebf0 0 63%, #a8cf82 63% 100%); box-shadow: 0 1.25rem 3rem rgb(53 80 40 / 15%), inset 0 0 0 .28rem rgb(255 255 255 / 24%); }
+.fruit-tree-panel::before { content: ""; position: absolute; right: -12%; bottom: -13%; left: -12%; height: 37%; border-radius: 50% 50% 0 0; background: linear-gradient(180deg, #b9da91, #8fbe70); }
+.fruit-tree-crown { position: absolute; z-index: 2; inset: 1.3rem 1.4rem auto; height: 22.5rem; border: .28rem solid #477d3f; border-radius: 46% 54% 48% 52% / 52% 48% 55% 45%; background: radial-gradient(circle at 28% 26%, rgb(255 255 255 / 22%) 0 1.8rem, transparent 1.9rem), radial-gradient(circle at 68% 30%, #78bd61 0 18%, transparent 18.5%), radial-gradient(circle at 37% 62%, #64aa54 0 21%, transparent 21.5%), linear-gradient(145deg, #83c768, #4d9149 72%); box-shadow: inset -.8rem -1.2rem 1.8rem rgb(39 102 43 / 24%), 0 .8rem 1.2rem rgb(54 87 41 / 18%); }
+.fruit-tree-crown img { position: absolute; width: 6rem; height: 6rem; object-fit: contain; filter: drop-shadow(0 .35rem .3rem rgb(30 60 25 / 25%)); transition: opacity .35s, transform .35s; }
+.fruit-tree-crown img:nth-child(1) { left: 12%; top: 18%; } .fruit-tree-crown img:nth-child(2) { left: 42%; top: 8%; } .fruit-tree-crown img:nth-child(3) { right: 10%; top: 24%; } .fruit-tree-crown img:nth-child(4) { left: 22%; bottom: 15%; } .fruit-tree-crown img:nth-child(5) { left: 49%; bottom: 8%; } .fruit-tree-crown img:nth-child(6) { right: 8%; bottom: 17%; }
+.fruit-tree-crown img.is-plucked { opacity: 0; transform: translateY(8rem) rotate(20deg) scale(.6); }
+.fruit-tree-trunk { position: absolute; z-index: 3; left: 44%; bottom: -1rem; width: 12%; height: 18rem; border: .24rem solid #704521; border-bottom: 0; border-radius: 3rem 3rem .6rem .6rem; background: linear-gradient(90deg, #9a6235, #c5894e 52%, #8b572f); box-shadow: inset -.55rem 0 .7rem rgb(91 50 22 / 20%), .3rem .45rem .7rem rgb(47 72 36 / 16%); }
+.fruit-tree-trunk::before, .fruit-tree-trunk::after { content: ""; position: absolute; top: 1.1rem; width: 5.5rem; height: 1.15rem; border: .22rem solid #704521; background: linear-gradient(#c5894e, #9a6235); }
+.fruit-tree-trunk::before { right: 60%; border-right: 0; border-radius: 1rem 0 0 1rem; rotate: 34deg; transform-origin: right center; }
+.fruit-tree-trunk::after { left: 60%; border-left: 0; border-radius: 0 1rem 1rem 0; rotate: -32deg; transform-origin: left center; }
+.fruit-mystery-card { position: relative; overflow: hidden; }
+.fruit-mystery-card img { width: 9rem; height: 9rem; object-fit: contain; filter: blur(8px) brightness(.35); }
+.fruit-mystery-cover { position: absolute; top: 4.6rem; left: 50%; translate: -50% 0; display: grid; width: 4rem; height: 4rem; place-items: center; border-radius: 50%; background: #fff8d9; color: #41643b; font-size: 2.3rem; font-weight: 900; box-shadow: 0 .4rem 1rem rgb(36 73 36 / 20%); }
+.fruit-gesture-tip { margin-top: 1.5rem; padding: 1rem; border-radius: 1rem; background: #edf5df; }
+.fruit-gesture-tip p { margin: .35rem 0 0; line-height: 1.45; }
+.dashboard-fruit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; max-height: 26rem; overflow: auto; }
+.dashboard-fruit-item { display: grid; place-items: center; padding: .8rem; border: 1px solid #d9cbb4; border-radius: 1rem; background: #fffaf0; text-transform: capitalize; }
+.dashboard-fruit-item img { width: 6rem; height: 6rem; object-fit: contain; }
+.dashboard-fruit-item button { margin-top: .5rem; border: 0; background: transparent; color: #a03f35; text-decoration: underline; cursor: pointer; }
+@media (max-width: 1000px) { .fruit-playfield { grid-template-columns: 1fr 1fr; } .fruit-playfield > aside { grid-column: 1 / -1; } }
+
+/* Code-built fruit game artwork */
+.fruit-art { position: relative; display: inline-block; width: 5.4rem; height: 5.8rem; filter: drop-shadow(0 .35rem .28rem rgb(39 66 29 / 24%)); }
+.fruit-art-body { position: absolute; inset: 1rem .45rem .35rem; border-radius: 46% 46% 50% 50%; background: linear-gradient(135deg, rgb(255 255 255 / 45%), transparent 28%), var(--fruit-color); box-shadow: inset -.65rem -.7rem 1rem rgb(82 45 20 / 18%); }
+.fruit-art-stem { position: absolute; z-index: 2; top: .35rem; left: 50%; width: .34rem; height: 1.15rem; border-radius: 1rem; background: #6e4826; rotate: 10deg; }
+.fruit-art-leaf { position: absolute; z-index: 2; top: .48rem; left: 53%; width: 1.45rem; height: .75rem; border-radius: 100% 0 100% 0; background: linear-gradient(135deg, #8fcf58, #39793e); rotate: -14deg; transform-origin: left center; }
+.fruit-art-apple { --fruit-color: #df4a42; }
+.fruit-art-orange { --fruit-color: #f19527; }
+.fruit-art-plum { --fruit-color: #76508d; }
+.fruit-art-peach { --fruit-color: #efa06f; }
+.fruit-art-peach .fruit-art-body { background: linear-gradient(120deg, rgb(255 255 255 / 48%), transparent 26%), linear-gradient(90deg, #f2ad73, #ed796b); }
+.fruit-art-pear { --fruit-color: #d7bc45; }
+.fruit-art-pear .fruit-art-body { inset: .9rem .65rem .3rem; border-radius: 48% 48% 52% 52% / 35% 35% 65% 65%; clip-path: polygon(37% 0, 63% 0, 72% 28%, 94% 57%, 89% 83%, 70% 100%, 30% 100%, 11% 83%, 6% 57%, 28% 28%); }
+
+.fruit-tree-panel { isolation: isolate; }
+.fruit-tree-crown::before, .fruit-tree-crown::after { content: ""; position: absolute; z-index: 0; border: .25rem solid #477d3f; border-radius: 50%; background: linear-gradient(145deg, #8bcd70, #4b9148); box-shadow: inset -.55rem -.8rem 1rem rgb(39 102 43 / 20%); }
+.fruit-tree-crown::before { width: 48%; height: 75%; left: -7%; top: 14%; }
+.fruit-tree-crown::after { width: 47%; height: 78%; right: -7%; top: 11%; }
+.fruit-tree-fruit { position: absolute; z-index: 4; width: 5.4rem; height: 5.8rem; translate: -50% -50%; transition: opacity .35s, transform .35s, filter .2s; }
+.fruit-tree-fruit .fruit-art { width: 100%; height: 100%; }
+.fruit-tree-fruit.is-targeted { filter: drop-shadow(0 0 .3rem #fff) drop-shadow(0 0 .9rem #ffdf54); animation: fruit-target-pulse .75s ease-in-out infinite alternate; }
+.fruit-tree-fruit.is-plucked { opacity: 0; pointer-events: none; transform: translateY(8rem) rotate(20deg) scale(.55); }
+.fruit-hand-target { position: absolute; z-index: 8; display: grid; width: 4.4rem; height: 4.4rem; translate: -50% -50%; place-items: center; border: .25rem solid currentColor; border-radius: 50%; color: #236bc2; background: rgb(255 255 255 / 20%); font-weight: 900; box-shadow: 0 0 0 .22rem rgb(255 255 255 / 75%), 0 .3rem 1rem rgb(25 52 35 / 22%); pointer-events: none; transition: scale .12s; }
+.fruit-hand-target::before, .fruit-hand-target::after, .fruit-hand-target > span { content: ""; position: absolute; background: currentColor; }
+.fruit-hand-target::before { width: 1.6rem; height: .16rem; left: -1rem; top: 50%; box-shadow: 5.2rem 0 currentColor; }
+.fruit-hand-target::after { width: .16rem; height: 1.6rem; left: 50%; top: -1rem; box-shadow: 0 5.2rem currentColor; }
+.fruit-hand-target-right { color: #b54378; }
+.fruit-hand-target.is-claw { scale: .78; background: rgb(255 222 84 / 38%); }
+.fruit-aim-instruction { position: absolute; z-index: 7; left: 50%; bottom: 1rem; translate: -50% 0; width: max-content; max-width: 88%; padding: .65rem 1rem; border-radius: 2rem; background: rgb(255 252 235 / 88%); color: #335638; font-size: .86rem; font-weight: 750; box-shadow: 0 .3rem 1rem rgb(32 67 37 / 14%); }
+.fruit-mystery-card .fruit-art { width: 9rem; height: 9.4rem; filter: blur(8px) brightness(.35); }
+.fruit-game .watering-reward-main-panel { padding: 1rem; }
+.fruit-reward-panel { display: grid; width: min(100%, 52rem); grid-template-columns: minmax(0, 1fr); align-content: center; justify-items: center; justify-self: center; gap: 1rem; }
+.fruit-reward-stage { position: relative; display: grid; overflow: hidden; width: 100%; max-width: 40rem; height: clamp(24rem, 56vh, 34rem); min-height: 24rem; place-items: center; border-radius: .65rem; background: radial-gradient(circle at 50% 34%, rgb(255 253 247 / 72%), transparent 13rem), #dfe9d9; box-shadow: inset 0 0 0 1px rgb(82 115 90 / 18%), 0 1rem 2.4rem rgb(72 93 72 / 16%); }
+.fruit-reward-ground { position: absolute; right: -8%; bottom: -18%; left: -8%; height: 48%; border-radius: 50% 50% 0 0; background: #cdbb9e; }
+.fruit-reward-stage > .fruit-art { z-index: 1; width: clamp(13rem, 28vw, 18rem); height: clamp(14rem, 30vw, 19rem); translate: 0 -1rem; }
+.fruit-reward-copy h2, .fruit-reward-copy p { margin: 0; }
+.fruit-reward-copy h2 { margin-top: .35rem; color: #1d2b22; font-size: 1.55rem; font-weight: 500; line-height: 1.2; }
+
+.basket-art { position: relative; display: inline-block; width: 11rem; height: 9rem; }
+.basket-art-handle { position: absolute; z-index: 1; left: 18%; top: 3%; width: 64%; height: 68%; border: .65rem solid #8a552d; border-bottom: 0; border-radius: 50% 50% 0 0; }
+.basket-art-body { position: absolute; z-index: 3; left: 5%; right: 5%; bottom: 2%; height: 58%; border: .35rem solid #885326; border-radius: .7rem .7rem 2.6rem 2.6rem; background: repeating-linear-gradient(0deg, transparent 0 .55rem, rgb(117 68 28 / 32%) .55rem .68rem), repeating-linear-gradient(90deg, #c88947 0 .7rem, #ad6f35 .7rem .82rem); box-shadow: inset 0 -.8rem 1rem rgb(95 52 21 / 22%); }
+.basket-art-fruits { position: absolute; z-index: 2; display: flex; left: 12%; right: 12%; bottom: 38%; align-items: end; justify-content: center; }
+.basket-art-fruits .fruit-art { width: 3.1rem; height: 3.3rem; margin: 0 -.35rem; }
+.dashboard-empty-basket { margin-bottom: .7rem; }
+.dashboard-fruit-item > .fruit-art { width: 6rem; height: 6.4rem; }
+
+@keyframes fruit-target-pulse { to { scale: 1.12; } }
+
 .dashboard-gaming-board-status span {
   color: #3f7773;
-  font-size: 0.85rem;
+  font-size: 1.3rem;
   font-weight: 900;
 }
 
 .dashboard-gaming-board-status strong {
   color: #223128;
-  font-size: 1.12rem;
+  font-size: 1.75rem;
   line-height: 1.35;
 }
 
 .dashboard-gaming-board-status p {
   color: #4b5f50;
-  font-size: 1rem;
+  font-size: 1.5rem;
   line-height: 1.6;
 }
 
@@ -1214,7 +1388,7 @@ body {
 .dashboard-gaming-board .dashboard-game-button {
   min-height: 3.5rem;
   border-radius: 0.65rem;
-  font-size: 1.05rem;
+  font-size: 1.55rem;
   padding: 0.7rem 1rem;
 }
 
@@ -1222,6 +1396,183 @@ body {
   background: #829187;
   box-shadow: none;
   cursor: not-allowed;
+}
+
+.dashboard-pond {
+  position: fixed;
+  left: max(1.5rem, calc((100vw - 70rem) / 2));
+  bottom: 5rem;
+  z-index: 3;
+  display: block;
+  width: 19rem;
+  height: 11rem;
+  border: 0;
+  background: transparent;
+  color: #1d2b22;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: initial;
+  text-decoration: none;
+  transition: filter 180ms ease, transform 180ms ease;
+}
+
+.dashboard-pond:hover {
+  filter: brightness(1.05);
+  transform: translateY(-0.2rem) scale(1.02);
+}
+
+.dashboard-pond:focus-visible {
+  border-radius: 50%;
+  outline: 0.3rem solid rgb(107 155 116 / 42%);
+  outline-offset: 0.3rem;
+}
+
+.dashboard-pond-label {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  min-width: 10rem;
+  gap: 0.1rem;
+  border: 1px solid rgb(62 93 88 / 16%);
+  border-radius: 999px;
+  background: rgb(255 253 247 / 90%);
+  box-shadow: 0 0.65rem 1.5rem rgb(50 71 68 / 14%);
+  padding: 0.55rem 1rem;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.dashboard-pond-label strong {
+  color: #304536;
+  font-size: 1rem;
+}
+
+.dashboard-pond-label small {
+  color: #52735a;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.dashboard-pond-water {
+  position: absolute;
+  inset: 2rem 0 0;
+  overflow: hidden;
+  border: 0.45rem solid #97a978;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 35% 28%, rgb(255 255 255 / 38%), transparent 28%),
+    repeating-radial-gradient(ellipse at center, transparent 0 1.3rem, rgb(255 255 255 / 12%) 1.35rem 1.45rem),
+    #77bac0;
+  box-shadow: inset 0 -1rem 2rem rgb(38 103 112 / 22%), 0 1.1rem 2.2rem rgb(50 71 68 / 20%);
+}
+
+.dashboard-pond-empty {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  border: 0.15rem dashed rgb(255 255 255 / 72%);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 2rem;
+  transform: translate(-50%, -50%);
+}
+
+.dashboard-pond-fish {
+  position: absolute;
+  font-size: 1.75rem;
+  filter: drop-shadow(0 0.3rem 0.25rem rgb(31 85 91 / 20%));
+  animation: dashboard-fish-swim 4.5s ease-in-out infinite alternate;
+}
+
+.dashboard-pond-fish-0 { left: 14%; top: 42%; }
+.dashboard-pond-fish-1 { left: 38%; top: 22%; animation-delay: -1.2s; }
+.dashboard-pond-fish-2 { left: 61%; top: 50%; animation-delay: -2.4s; }
+.dashboard-pond-fish-3 { left: 76%; top: 25%; animation-delay: -3.4s; }
+
+.dashboard-pond-reeds {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.2rem;
+  z-index: 2;
+  width: 3.7rem;
+  height: 4.8rem;
+  border-left: 0.35rem solid #668654;
+  border-right: 0.35rem solid #668654;
+  transform: skewX(-10deg);
+}
+
+@keyframes dashboard-fish-swim {
+  from { translate: -0.8rem 0; rotate: -4deg; }
+  to { translate: 1rem 0.35rem; rotate: 4deg; }
+}
+
+@media (min-width: 120rem) {
+  .dashboard-pond { left: 1.5rem; }
+}
+
+.dashboard-fish-dialog {
+  width: min(34rem, 100%);
+}
+
+.dashboard-fish-option {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 0.25rem 0.7rem;
+  align-items: center;
+  border: 1px solid rgb(82 115 90 / 14%);
+  border-radius: 0.6rem;
+  background: rgb(255 255 255 / 68%);
+  padding: 0.75rem;
+}
+
+.dashboard-fish-option > span {
+  grid-row: 1 / 3;
+  font-size: 2.25rem;
+  text-align: center;
+}
+
+.dashboard-fish-option strong {
+  color: #26372d;
+  font-size: 1rem;
+}
+
+.dashboard-fish-option button {
+  width: fit-content;
+  border: 0;
+  background: transparent;
+  color: #9d3742;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0;
+}
+
+.dashboard-fish-option button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.dashboard-fish-option button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.dashboard-fish-dialog-icon {
+  display: grid;
+  width: 3.5rem;
+  height: 3.5rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #dff1ec;
+  color: #3f7773;
+  font-size: 2rem;
 }
 
 .dashboard-table-flower-overlay {
@@ -2680,6 +3031,195 @@ body {
   font-size: 0.85rem;
   font-weight: 800;
   text-align: center;
+}
+
+.fishing-intro,
+.fishing-reward {
+  display: grid;
+  width: min(42rem, 100%);
+  justify-items: center;
+  gap: 1rem;
+  margin: auto;
+  text-align: center;
+}
+
+.fishing-intro > p,
+.fishing-reward > p {
+  max-width: 34rem;
+  margin: 0;
+  color: #52735a;
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.fishing-intro > h2,
+.fishing-reward > h2 {
+  margin: 0;
+  color: #1d2b22;
+  font-size: 2rem;
+}
+
+.fishing-intro-pond {
+  display: flex;
+  width: min(26rem, 100%);
+  min-height: 10rem;
+  align-items: center;
+  justify-content: space-around;
+  border: 0.5rem solid #97a978;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 35% 28%, rgb(255 255 255 / 38%), transparent 28%), #77bac0;
+  box-shadow: inset 0 -1rem 2rem rgb(38 103 112 / 22%);
+  font-size: 3rem;
+}
+
+.fishing-game-pond {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 30%), transparent 35%),
+    repeating-linear-gradient(0deg, transparent 0 3rem, rgb(255 255 255 / 10%) 3.1rem 3.2rem),
+    #69aeb8;
+}
+
+.fishing-net {
+  position: absolute;
+  left: 32%;
+  top: 1.5%;
+  z-index: 1;
+  width: 36%;
+  height: 27%;
+  pointer-events: none;
+}
+
+.fishing-net-rim {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1.45rem;
+  border: 0.3rem solid #f1ead8;
+  border-radius: 50%;
+  background: rgb(52 105 105 / 34%);
+  box-shadow: 0 0.25rem 0.45rem rgb(31 85 91 / 28%);
+}
+
+.fishing-net-mesh {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 0.7rem;
+  bottom: 0;
+  border: 0.16rem solid rgb(245 238 216 / 88%);
+  background:
+    repeating-linear-gradient(55deg, transparent 0 0.72rem, rgb(245 238 216 / 70%) 0.76rem 0.86rem),
+    repeating-linear-gradient(-55deg, transparent 0 0.72rem, rgb(245 238 216 / 70%) 0.76rem 0.86rem),
+    rgb(41 103 108 / 14%);
+  clip-path: polygon(0 0, 100% 0, 72% 100%, 28% 100%);
+}
+
+.fishing-net strong {
+  position: absolute;
+  left: 50%;
+  top: 1.45rem;
+  z-index: 1;
+  border-radius: 999px;
+  background: rgb(255 253 247 / 88%);
+  color: #466a5d;
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  padding: 0.2rem 0.4rem;
+  transform: translateX(-50%);
+}
+
+.fishing-game-fish {
+  position: absolute;
+  left: 24%;
+  top: 50%;
+  z-index: 2;
+  font-size: 4rem;
+  filter: drop-shadow(0 0.7rem 0.5rem rgb(31 85 91 / 24%));
+  transform: translate(-50%, -50%);
+  transition: filter 160ms ease;
+  user-select: none;
+  will-change: transform;
+}
+
+.fishing-game-fish.is-grabbed {
+  filter: drop-shadow(0 0 0.8rem rgb(255 253 247 / 90%));
+}
+
+.fishing-hand-cursor {
+  position: absolute;
+  z-index: 3;
+  width: 3.25rem;
+  height: 3.25rem;
+  transform: translate(-50%, -50%);
+  transition: left 70ms linear, top 70ms linear;
+  pointer-events: none;
+}
+
+.fishing-hand-cursor i,
+.fishing-hand-cursor i::after {
+  position: absolute;
+  inset: 0;
+  border: 0.3rem solid #fffdf7;
+  border-radius: 50%;
+  content: "";
+  filter: drop-shadow(0 0.2rem 0.35rem rgb(31 85 91 / 42%));
+}
+
+.fishing-hand-cursor i::after {
+  inset: 0.55rem;
+  border-width: 0.25rem;
+}
+
+.fishing-hand-cursor-left i { border-color: #fff8d6; }
+.fishing-hand-cursor-right i { border-color: #e4f8ff; }
+.fishing-hand-cursor.is-fist i { border-color: #fff0a8; animation: fishing-aim-pulse 700ms ease-in-out infinite alternate; }
+
+.fishing-hand-cursor b {
+  position: absolute;
+  left: calc(100% + 0.3rem);
+  top: -0.2rem;
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #fffdf7;
+  box-shadow: 0 0.2rem 0.5rem rgb(31 85 91 / 30%);
+  color: #355846;
+  font-size: 1rem;
+}
+
+.fishing-stage-hint {
+  margin: 0.8rem 1rem 1rem;
+  color: #52735a;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+@keyframes fishing-aim-pulse {
+  to { transform: scale(1.12); }
+}
+
+.fishing-pond-reeds {
+  position: absolute;
+  inset: auto 0 0;
+  height: 3.5rem;
+  background: repeating-linear-gradient(78deg, transparent 0 1.8rem, #638552 1.85rem 2.05rem, transparent 2.1rem 3.5rem);
+}
+
+.fishing-reward-fish {
+  display: grid;
+  width: 11rem;
+  height: 11rem;
+  place-items: center;
+  border: 0.45rem solid #97a978;
+  border-radius: 50%;
+  background: #77bac0;
+  font-size: 5rem;
+  box-shadow: inset 0 -1rem 2rem rgb(38 103 112 / 22%);
+  animation: gentle-float 2.2s ease-in-out infinite;
 }
 
 @keyframes flower-spin {

@@ -4,7 +4,7 @@ import { deleteSessionsForUser } from "./auth-sessions";
 import { sql } from "./connection";
 import { hashPassword, type AccountStatus } from "./users";
 
-export type ActivityType = "watering" | "collect_bugs" | "snapshot";
+export type ActivityType = "watering" | "collect_bugs" | "snapshot" | "catch_fish" | "pluck_fruit";
 
 export type AdminSession = {
   id: string;
@@ -502,7 +502,11 @@ function activityLabel(activity: ActivityType) {
     ? "Watering"
     : activity === "collect_bugs"
       ? "Collect Bugs"
-      : "Snapshot";
+      : activity === "catch_fish"
+        ? "Catching fishes"
+        : activity === "pluck_fruit"
+          ? "Fruit Plucking"
+          : "Snapshot";
 }
 
 function formatBucket(value: Date | string, bucket: string) {

@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { ActivityType } from "./admin";
-import type { DatabaseClient } from "./connection";
+import { sql, type DatabaseClient } from "./connection";
 import { normalizeDurationSeconds } from "@/lib/validation";
 import type { GameCompletionMetrics } from "@/lib/game-metrics";
 
@@ -69,4 +69,34 @@ export async function insertCompletedSession({
   if (!rows[0]) {
     throw new Error("Could not persist the completed game session.");
   }
+}
+
+export type UserGameHistoryEntry = {
+  id: string;
+  activityType: ActivityType;
+  completedAt: string;
+  durationSeconds: number | null;
+};
+
+export async function getUserGameHistory(userid: string, limit = 50): Promise<UserGameHistoryEntry[]> {
+  const rows = await sql.query<{
+      id: string;
+      activity_type: ActivityType;
+      completed_at: Date | string;
+      duration_seconds: number | null;
+    }>(
+      `SELECT id, activity_type, completed_at, duration_seconds
+       FROM game_sessions
+       WHERE userid = $1 AND status = 'completed'
+       ORDER BY completed_at DESC
+       LIMIT $2`,
+      [userid, Math.min(100, Math.max(1, limit))],
+    );
+
+  return rows.map((row) => ({
+    id: row.id,
+    activityType: row.activity_type,
+    completedAt: new Date(row.completed_at).toISOString(),
+    durationSeconds: row.duration_seconds,
+  }));
 }

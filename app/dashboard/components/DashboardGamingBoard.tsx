@@ -9,14 +9,14 @@ type BoardState = {
   description: string;
 };
 
-type GameId = "watering" | "bugs" | "snapshot";
+type GameId = "watering" | "bugs" | "snapshot" | "fish" | "fruit";
 
 type DashboardGamingBoardProps = {
   boardState: BoardState;
   isSignedIn: boolean;
 };
 
-const gameOrder: GameId[] = ["watering", "bugs", "snapshot"];
+const gameOrder: GameId[] = ["watering", "bugs", "snapshot", "fish", "fruit"];
 
 export default function DashboardGamingBoard({
   boardState,
@@ -35,11 +35,21 @@ export default function DashboardGamingBoard({
           title: "Mystery bugs await",
           description: "Choose a mystery bug, then search your garden to add it to your collection.",
         }
-      : {
+      : game === "snapshot"
+        ? {
           label: "Ready",
           title: "Capture a garden moment",
           description: "Take a snapshot of your garden and keep a memory of your blooms and bugs.",
-        };
+          }
+        : game === "fish" ? {
+            label: "Ready",
+            title: "Fish are waiting",
+            description: "Follow a swimming fish with your hand and pinch at the right moment to catch it for your pond.",
+          } : {
+            label: "Ready",
+            title: "Fruit is ready to pick",
+            description: "Choose a mystery fruit and make claw-shaped hand motions to pluck six from the tree.",
+          };
 
   function changeGame(direction: 1 | -1) {
     const nextIndex = (currentIndex + direction + gameOrder.length) % gameOrder.length;
@@ -77,7 +87,7 @@ export default function DashboardGamingBoard({
       >
         <div className="dashboard-gaming-board-heading">
           <div className="dashboard-game-title-row">
-            <h2>{isWatering ? "Watering" : game === "bugs" ? "Collecting bugs" : "Take a Snapshot"}</h2>
+            <h2>{isWatering ? "Watering" : game === "bugs" ? "Collecting bugs" : game === "snapshot" ? "Take a Snapshot" : game === "fish" ? "Catching fishes" : "Fruit plucking"}</h2>
             <div
               className="dashboard-game-switcher"
               aria-label={`Choose game, ${currentIndex + 1} of ${gameOrder.length}`}
@@ -126,7 +136,11 @@ export default function DashboardGamingBoard({
                 ? "/games/watering"
                 : game === "bugs"
                   ? "/games/collectbugs"
-                  : "/games/snapshot"
+                : game === "snapshot"
+                  ? "/games/snapshot"
+                  : game === "fish"
+                    ? "/games/catchfish"
+                    : "/games/pluckfruit"
               : "/login"
           }
         >
@@ -135,7 +149,11 @@ export default function DashboardGamingBoard({
               ? "Start watering"
               : game === "bugs"
                 ? "Collect bugs"
-                : "Take snapshot"
+                : game === "snapshot"
+                  ? "Take snapshot"
+                  : game === "fish"
+                    ? "Catch a fish"
+                    : "Pluck fruit"
             : "Log in to play"}
         </Link>
       </div>
