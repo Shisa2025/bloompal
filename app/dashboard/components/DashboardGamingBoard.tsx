@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 type BoardState = {
   label: string;
@@ -22,6 +23,7 @@ export default function DashboardGamingBoard({
   boardState,
   isSignedIn,
 }: DashboardGamingBoardProps) {
+  const t = useTranslations("Dashboard");
   const [isExpanded, setIsExpanded] = useState(false);
   const [game, setGame] = useState<GameId>("watering");
   const [direction, setDirection] = useState<1 | -1>(1);
@@ -31,24 +33,24 @@ export default function DashboardGamingBoard({
     ? boardState
     : game === "bugs"
       ? {
-          label: "Ready",
-          title: "Mystery bugs await",
-          description: "Choose a mystery bug, then search your garden to add it to your collection.",
+          label: t("ready"),
+          title: t("bugsAwait"),
+          description: t("bugsDescription"),
         }
       : game === "snapshot"
         ? {
-          label: "Ready",
-          title: "Capture a garden moment",
-          description: "Take a snapshot of your garden and keep a memory of your blooms and bugs.",
+          label: t("ready"),
+          title: t("snapshotAwait"),
+          description: t("snapshotDescription"),
           }
         : game === "fish" ? {
-            label: "Ready",
-            title: "Fish are waiting",
-            description: "Follow a swimming fish with your hand and pinch at the right moment to catch it for your pond.",
+            label: t("ready"),
+            title: t("fishAwait"),
+            description: t("fishDescription"),
           } : {
-            label: "Ready",
-            title: "Fruit is ready to pick",
-            description: "Choose a mystery fruit and make claw-shaped hand motions to pluck six from the tree.",
+            label: t("ready"),
+            title: t("fruitAwait"),
+            description: t("fruitDescription"),
           };
 
   function changeGame(direction: 1 | -1) {
@@ -60,11 +62,11 @@ export default function DashboardGamingBoard({
   return (
     <aside
       className={`dashboard-gaming-board ${isExpanded ? "is-expanded" : "is-collapsed"}`}
-      aria-label="Gaming board"
+      aria-label={t("gamingBoard")}
     >
       <div className="dashboard-gaming-board-toggle-row">
         <p className="dashboard-gaming-board-label" aria-hidden={!isExpanded}>
-          Gaming Board
+          {t("gamingBoard")}
         </p>
         <button
           aria-controls="dashboard-game-menu"
@@ -73,7 +75,7 @@ export default function DashboardGamingBoard({
           onClick={() => setIsExpanded((expanded) => !expanded)}
           type="button"
         >
-          <span>{isExpanded ? "Hide Games" : "Start Game"}</span>
+          <span>{isExpanded ? t("hideGames") : t("startGame")}</span>
           <span className="dashboard-gaming-board-toggle-icon" aria-hidden="true">
             {isExpanded ? "\u2212" : "+"}
           </span>
@@ -87,17 +89,17 @@ export default function DashboardGamingBoard({
       >
         <div className="dashboard-gaming-board-heading">
           <div className="dashboard-game-title-row">
-            <h2>{isWatering ? "Watering" : game === "bugs" ? "Collecting bugs" : game === "snapshot" ? "Take a Snapshot" : game === "fish" ? "Catching fishes" : "Fruit plucking"}</h2>
+            <h2>{t(`game.${game}`)}</h2>
             <div
               className="dashboard-game-switcher"
-              aria-label={`Choose game, ${currentIndex + 1} of ${gameOrder.length}`}
+              aria-label={t("chooseGame", { current: currentIndex + 1, total: gameOrder.length })}
               role="group"
             >
               <button
-                aria-label="Show previous game"
+                aria-label={t("previousGame")}
                 className="dashboard-game-arrow dashboard-game-arrow-previous"
                 onClick={() => changeGame(-1)}
-                title="Previous game"
+                title={t("previousGame")}
                 type="button"
               >
                 <span aria-hidden="true">&#8592;</span>
@@ -106,10 +108,10 @@ export default function DashboardGamingBoard({
                 {currentIndex + 1} / {gameOrder.length}
               </span>
               <button
-                aria-label="Show next game"
+                aria-label={t("nextGame")}
                 className="dashboard-game-arrow dashboard-game-arrow-next"
                 onClick={() => changeGame(1)}
-                title="Next game"
+                title={t("nextGame")}
                 type="button"
               >
                 <span aria-hidden="true">&#8594;</span>
@@ -146,15 +148,15 @@ export default function DashboardGamingBoard({
         >
           {isSignedIn
             ? isWatering
-              ? "Start watering"
+              ? t("startWatering")
               : game === "bugs"
-                ? "Collect bugs"
+                ? t("collectBugs")
                 : game === "snapshot"
-                  ? "Take snapshot"
+                  ? t("takeSnapshot")
                   : game === "fish"
-                    ? "Catch a fish"
-                    : "Pluck fruit"
-            : "Log in to play"}
+                    ? t("catchFish")
+                    : t("pluckFruit")
+            : t("loginToPlay")}
         </Link>
       </div>
     </aside>

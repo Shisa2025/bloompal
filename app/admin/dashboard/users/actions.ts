@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect, RedirectType } from "next/navigation";
+import { getLocale } from "next-intl/server";
+import { RedirectType } from "next/navigation";
 import {
   releaseManagedUser,
   resetManagedUserPassword,
@@ -10,11 +11,14 @@ import {
 } from "@/database/admin";
 import { createAccount } from "@/database/users";
 import { requireAdmin } from "@/lib/auth";
+import { redirect } from "@/i18n/navigation";
+import { getLocalizedPath } from "@/i18n/server";
+import type { ErrorCode, NoticeCode } from "@/lib/message-codes";
 import {
   accountInputSchema,
   displayNameSchema,
   emailSchema,
-  firstValidationError,
+  firstValidationErrorCode,
   passwordSchema,
 } from "@/lib/validation";
 
@@ -27,7 +31,7 @@ export async function createManagedUserAction(formData: FormData) {
     password: formData.get("password"),
   });
 
-  if (!parsed.success) redirectNew(firstValidationError(parsed.error));
+  if (!parsed.success) return redirectNew(firstValidationErrorCode(parsed.error));
   const account = await createAccount({
     userid: parsed.data.userid,
     displayName: parsed.data.displayName,
@@ -37,12 +41,13 @@ export async function createManagedUserAction(formData: FormData) {
     adminUserid: admin.userid,
     mustChangePassword: true,
   });
-  if (!account) redirectNew("That User ID or email is already in use.");
+  if (!account) return redirectNew("duplicateAccount");
 
-  revalidatePath("/admin/dashboard");
-  revalidatePath("/admin/dashboard/users");
+  const locale = await getLocale();
+  revalidatePath(await getLocalizedPath("/admin/dashboard"));
+  revalidatePath(await getLocalizedPath("/admin/dashboard/users"));
   redirect(
-    `/admin/dashboard/users/${encodeURIComponent(account.userid)}?notice=${encodeURIComponent("User created. They must change the temporary password on first sign-in.")}`,
+    { href: { pathname: `/admin/dashboard/users/${encodeURIComponent(account.userid)}`, query: { notice: "managedUserCreated" } }, locale },
     RedirectType.replace,
   );
 }
@@ -53,8 +58,8 @@ export async function updateManagedUserAction(formData: FormData) {
   const nameResult = displayNameSchema.safeParse(formData.get("displayName"));
   const emailResult = emailSchema.safeParse(formData.get("email"));
 
-  if (!nameResult.success) redirectUser(userid, "error", firstValidationError(nameResult.error));
-  if (!emailResult.success) redirectUser(userid, "error", firstValidationError(emailResult.error));
+  if (!nameResult.success) return redirectUser(userid, "error", firstValidationErrorCode(nameResult.error));
+  if (!emailResult.success) return redirectUser(userid, "error", firstValidationErrorCode(emailResult.error));
 
   const result = await updateManagedUser({
     adminUserid: admin.userid,
@@ -62,23 +67,23 @@ export async function updateManagedUserAction(formData: FormData) {
     displayName: nameResult.data,
     email: emailResult.data,
   });
-  if (result === "duplicate") redirectUser(userid, "error", "That email is already in use.");
-  if (result === "not_found") redirect("/admin/dashboard/users", RedirectType.replace);
+  if (result === "duplicate") return redirectUser(userid, "error", "duplicateEmail");
+  if (result === "not_found") return redirectToUsers();
 
-  revalidatePath(`/admin/dashboard/users/${userid}`);
-  redirectUser(userid, "notice", "User details updated.");
+  revalidatePath(await getLocalizedPath(`/admin/dashboard/users/${userid}`));
+  await redirectUser(userid, "notice", "managedUserUpdated");
 }
 
 export async function resetManagedPasswordAction(formData: FormData) {
   const admin = await requireAdmin();
   const userid = String(formData.get("userid") ?? "");
   const parsed = passwordSchema.safeParse(formData.get("password"));
-  if (!parsed.success) redirectUser(userid, "error", firstValidationError(parsed.error));
+  if (!parsed.success) return redirectUser(userid, "error", firstValidationErrorCode(parsed.error));
 
   const updated = await resetManagedUserPassword(admin.userid, userid, parsed.data);
-  if (!updated) redirect("/admin/dashboard/users", RedirectType.replace);
-  revalidatePath(`/admin/dashboard/users/${userid}`);
-  redirectUser(userid, "notice", "Temporary password reset. Existing sessions were signed out.");
+  if (!updated) return redirectToUsers();
+  revalidatePath(await getLocalizedPath(`/admin/dashboard/users/${userid}`));
+  await redirectUser(userid, "notice", "managedPasswordReset");
 }
 
 export async function setManagedUserStatusAction(formData: FormData) {
@@ -86,31 +91,38 @@ export async function setManagedUserStatusAction(formData: FormData) {
   const userid = String(formData.get("userid") ?? "");
   const status = formData.get("status") === "disabled" ? "disabled" : "active";
   const updated = await setManagedUserStatus(admin.userid, userid, status);
-  if (!updated) redirect("/admin/dashboard/users", RedirectType.replace);
-  revalidatePath("/admin/dashboard");
-  revalidatePath(`/admin/dashboard/users/${userid}`);
-  redirectUser(userid, "notice", status === "disabled" ? "User disabled and signed out." : "User enabled.");
+  if (!updated) return redirectToUsers();
+  revalidatePath(await getLocalizedPath("/admin/dashboard"));
+  revalidatePath(await getLocalizedPath(`/admin/dashboard/users/${userid}`));
+  await redirectUser(userid, "notice", status === "disabled" ? "managedUserDisabled" : "managedUserEnabled");
 }
 
 export async function releaseManagedUserAction(formData: FormData) {
   const admin = await requireAdmin();
   const userid = String(formData.get("userid") ?? "");
   await releaseManagedUser(admin.userid, userid);
-  revalidatePath("/admin/dashboard");
-  revalidatePath("/admin/dashboard/users");
+  const locale = await getLocale();
+  revalidatePath(await getLocalizedPath("/admin/dashboard"));
+  revalidatePath(await getLocalizedPath("/admin/dashboard/users"));
   redirect(
-    `/admin/dashboard/users?notice=${encodeURIComponent("User released and is now unassigned.")}`,
+    { href: { pathname: "/admin/dashboard/users", query: { notice: "managedUserReleased" } }, locale },
     RedirectType.replace,
   );
 }
 
-function redirectNew(message: string): never {
-  redirect(`/admin/dashboard/users/new?error=${encodeURIComponent(message)}`, RedirectType.replace);
+async function redirectNew(error: ErrorCode): Promise<never> {
+  const locale = await getLocale();
+  return redirect({ href: { pathname: "/admin/dashboard/users/new", query: { error } }, locale }, RedirectType.replace);
 }
 
-function redirectUser(userid: string, kind: "error" | "notice", message: string): never {
-  redirect(
-    `/admin/dashboard/users/${encodeURIComponent(userid)}?${kind}=${encodeURIComponent(message)}`,
-    RedirectType.replace,
-  );
+async function redirectUser(userid: string, kind: "error", code: ErrorCode): Promise<never>;
+async function redirectUser(userid: string, kind: "notice", code: NoticeCode): Promise<never>;
+async function redirectUser(userid: string, kind: "error" | "notice", code: ErrorCode | NoticeCode): Promise<never> {
+  const locale = await getLocale();
+  return redirect({ href: { pathname: `/admin/dashboard/users/${encodeURIComponent(userid)}`, query: { [kind]: code } }, locale }, RedirectType.replace);
+}
+
+async function redirectToUsers(): Promise<never> {
+  const locale = await getLocale();
+  return redirect({ href: "/admin/dashboard/users", locale }, RedirectType.replace);
 }

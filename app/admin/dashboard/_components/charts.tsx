@@ -1,8 +1,9 @@
 import styles from "../dashboard.module.css";
+import { getFormatter, getTranslations } from "next-intl/server";
 
 type DataPoint = { label: string; value: number };
 
-export function BarChart({
+export async function BarChart({
   data,
   suffix = "",
   compact = false,
@@ -11,13 +12,15 @@ export function BarChart({
   suffix?: string;
   compact?: boolean;
 }) {
-  if (!data.length) return <p className={styles.emptyState}>No activity in this period.</p>;
+  const t = await getTranslations("Admin");
+  const format = await getFormatter();
+  if (!data.length) return <p className={styles.emptyState}>{t("noActivityPeriod")}</p>;
   const max = Math.max(...data.map((point) => point.value));
   return (
     <div className={`${styles.barChart} ${compact ? styles.barChartCompact : ""}`}>
       {data.map((point) => (
         <div className={styles.barItem} key={point.label}>
-          <span className={styles.barValue}>{point.value}{suffix}</span>
+          <span className={styles.barValue}>{format.number(point.value)}{suffix}</span>
           <div className={styles.barTrack}>
             <span style={{ height: `${Math.max((point.value / max) * 100, 8)}%` }} />
           </div>
@@ -27,14 +30,16 @@ export function BarChart({
     </div>
   );
 }
-export function LineChart({
+export async function LineChart({
   data,
   suffix = "",
 }: {
   data: DataPoint[];
   suffix?: string;
 }) {
-  if (!data.length) return <p className={styles.emptyState}>No activity in this period.</p>;
+  const t = await getTranslations("Admin");
+  const format = await getFormatter();
+  if (!data.length) return <p className={styles.emptyState}>{t("noActivityPeriod")}</p>;
   const min = Math.min(...data.map((point) => point.value));
   const max = Math.max(...data.map((point) => point.value));
   const range = max - min || 1;
@@ -46,7 +51,7 @@ export function LineChart({
 
   return (
     <div className={styles.lineChart}>
-      <svg aria-label="Trend chart" preserveAspectRatio="none" role="img" viewBox="0 0 100 100">
+      <svg aria-label={t("trendChart")} preserveAspectRatio="none" role="img" viewBox="0 0 100 100">
         <defs>
           <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="#5f9f82" stopOpacity=".28" />
@@ -60,21 +65,23 @@ export function LineChart({
       </svg>
       <div className={styles.lineLabels}>
         {points.map((point) => (
-          <span key={point.label}><small>{point.value}{suffix}</small>{point.label}</span>
+          <span key={point.label}><small>{format.number(point.value)}{suffix}</small>{point.label}</span>
         ))}
       </div>
     </div>
   );
 }
 
-export function HorizontalBars({ data, suffix = "%" }: { data: DataPoint[]; suffix?: string }) {
-  if (!data.length) return <p className={styles.emptyState}>No activity in this period.</p>;
+export async function HorizontalBars({ data, suffix = "%" }: { data: DataPoint[]; suffix?: string }) {
+  const t = await getTranslations("Admin");
+  const format = await getFormatter();
+  if (!data.length) return <p className={styles.emptyState}>{t("noActivityPeriod")}</p>;
   const max = Math.max(...data.map((point) => point.value));
   return (
     <div className={styles.horizontalBars}>
       {data.map((point, index) => (
         <div className={styles.horizontalBar} key={point.label}>
-          <div><span>{point.label}</span><strong>{point.value}{suffix}</strong></div>
+          <div><span>{point.label}</span><strong>{format.number(point.value)}{suffix}</strong></div>
           <div className={styles.horizontalTrack}>
             <span className={styles[`chartTone${(index % 5) + 1}`]} style={{ width: `${(point.value / max) * 100}%` }} />
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DashboardHomeScene from "@/app/dashboard/components/DashboardHomeScene";
 import { createMotionTracker } from "@/mediapipe/motion";
@@ -30,9 +30,11 @@ export default function SnapshotGameClient({
   tableFlowerAsset: string | null;
 }) {
   const router = useRouter();
+  const t = useTranslations("Games.snapshot");
+  const tErrors = useTranslations("Errors");
   const [counts, setCounts] = useState<Counts>(emptyCounts);
   const [signals, setSignals] = useState<ThumbFlexSignals>(emptySignals);
-  const [cameraStatus, setCameraStatus] = useState("Camera idle");
+  const [cameraStatus, setCameraStatus] = useState(t("cameraIdle"));
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraRunId, setCameraRunId] = useState(0);
   const [snapshotTaken, setSnapshotTaken] = useState(false);
@@ -108,7 +110,7 @@ export default function SnapshotGameClient({
       snapshotCanvas.height = 270;
       const context = snapshotCanvas.getContext("2d");
       if (!sourceCanvas || !context) {
-        setSnapshotError("Could not capture the garden scene.");
+        setSnapshotError(tErrors("captureSceneFailed"));
         return;
       }
       drawCanvasCover(context, sourceCanvas, snapshotCanvas.width, snapshotCanvas.height);
@@ -118,13 +120,13 @@ export default function SnapshotGameClient({
         leftRepetitions: countsRef.current.left,
         rightRepetitions: countsRef.current.right,
       }).then((result) => {
-        if (!result.ok) { setSnapshotError(result.error); return; }
+        if (!result.ok) { setSnapshotError(tErrors(result.errorCode)); return; }
         setSnapshotTaken(true);
         router.replace("/dashboard");
       });
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [isComplete, router, sceneReady]);
+  }, [isComplete, router, sceneReady, tErrors]);
 
   useEffect(() => {
     if (snapshotTaken) return;
@@ -135,7 +137,7 @@ export default function SnapshotGameClient({
       const video = videoRef.current;
       if (!video) return;
       videoElement = video;
-      setCameraStatus("Starting camera");
+      setCameraStatus(t("startingCamera"));
       setCameraError(null);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -149,14 +151,14 @@ export default function SnapshotGameClient({
         streamRef.current = stream;
         video.srcObject = stream;
         await video.play();
-        setCameraStatus("Loading hand tracker");
+        setCameraStatus(t("loadingTracker"));
         const tracker = await createHandsTracker();
         if (disposed) {
           tracker.disposeMotionTracker();
           return;
         }
         trackerRef.current = tracker;
-        setCameraStatus("Tracking thumb flexes");
+        setCameraStatus(t("trackingFlexes"));
         const detectFrame = () => {
           if (disposed || !videoRef.current || !trackerRef.current) return;
           if (videoRef.current.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
@@ -166,9 +168,9 @@ export default function SnapshotGameClient({
           animationFrameRef.current = window.requestAnimationFrame(detectFrame);
         };
         detectFrame();
-      } catch (error) {
-        setCameraStatus("Camera unavailable");
-        setCameraError(error instanceof Error ? error.message : "Could not start camera or hand tracking.");
+      } catch {
+        setCameraStatus(t("cameraUnavailable"));
+        setCameraError(t("cameraStartFailed"));
       }
     }
     void startCamera();
@@ -181,44 +183,44 @@ export default function SnapshotGameClient({
       streamRef.current = null;
       if (videoElement) videoElement.srcObject = null;
     };
-  }, [cameraRunId, processSignals, snapshotTaken]);
+  }, [cameraRunId, processSignals, snapshotTaken, t]);
 
   return (
     <div className="watering-game">
       <header className="watering-header">
-        <div><p>BloomPal Game</p><h1>Take a Snapshot</h1></div>
-        <Link className="watering-secondary-link" href="/dashboard">Dashboard</Link>
+        <div><p>{t("gameLabel")}</p><h1>{t("title")}</h1></div>
+        <Link className="watering-secondary-link" href="/dashboard">{t("dashboard")}</Link>
       </header>
       <section className="watering-playfield" aria-live="polite">
         <div className="watering-camera-column">
           <section className="watering-camera-panel">
-            <div className="watering-panel-heading"><p>Webcam</p><h2>Show your hands</h2></div>
-            <div className="watering-video-wrap"><video ref={videoRef} className="watering-video" muted playsInline aria-label="Snapshot game webcam" /></div>
-            <div className="watering-camera-footer"><span>{cameraStatus}</span>{cameraError ? <button className="watering-text-button" onClick={() => setCameraRunId((value) => value + 1)} type="button">Retry camera</button> : null}</div>
+            <div className="watering-panel-heading"><p>{t("webcam")}</p><h2>{t("showHands")}</h2></div>
+            <div className="watering-video-wrap"><video ref={videoRef} className="watering-video" muted playsInline aria-label={t("webcamLabel")} /></div>
+            <div className="watering-camera-footer"><span>{cameraStatus}</span>{cameraError ? <button className="watering-text-button" onClick={() => setCameraRunId((value) => value + 1)} type="button">{t("retryCamera")}</button> : null}</div>
             {cameraError ? <p className="watering-error">{cameraError}</p> : null}
           </section>
         </div>
         <section className="watering-sprout-panel">
-          <div className="watering-sprout-heading"><p>Live growth</p><h2>{snapshotTaken ? "Snapshot taken!" : "Frame your garden"}</h2></div>
+          <div className="watering-sprout-heading"><p>{t("liveGrowth")}</p><h2>{snapshotTaken ? t("snapshotTaken") : t("frameGarden")}</h2></div>
           <div ref={stageRef} className={["watering-sprout-stage-shell", "snapshot-garden-stage", snapshotTaken ? "is-captured" : ""].join(" ")}>
             <DashboardHomeScene caughtBugs={activeBugs} embedded fruits={fruits} onSceneReady={handleSceneReady} tableFlowerAsset={tableFlowerAsset} />
-            {snapshotTaken ? <div className="snapshot-captured-overlay"><span aria-hidden="true">&#128247;</span><strong>Garden snapshot captured</strong></div> : null}
+            {snapshotTaken ? <div className="snapshot-captured-overlay"><span aria-hidden="true">&#128247;</span><strong>{t("captured")}</strong></div> : null}
           </div>
           {snapshotError ? <p className="watering-error">{snapshotError}</p> : null}
         </section>
         <div className="watering-side-column">
           <aside className="watering-progress-panel">
-            <div><p className="watering-panel-kicker">Snapshot count</p><h2>Thumb flex</h2></div>
+            <div><p className="watering-panel-kicker">{t("snapshotCount")}</p><h2>{t("thumbFlex")}</h2></div>
             <div className="watering-progress-list">{sides.map((side) => <ProgressRow counts={counts} key={side} side={side} signals={signals} />)}</div>
           </aside>
           <aside className="watering-guide-panel">
-            <div><p className="watering-panel-kicker">How to play</p><h2>Out, in, repeat</h2></div>
+            <div><p className="watering-panel-kicker">{t("howToPlay")}</p><h2>{t("outInRepeat")}</h2></div>
             <ol className="watering-guide-steps">
-              <li><span className="collectbugs-guide-icon" aria-hidden="true">1</span><div><strong>Show one hand</strong><p>Keep either hand clearly visible to the camera.</p></div></li>
-              <li><span className="collectbugs-guide-icon" aria-hidden="true">2</span><div><strong>Extend your thumb</strong><p>Move it away from your palm.</p></div></li>
-              <li><span className="collectbugs-guide-icon" aria-hidden="true">3</span><div><strong>Bring it back in</strong><p>Tuck the thumb toward your palm. Repeat three times per hand.</p></div></li>
+              <li><span className="collectbugs-guide-icon" aria-hidden="true">1</span><div><strong>{t("showOneHand")}</strong><p>{t("showOneHandDescription")}</p></div></li>
+              <li><span className="collectbugs-guide-icon" aria-hidden="true">2</span><div><strong>{t("extendThumb")}</strong><p>{t("extendThumbDescription")}</p></div></li>
+              <li><span className="collectbugs-guide-icon" aria-hidden="true">3</span><div><strong>{t("bringBack")}</strong><p>{t("bringBackDescription", { count: requiredReps })}</p></div></li>
             </ol>
-            <div className="watering-live-hint"><strong>Now</strong><p>{getHint(counts, signals, snapshotTaken)}</p></div>
+            <div className="watering-live-hint"><strong>{t("now")}</strong><p>{getHint(counts, signals, snapshotTaken, t)}</p></div>
           </aside>
         </div>
       </section>
@@ -261,18 +263,21 @@ function drawCanvasCover(
 }
 
 function ProgressRow({ counts, side, signals }: { counts: Counts; side: MotionSide; signals: ThumbFlexSignals }) {
+  const t = useTranslations("Games.snapshot");
   const signal = signals[side];
-  const status = counts[side] >= requiredReps ? "Complete" : !signal.detected ? "Looking" : signal.extended ? "Bring thumb in" : signal.flexed ? "Extend again" : "Extend thumb";
-  return <div className="watering-progress-row"><div><span>{side === "left" ? "Left" : "Right"}</span><strong>{counts[side]}/{requiredReps}</strong></div><div className="watering-progress-track" aria-hidden="true"><span style={{ width: `${(counts[side] / requiredReps) * 100}%` }} /></div><p>{status}</p></div>;
+  const status = counts[side] >= requiredReps ? t("complete") : !signal.detected ? t("looking") : signal.extended ? t("bringThumbIn") : signal.flexed ? t("extendAgain") : t("extendThumb");
+  return <div className="watering-progress-row"><div><span>{t(side)}</span><strong>{counts[side]}/{requiredReps}</strong></div><div className="watering-progress-track" aria-hidden="true"><span style={{ width: `${(counts[side] / requiredReps) * 100}%` }} /></div><p>{status}</p></div>;
 }
 
-function getHint(counts: Counts, signals: ThumbFlexSignals, snapshotTaken: boolean) {
-  if (snapshotTaken) return "Your garden moment has been captured.";
+type SnapshotTranslator = ReturnType<typeof useTranslations<"Games.snapshot">>;
+
+function getHint(counts: Counts, signals: ThumbFlexSignals, snapshotTaken: boolean, t: SnapshotTranslator) {
+  if (snapshotTaken) return t("momentCaptured");
   const side = counts.left < requiredReps ? "left" : "right";
   const signal = signals[side];
-  if (!signal.detected) return `Show your ${side} hand to the camera.`;
-  if (signal.extended) return `Bring your ${side} thumb in toward your palm.`;
-  return `Extend your ${side} thumb away from your palm.`;
+  if (!signal.detected) return t("showSide", { side: t(side) });
+  if (signal.extended) return t("bringSideIn", { side: t(side) });
+  return t("extendSide", { side: t(side) });
 }
 
 async function createHandsTracker() {

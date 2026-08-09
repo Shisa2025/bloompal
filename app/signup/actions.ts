@@ -1,21 +1,26 @@
 "use server";
 
 import { timingSafeEqual } from "crypto";
-import { redirect, RedirectType } from "next/navigation";
+import { getLocale } from "next-intl/server";
+import { RedirectType } from "next/navigation";
 import {
   createAccount,
   isAssignableAdmin,
   type AccountRole,
 } from "@/database/users";
 import { createLoginSession } from "@/lib/auth";
+import { redirect } from "@/i18n/navigation";
+import type { SupportedLocale } from "@/i18n/routing";
+import { setLocaleCookie } from "@/i18n/locale-cookie";
 import {
   accountInputSchema,
-  firstValidationError,
+  firstValidationErrorCode,
   organizationSchema,
   useridSchema,
 } from "@/lib/validation";
 
 export async function signupAction(formData: FormData) {
+  const locale = await getLocale();
   const role: AccountRole = formData.get("accountRole") === "admin" ? "admin" : "user";
   const parsed = accountInputSchema.safeParse({
     userid: formData.get("userid"),
@@ -25,7 +30,7 @@ export async function signupAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirectWithError(role, firstValidationError(parsed.error));
+    redirectWithError(locale, role, firstValidationErrorCode(parsed.error));
   }
 
   let organization: string | null = null;
@@ -36,14 +41,14 @@ export async function signupAction(formData: FormData) {
       formData.get("organization"),
     );
     if (!parsedOrganization.success) {
-      redirectWithError(role, firstValidationError(parsedOrganization.error));
+      redirectWithError(locale, role, firstValidationErrorCode(parsedOrganization.error));
     }
     organization = parsedOrganization.data;
 
     const suppliedCode = String(formData.get("adminCode") ?? "");
     const configuredCode = process.env.ADMIN_SIGNUP_CODE ?? "";
     if (!configuredCode || !safeEqual(suppliedCode, configuredCode)) {
-      redirectWithError(role, "The Admin registration code is invalid.");
+      redirectWithError(locale, role, "invalidAdminCode");
     }
   } else {
     const suppliedAdminUserid = String(
@@ -57,8 +62,9 @@ export async function signupAction(formData: FormData) {
         !(await isAssignableAdmin(parsedAdminUserid.data))
       ) {
         redirectWithError(
+          locale,
           role,
-          "Choose an active Admin from the list or continue without one.",
+          "chooseActiveAdmin",
         );
       }
       adminUserid = parsedAdminUserid.data;
@@ -75,28 +81,34 @@ export async function signupAction(formData: FormData) {
       role,
       organization,
       adminUserid,
+      preferredLocale: locale,
     });
   } catch (error) {
     if (role === "user" && isUnavailableAdminError(error)) {
       redirectWithError(
+        locale,
         role,
-        "That Admin is no longer active. Choose another Admin or continue without one.",
+        "adminInactive",
       );
     }
     throw error;
   }
 
   if (!account) {
-    redirectWithError(role, "That User ID or email is already in use.");
+    redirectWithError(locale, role, "duplicateAccount");
   }
 
   await createLoginSession(account.userid, false);
-  redirect(role === "admin" ? "/admin/dashboard" : "/dashboard", RedirectType.replace);
+  await setLocaleCookie(locale);
+  redirect(
+    { href: role === "admin" ? "/admin/dashboard" : "/dashboard", locale },
+    RedirectType.replace,
+  );
 }
 
-function redirectWithError(role: AccountRole, message: string): never {
-  redirect(
-    `/signup?role=${role}&error=${encodeURIComponent(message)}`,
+function redirectWithError(locale: SupportedLocale, role: AccountRole, error: import("@/lib/message-codes").ErrorCode): never {
+  return redirect(
+    { href: { pathname: "/signup", query: { role, error } }, locale },
     RedirectType.replace,
   );
 }

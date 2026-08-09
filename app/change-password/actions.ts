@@ -1,21 +1,24 @@
 "use server";
 
-import { redirect, RedirectType } from "next/navigation";
+import { getLocale } from "next-intl/server";
+import { RedirectType } from "next/navigation";
 import { updateOwnPassword, verifyCurrentPassword } from "@/database/users";
 import { requireSignedInAccount, rotateLoginSession } from "@/lib/auth";
-import { firstValidationError, passwordSchema } from "@/lib/validation";
+import { redirect } from "@/i18n/navigation";
+import { firstValidationErrorCode, passwordSchema } from "@/lib/validation";
 
 export async function changePasswordAction(formData: FormData) {
   const account = await requireSignedInAccount();
+  const locale = await getLocale();
   const currentPassword = formData.get("currentPassword");
   const parsed = passwordSchema.safeParse(formData.get("password"));
   const confirmation = formData.get("confirmation");
 
   if (!parsed.success) {
-    redirect(`/change-password?error=${encodeURIComponent(firstValidationError(parsed.error))}`);
+    return redirect({ href: { pathname: "/change-password", query: { error: firstValidationErrorCode(parsed.error) } }, locale });
   }
   if (confirmation !== parsed.data) {
-    redirect("/change-password?error=Passwords%20do%20not%20match.");
+    redirect({ href: { pathname: "/change-password", query: { error: "passwordsMismatch" } }, locale });
   }
   if (
     !account.mustChangePassword &&
@@ -24,10 +27,10 @@ export async function changePasswordAction(formData: FormData) {
       typeof currentPassword === "string" ? currentPassword : "",
     ))
   ) {
-    redirect("/change-password?error=Current%20password%20is%20incorrect.");
+    redirect({ href: { pathname: "/change-password", query: { error: "currentPasswordIncorrect" } }, locale });
   }
 
   await updateOwnPassword(account.userid, parsed.data);
   await rotateLoginSession(account.userid);
-  redirect(account.role === "admin" ? "/admin/dashboard" : "/dashboard", RedirectType.replace);
+  redirect({ href: account.role === "admin" ? "/admin/dashboard" : "/dashboard", locale }, RedirectType.replace);
 }

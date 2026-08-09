@@ -5,6 +5,7 @@ import {
   organizationSchema,
   passwordSchema,
   useridSchema,
+  firstValidationErrorCode,
 } from "./validation";
 
 describe("account validation", () => {
@@ -13,7 +14,9 @@ describe("account validation", () => {
     expect(result).toMatchObject({ userid: "bloom.user", displayName: "Bloom User", email: "user@example.com" });
   });
   it("rejects invalid IDs and weak passwords", () => {
-    expect(useridSchema.safeParse("A").success).toBe(false);
+    const invalidId = useridSchema.safeParse("A");
+    expect(invalidId.success).toBe(false);
+    if (!invalidId.success) expect(firstValidationErrorCode(invalidId.error)).toBe("validationUserid");
     expect(passwordSchema.safeParse("password").success).toBe(false);
     expect(passwordSchema.safeParse("12345678").success).toBe(false);
   });

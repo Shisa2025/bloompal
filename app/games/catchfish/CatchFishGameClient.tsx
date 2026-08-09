@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, useTransition, type RefObject } from "react";
 import { createMotionTracker } from "@/mediapipe/motion";
 import type { MotionSide, MotionTracker } from "@/mediapipe/types";
@@ -26,13 +26,15 @@ const fishEmoji = ["🐠", "🐟", "🐡", "🐠"];
 
 export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly string[] }) {
   const router = useRouter();
+  const t = useTranslations("Games.catchFish");
+  const tErrors = useTranslations("Errors");
   const [rewardFishIndex] = useState(() => randomIndex(fishKinds.length));
   const [fishDesignIndex, setFishDesignIndex] = useState(() => randomIndex(fishEmoji.length));
   const [counts, setCounts] = useState<Counts>(emptyCounts);
   const [signals, setSignals] = useState<FishingSignals>(emptySignals);
   const [activeSide, setActiveSide] = useState<MotionSide | null>(null);
-  const [hint, setHint] = useState("Move either hand to guide the aim onto the fish.");
-  const [cameraStatus, setCameraStatus] = useState("Camera idle");
+  const [hint, setHint] = useState(t("initialHint"));
+  const [cameraStatus, setCameraStatus] = useState(t("cameraIdle"));
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraRunId, setCameraRunId] = useState(0);
   const [completion, setCompletion] = useState<Completion | null>(null);
@@ -83,9 +85,9 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
         const draggedPoint = { x: signal.x, y: signal.y };
         fishRef.current = draggedPoint;
         drawFish(draggedPoint, now);
-        setHint(`Drag the fish into the net, then open your ${grab.side} palm.`);
+        setHint(t("dragOpenHint", { side: t(grab.side) }));
       } else if (!signal.detected) {
-        setHint(`Keep your ${grab.side} hand visible, then open your palm inside the net.`);
+        setHint(t("keepVisibleHint", { side: t(grab.side) }));
       } else {
         grabRef.current = null;
         setActiveSide(null);
@@ -100,12 +102,12 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
           if (caught >= totalFish) {
             setCompletion({ sessionId: sessionIdRef.current, startedAtMs: startedAtRef.current, attempts: attemptsRef.current });
           } else {
-            setHint(`${label(grab.side)}-hand catch counted! Fish ${caught + 1} of ${totalFish} is swimming.`);
+            setHint(t("catchCounted", { side: t(grab.side), current: caught + 1, total: totalFish }));
             spawnFish();
           }
         } else {
           fishTargetRef.current = randomPondPoint();
-          setHint("The fish escaped. Close your fist over it and release only inside the net.");
+          setHint(t("escapedHint"));
         }
       }
     } else {
@@ -118,7 +120,7 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
         grabRef.current = { side: candidate };
         fishVelocityRef.current = { x: 0, y: 0 };
         setActiveSide(candidate);
-        setHint(`Fish grabbed! Keep your ${candidate} fist closed and drag it to the net.`);
+        setHint(t("grabbedHint", { side: t(candidate) }));
       }
     }
 
@@ -126,7 +128,7 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
       lastUiRef.current = now;
       setSignals(next);
     }
-  }, [drawFish, spawnFish]);
+  }, [drawFish, spawnFish, t]);
 
   useEffect(() => {
     sessionIdRef.current = crypto.randomUUID();
@@ -140,7 +142,7 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
     async function startCamera() {
       video = videoRef.current;
       if (!video) return;
-      setCameraStatus("Starting camera");
+      setCameraStatus(t("startingCamera"));
       setCameraError(null);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { width: { ideal: 960 }, height: { ideal: 540 }, facingMode: "user" } });
@@ -148,11 +150,11 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
         streamRef.current = stream;
         video.srcObject = stream;
         await video.play();
-        setCameraStatus("Loading hand tracker");
+        setCameraStatus(t("loadingTracker"));
         const tracker = await createMotionTracker({ enablePose: false, enableHands: true, maxHands: 2 });
         if (disposed) return tracker.disposeMotionTracker();
         trackerRef.current = tracker;
-        setCameraStatus("Tracking hands");
+        setCameraStatus(t("trackingHands"));
         const tick = (now: number) => {
           if (disposed || !videoRef.current) return;
           if (!grabRef.current) moveFish(now);
@@ -162,8 +164,8 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
         frameRef.current = requestAnimationFrame(tick);
       } catch (error) {
         console.error("Fishing camera setup failed.", error);
-        setCameraStatus("Camera unavailable");
-        setCameraError(error instanceof Error ? error.message : "Could not start camera or hand tracking.");
+        setCameraStatus(t("cameraUnavailable"));
+        setCameraError(t("cameraStartFailed"));
       }
     }
     function moveFish(now: number) {
@@ -199,45 +201,47 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
       streamRef.current = null;
       if (video) video.srcObject = null;
     };
-  }, [cameraRunId, completion, drawFish, processFrame]);
+  }, [cameraRunId, completion, drawFish, processFrame, t]);
 
   function saveAndReturn() {
     if (!completion) return;
     setSaveError(null);
     startTransition(async () => {
       const result = await saveCaughtFish(fishKinds[rewardFishIndex], { sessionId: completion.sessionId, durationSeconds: (Date.now() - completion.startedAtMs) / 1000, leftRepetitions: requiredSets, rightRepetitions: requiredSets, successfulActions: totalFish, totalAttempts: Math.max(completion.attempts, totalFish) });
-      if (!result.ok) return setSaveError(result.error);
+      if (!result.ok) return setSaveError(tErrors(result.errorCode));
       router.push("/dashboard");
       router.refresh();
     });
   }
 
   return <div className="watering-game">
-    <header className="watering-header"><div><p>BloomPal Game</p><h1>Catching fishes</h1></div><Link className="watering-secondary-link" href="/dashboard">Dashboard</Link></header>
-    {completion ? <section className="watering-layout watering-layout-single"><div className="watering-main-panel"><div className="fishing-reward"><div className="fishing-reward-fish">{fishEmoji[rewardFishIndex]}</div><h2>All 6 fish caught!</h2><p>A fish is ready for your dashboard pond.</p><button className="watering-primary-link" disabled={isPending} onClick={saveAndReturn} type="button">{isPending ? "Saving fish" : "Add fish to my pond"}</button>{saveError ? <p className="collectbugs-reward-error">{saveError}</p> : null}</div></div></section> :
+    <header className="watering-header"><div><p>{t("gameLabel")}</p><h1>{t("title")}</h1></div><Link className="watering-secondary-link" href="/dashboard">{t("dashboard")}</Link></header>
+    {completion ? <section className="watering-layout watering-layout-single"><div className="watering-main-panel"><div className="fishing-reward"><div className="fishing-reward-fish">{fishEmoji[rewardFishIndex]}</div><h2>{t("allCaught", { count: totalFish })}</h2><p>{t("rewardDescription")}</p><button className="watering-primary-link" disabled={isPending} onClick={saveAndReturn} type="button">{isPending ? t("savingFish") : t("addToPond")}</button>{saveError ? <p className="collectbugs-reward-error">{saveError}</p> : null}</div></div></section> :
       <FishingPlayfield activeSide={activeSide} cameraError={cameraError} cameraStatus={cameraStatus} counts={counts} fishElementRef={fishElementRef} fishIcon={fishEmoji[fishDesignIndex]} hint={hint} onRetry={() => setCameraRunId((value) => value + 1)} signals={signals} videoRef={videoRef} />}
   </div>;
 }
 
 function FishingPlayfield({ activeSide, cameraError, cameraStatus, counts, fishElementRef, fishIcon, hint, onRetry, signals, videoRef }: { activeSide: MotionSide | null; cameraError: string | null; cameraStatus: string; counts: Counts; fishElementRef: RefObject<HTMLSpanElement | null>; fishIcon: string; hint: string; onRetry: () => void; signals: FishingSignals; videoRef: RefObject<HTMLVideoElement | null> }) {
+  const t = useTranslations("Games.catchFish");
   const caught = counts.left + counts.right;
   return <section className="watering-playfield">
-    <div className="watering-camera-column"><section className="watering-camera-panel"><div className="watering-panel-heading"><p>Webcam</p><h2>Show your hands</h2></div><div className="watering-video-wrap"><video ref={videoRef} className="watering-video" muted playsInline aria-label="Fishing webcam" /></div><div className="watering-camera-footer"><span>{cameraStatus}</span>{cameraError ? <button className="watering-text-button" onClick={onRetry} type="button">Retry camera</button> : null}</div>{cameraError ? <p className="watering-error">{cameraError}</p> : null}</section></div>
-    <section className="watering-sprout-panel"><div className="watering-sprout-heading"><p>Fishing pond · {caught}/{totalFish}</p><h2>{activeSide ? "Drag to the net" : "Catch the fish"}</h2></div><div className="watering-sprout-stage-shell fishing-game-pond"><FishingNet /><span ref={fishElementRef} className={`fishing-game-fish${activeSide ? " is-grabbed" : ""}`}>{fishIcon}</span>{sides.map((side) => signals[side].detected && counts[side] < requiredSets ? <Aim key={side} signal={signals[side]} side={side} /> : null)}<span className="fishing-pond-reeds" aria-hidden="true" /></div><p className="fishing-stage-hint">{hint}</p></section>
-    <div className="watering-side-column"><aside className="watering-progress-panel"><div><p className="watering-panel-kicker">Exercise</p><h2>Fish placed</h2></div><div className="watering-progress-list">{sides.map((side) => <div className="watering-progress-row" key={side}><div><span>{label(side)}</span><strong>{counts[side]}/{requiredSets}</strong></div><div className="watering-progress-track" aria-hidden="true"><span style={{ width: `${(counts[side] / requiredSets) * 100}%` }} /></div><p>{counts[side] >= requiredSets ? "Complete" : activeSide === side ? "Dragging fish" : signals[side].fist ? "Fist recognised" : "Ready to grab"}</p></div>)}</div></aside><aside className="watering-guide-panel"><div><p className="watering-panel-kicker">How to play</p><h2>Drag fish to the net</h2></div><ol className="watering-guide-steps"><li><span className="collectbugs-guide-icon">1</span><div><strong>Close over the fish</strong><p>Move the aim onto the fish and close your fist to grab it.</p></div></li><li><span className="collectbugs-guide-icon">2</span><div><strong>Drag to the net</strong><p>Keep your fist closed while moving the fish into the net above.</p></div></li><li><span className="collectbugs-guide-icon">3</span><div><strong>Open your palm</strong><p>Release inside the net. Place 3 fish with each hand.</p></div></li></ol><div className="watering-live-hint"><strong>Now</strong><p>{hint}</p></div></aside></div>
+    <div className="watering-camera-column"><section className="watering-camera-panel"><div className="watering-panel-heading"><p>{t("webcam")}</p><h2>{t("showHands")}</h2></div><div className="watering-video-wrap"><video ref={videoRef} className="watering-video" muted playsInline aria-label={t("webcamLabel")} /></div><div className="watering-camera-footer"><span>{cameraStatus}</span>{cameraError ? <button className="watering-text-button" onClick={onRetry} type="button">{t("retryCamera")}</button> : null}</div>{cameraError ? <p className="watering-error">{cameraError}</p> : null}</section></div>
+    <section className="watering-sprout-panel"><div className="watering-sprout-heading"><p>{t("pondProgress", { caught, total: totalFish })}</p><h2>{activeSide ? t("dragToNet") : t("catchTheFish")}</h2></div><div className="watering-sprout-stage-shell fishing-game-pond"><FishingNet /><span ref={fishElementRef} className={`fishing-game-fish${activeSide ? " is-grabbed" : ""}`}>{fishIcon}</span>{sides.map((side) => signals[side].detected && counts[side] < requiredSets ? <Aim key={side} signal={signals[side]} side={side} /> : null)}<span className="fishing-pond-reeds" aria-hidden="true" /></div><p className="fishing-stage-hint">{hint}</p></section>
+    <div className="watering-side-column"><aside className="watering-progress-panel"><div><p className="watering-panel-kicker">{t("exercise")}</p><h2>{t("fishPlaced")}</h2></div><div className="watering-progress-list">{sides.map((side) => <div className="watering-progress-row" key={side}><div><span>{t(side)}</span><strong>{counts[side]}/{requiredSets}</strong></div><div className="watering-progress-track" aria-hidden="true"><span style={{ width: `${(counts[side] / requiredSets) * 100}%` }} /></div><p>{counts[side] >= requiredSets ? t("complete") : activeSide === side ? t("draggingFish") : signals[side].fist ? t("fistRecognised") : t("readyToGrab")}</p></div>)}</div></aside><aside className="watering-guide-panel"><div><p className="watering-panel-kicker">{t("howToPlay")}</p><h2>{t("dragFishToNet")}</h2></div><ol className="watering-guide-steps"><li><span className="collectbugs-guide-icon">1</span><div><strong>{t("closeOverFish")}</strong><p>{t("closeOverFishDescription")}</p></div></li><li><span className="collectbugs-guide-icon">2</span><div><strong>{t("dragToNet")}</strong><p>{t("dragDescription")}</p></div></li><li><span className="collectbugs-guide-icon">3</span><div><strong>{t("openPalm")}</strong><p>{t("openPalmDescription", { count: requiredSets })}</p></div></li></ol><div className="watering-live-hint"><strong>{t("now")}</strong><p>{hint}</p></div></aside></div>
   </section>;
 }
 
 function FishingNet() {
-  return <div className="fishing-net" aria-label="Fishing net target"><span className="fishing-net-rim" /><span className="fishing-net-mesh" /><strong>NET</strong></div>;
+  const t = useTranslations("Games.catchFish");
+  return <div className="fishing-net" aria-label={t("netTarget")}><span className="fishing-net-rim" /><span className="fishing-net-mesh" /><strong>{t("net")}</strong></div>;
 }
 
 function Aim({ signal, side }: { signal: FishingHandSignal; side: MotionSide }) {
-  return <span className={`fishing-hand-cursor fishing-hand-cursor-${side}${signal.fist ? " is-fist" : ""}`} style={{ left: `${signal.x * 100}%`, top: `${signal.y * 100}%` }} aria-label={`${label(side)} hand aim, ${signal.fist ? "fist closed" : "palm open"}`}><i /></span>;
+  const t = useTranslations("Games.catchFish");
+  return <span className={`fishing-hand-cursor fishing-hand-cursor-${side}${signal.fist ? " is-fist" : ""}`} style={{ left: `${signal.x * 100}%`, top: `${signal.y * 100}%` }} aria-label={t("handAim", { side: t(side), state: signal.fist ? t("fistClosed") : t("palmOpen") })}><i /></span>;
 }
 
 function randomPondPoint(): Point { return { x: 0.13 + Math.random() * 0.74, y: 0.38 + Math.random() * 0.46 }; }
 function randomIndex(length: number) { return Math.floor(Math.random() * Math.max(1, length)); }
 function distance(a: Point, b: Point) { return Math.hypot(a.x - b.x, a.y - b.y); }
 function isInsideNet(point: Point) { return point.x >= netBounds.left && point.x <= netBounds.right && point.y >= netBounds.top && point.y <= netBounds.bottom; }
-function label(side: MotionSide) { return side === "left" ? "Left" : "Right"; }

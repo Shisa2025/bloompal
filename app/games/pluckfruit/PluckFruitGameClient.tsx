@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { FruitArt, type FruitArtKind } from "@/app/components/FruitArt";
 import { createMotionTracker } from "@/mediapipe/motion";
@@ -26,6 +27,8 @@ const fruitTargets = [
 ] as const;
 
 export default function PluckFruitGameClient({ initialChoices }: { initialChoices: string[] }) {
+  const t = useTranslations("Games.pluckFruit");
+  const tErrors = useTranslations("Errors");
   const choices = initialChoices.filter((fruit): fruit is Fruit => fruits.includes(fruit as Fruit)).slice(0, 3);
   const [selected, setSelected] = useState<Fruit | null>(null);
   const [phase, setPhase] = useState<Phase>("choosing");
@@ -87,7 +90,7 @@ export default function PluckFruitGameClient({ initialChoices }: { initialChoice
           frameRef.current = requestAnimationFrame(tick);
         };
         tick();
-      } catch (cause) { setError(cause instanceof Error ? cause.message : "Camera unavailable."); }
+      } catch (cause) { console.error("Fruit Plucking camera setup failed.", cause); setError(t("cameraUnavailable")); }
     };
     void start();
     return () => {
@@ -98,7 +101,7 @@ export default function PluckFruitGameClient({ initialChoices }: { initialChoice
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-  }, [phase, process]);
+  }, [phase, process, t]);
 
   useEffect(() => {
     if (phase !== "playing" || !selected || counts.left < requiredRepetitions || counts.right < requiredRepetitions) return;
@@ -113,11 +116,11 @@ export default function PluckFruitGameClient({ initialChoices }: { initialChoice
         totalAttempts: totalFruits,
       }).then((result) => {
         if (result.ok) setPhase("reward");
-        else { setError(result.error); setPhase("playing"); }
+        else { setError(tErrors(result.errorCode)); setPhase("playing"); }
       });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [counts, phase, selected]);
+  }, [counts, phase, selected, tErrors]);
 
   const choose = (fruit: Fruit) => {
     setSelected(fruit);
@@ -131,13 +134,14 @@ export default function PluckFruitGameClient({ initialChoices }: { initialChoice
   };
 
   return <div className="watering-game fruit-game">
-    <header className="watering-header"><div><p>BloomPal Game</p><h1>Fruit Plucking</h1></div><Link className="watering-secondary-link" href="/dashboard">Dashboard</Link></header>
+    <header className="watering-header"><div><p>{t("gameLabel")}</p><h1>{t("title")}</h1></div><Link className="watering-secondary-link" href="/dashboard">{t("dashboard")}</Link></header>
     {phase === "choosing" ? <MysteryPicker choices={choices} onChoose={choose} /> : phase === "reward" && selected ? <Reward fruit={selected} /> : <Playfield fruit={selected!} counts={counts} pluckedTargets={pluckedTargets} signals={signals} videoRef={videoRef} saving={phase === "saving"} error={error} />}
   </div>;
 }
 
 function MysteryPicker({ choices, onChoose }: { choices: readonly Fruit[]; onChoose: (fruit: Fruit) => void }) {
-  return <section className="watering-layout watering-layout-single"><div className="watering-main-panel"><div className="watering-seed-stage"><div className="watering-stage-copy"><p>Mystery fruits</p><h2>Choose one fruit</h2></div><div className="watering-seed-grid">{choices.map((fruit, index) => <button className="watering-seed-card fruit-mystery-card" key={fruit} onClick={() => onChoose(fruit)} type="button"><FruitArt kind={fruit} /><span className="fruit-mystery-cover">?</span><strong>Mystery fruit {index + 1}</strong></button>)}</div></div></div></section>;
+  const t = useTranslations("Games.pluckFruit");
+  return <section className="watering-layout watering-layout-single"><div className="watering-main-panel"><div className="watering-seed-stage"><div className="watering-stage-copy"><p>{t("mysteryFruits")}</p><h2>{t("chooseFruit")}</h2></div><div className="watering-seed-grid">{choices.map((fruit, index) => <button className="watering-seed-card fruit-mystery-card" key={fruit} onClick={() => onChoose(fruit)} type="button"><FruitArt kind={fruit} /><span className="fruit-mystery-cover">?</span><strong>{t("mysteryFruitNumber", { number: index + 1 })}</strong></button>)}</div></div></div></section>;
 }
 
 function findTouchedFruit(signal: ClawSignals[MotionSide], pluckedTargets: boolean[]) {
@@ -156,9 +160,10 @@ function findTouchedFruit(signal: ClawSignals[MotionSide], pluckedTargets: boole
 }
 
 function Playfield({ fruit, counts, pluckedTargets, signals, videoRef, saving, error }: { fruit: Fruit; counts: typeof emptyCounts; pluckedTargets: boolean[]; signals: ClawSignals; videoRef: RefObject<HTMLVideoElement | null>; saving: boolean; error: string | null }) {
+  const t = useTranslations("Games.pluckFruit");
   const plucked = counts.left + counts.right;
   return <section className="fruit-playfield">
-    <div className="watering-camera-panel"><div className="watering-panel-heading"><p>Webcam</p><h2>Aim, then make a hook claw</h2></div><div className="watering-video-wrap"><video ref={videoRef} className="watering-video" muted playsInline />{saving ? <div className="watering-overlay-message">Saving fruit</div> : null}</div>{error ? <p className="watering-error">{error}</p> : null}</div>
+    <div className="watering-camera-panel"><div className="watering-panel-heading"><p>{t("webcam")}</p><h2>{t("aimHookClaw")}</h2></div><div className="watering-video-wrap"><video ref={videoRef} className="watering-video" muted playsInline aria-label={t("webcamLabel")} />{saving ? <div className="watering-overlay-message">{t("savingFruit")}</div> : null}</div>{error ? <p className="watering-error">{error}</p> : null}</div>
     <div className="fruit-tree-panel">
       <div className="fruit-tree-crown" />
       {fruitTargets.map((target, index) => {
@@ -166,13 +171,15 @@ function Playfield({ fruit, counts, pluckedTargets, signals, videoRef, saving, e
         return <span className={`fruit-tree-fruit ${pluckedTargets[index] ? "is-plucked" : ""} ${!pluckedTargets[index] && touching ? "is-targeted" : ""}`} key={index} style={{ left: `${target.x * 100}%`, top: `${target.y * 100}%` }}><FruitArt kind={fruit} /></span>;
       })}
       <div className="fruit-tree-trunk" />
-      {sides.map((side) => signals[side].detected ? <span className={`fruit-hand-target fruit-hand-target-${side} ${signals[side].claw ? "is-claw" : ""}`} key={side} style={{ left: `${signals[side].x * 100}%`, top: `${signals[side].y * 100}%` }}><span />{side === "left" ? "L" : "R"}</span> : null)}
-      <div className="fruit-aim-instruction">Keep the large knuckles straight. Bend the middle and end finger joints.</div>
+      {sides.map((side) => signals[side].detected ? <span aria-label={t("handTarget", { side: t(side) })} className={`fruit-hand-target fruit-hand-target-${side} ${signals[side].claw ? "is-claw" : ""}`} key={side} style={{ left: `${signals[side].x * 100}%`, top: `${signals[side].y * 100}%` }}><span />{side === "left" ? t("leftShort") : t("rightShort")}</span> : null)}
+      <div className="fruit-aim-instruction">{t("knuckleInstruction")}</div>
     </div>
-    <aside className="watering-progress-panel"><p className="watering-panel-kicker">Basket progress</p><h2>{plucked}/{totalFruits} fruits</h2>{sides.map((side) => { const touching = findTouchedFruit(signals[side], pluckedTargets) >= 0; return <div className="watering-progress-row" key={side}><div><span>{side === "left" ? "Left hand" : "Right hand"}</span><strong>{counts[side]}/{requiredRepetitions}</strong></div><div className="watering-progress-track"><span style={{ width: `${(counts[side] / requiredRepetitions) * 100}%` }} /></div><p>{counts[side] >= requiredRepetitions ? "Complete" : !signals[side].detected ? "Show your hand" : !touching ? "Aim at any fruit" : signals[side].claw ? "Fruit plucked! Open again" : "On target — bend into a hook claw"}</p></div>; })}<div className="fruit-gesture-tip"><strong>Aim → hook claw → open</strong><p>Keep the large knuckles straight while bending the middle and end joints. Pluck {requiredRepetitions} fruits with each hand.</p></div></aside>
+    <aside className="watering-progress-panel"><p className="watering-panel-kicker">{t("basketProgress")}</p><h2>{t("fruitProgress", { count: plucked, total: totalFruits })}</h2>{sides.map((side) => { const touching = findTouchedFruit(signals[side], pluckedTargets) >= 0; return <div className="watering-progress-row" key={side}><div><span>{t(side)}</span><strong>{counts[side]}/{requiredRepetitions}</strong></div><div className="watering-progress-track"><span style={{ width: `${(counts[side] / requiredRepetitions) * 100}%` }} /></div><p>{counts[side] >= requiredRepetitions ? t("complete") : !signals[side].detected ? t("showHand") : !touching ? t("aimFruit") : signals[side].claw ? t("pluckedOpen") : t("onTarget")}</p></div>; })}<div className="fruit-gesture-tip"><strong>{t("aimClawOpen")}</strong><p>{t("gestureDescription", { count: requiredRepetitions })}</p></div></aside>
   </section>;
 }
 
 function Reward({ fruit }: { fruit: Fruit }) {
-  return <section className="watering-layout watering-layout-single"><div className="watering-main-panel watering-reward-main-panel"><div className="fruit-reward-panel"><div className="fruit-reward-stage"><div className="fruit-reward-ground" aria-hidden="true" /><FruitArt kind={fruit} label={`${fruit} reward`} /></div><div className="watering-reward-copy fruit-reward-copy"><p>Fruit reward</p><h2>{fruit[0].toUpperCase() + fruit.slice(1)}</h2><Link className="watering-primary-link" href="/dashboard">See my basket</Link></div></div></div></section>;
+  const t = useTranslations("Games.pluckFruit");
+  const fruitLabel = t(`fruit.${fruit}`);
+  return <section className="watering-layout watering-layout-single"><div className="watering-main-panel watering-reward-main-panel"><div className="fruit-reward-panel"><div className="fruit-reward-stage"><div className="fruit-reward-ground" aria-hidden="true" /><FruitArt kind={fruit} label={t("rewardLabel", { fruit: fruitLabel })} /></div><div className="watering-reward-copy fruit-reward-copy"><p>{t("fruitReward")}</p><h2>{fruitLabel}</h2><Link className="watering-primary-link" href="/dashboard">{t("seeBasket")}</Link></div></div></div></section>;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, useTransition, type RefObject } from "react";
 import { createMotionTracker } from "@/mediapipe/motion";
 import type { MotionSide, MotionTracker } from "@/mediapipe/types";
@@ -26,13 +26,14 @@ const bugPeriodMs = 3400;
 const centerWindow = 0.13;
 
 export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameClientProps) {
+  const t = useTranslations("Games.collectBugs");
   const [selectedBug, setSelectedBug] = useState<number | null>(null);
   const [counts, setCounts] = useState<TouchCounts>(emptyCounts);
   const [signals, setSignals] = useState<ThumbTouchSignals>(emptySignals);
   const [bugPosition, setBugPosition] = useState(0);
-  const [cameraStatus, setCameraStatus] = useState("Camera idle");
+  const [cameraStatus, setCameraStatus] = useState(t("cameraIdle"));
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [timingHint, setTimingHint] = useState("Wait for the bug to reach the centre of the stump.");
+  const [timingHint, setTimingHint] = useState(t("waitCentreHint"));
   const [cameraRunId, setCameraRunId] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const trackerRef = useRef<MotionTracker | null>(null);
@@ -67,8 +68,8 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
       countsRef.current = next;
       return next;
     });
-    setTimingHint(`${side === "left" ? "Left" : "Right"} touch counted!`);
-  }, []);
+    setTimingHint(t("touchCounted", { side: t(side) }));
+  }, [t]);
 
   const processSignals = useCallback((nextSignals: ThumbTouchSignals, timestampMs: number) => {
     sides.forEach((side) => {
@@ -82,14 +83,14 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
       attemptCountRef.current += 1;
 
       if (Math.abs(bugPositionRef.current) <= centerWindow) registerTouch(side);
-      else setTimingHint("Almost - touch when the bug is centred on the stump.");
+      else setTimingHint(t("almostHint"));
     });
 
     if (timestampMs - lastSignalUiAtRef.current > 120) {
       lastSignalUiAtRef.current = timestampMs;
       setSignals(nextSignals);
     }
-  }, [registerTouch]);
+  }, [registerTouch, t]);
 
   useEffect(() => {
     if (isChoosing || isComplete) return;
@@ -101,7 +102,7 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
       const video = videoRef.current;
       if (!video) return;
       videoElement = video;
-      setCameraStatus("Starting camera");
+      setCameraStatus(t("startingCamera"));
       setCameraError(null);
 
       try {
@@ -117,7 +118,7 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
         streamRef.current = stream;
         video.srcObject = stream;
         await video.play();
-        setCameraStatus("Loading hand tracker");
+        setCameraStatus(t("loadingTracker"));
         const tracker = await createHandsTracker();
         if (disposed) {
           tracker.disposeMotionTracker();
@@ -125,7 +126,7 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
         }
 
         trackerRef.current = tracker;
-        setCameraStatus("Tracking thumb touches");
+        setCameraStatus(t("trackingTouches"));
 
         const detectFrame = () => {
           if (disposed || !videoRef.current) return;
@@ -150,8 +151,8 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
         detectFrame();
       } catch (error) {
         console.error("Collect Bugs camera setup failed.", error);
-        setCameraStatus("Camera unavailable");
-        setCameraError(error instanceof Error ? error.message : "Could not start camera or hand tracking.");
+        setCameraStatus(t("cameraUnavailable"));
+        setCameraError(t("cameraStartFailed"));
       }
     }
 
@@ -165,14 +166,14 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
       streamRef.current = null;
       if (videoElement) videoElement.srcObject = null;
     };
-  }, [cameraRunId, isChoosing, isComplete, processSignals]);
+  }, [cameraRunId, isChoosing, isComplete, processSignals, t]);
 
   function startHunt(index: number) {
     countsRef.current = emptyCounts;
     latchesRef.current = { left: false, right: false };
     setCounts(emptyCounts);
     setSignals(emptySignals);
-    setTimingHint("Wait for the bug to reach the centre of the stump.");
+    setTimingHint(t("waitCentreHint"));
     sessionIdRef.current = crypto.randomUUID();
     runStartedAtRef.current = Date.now();
     attemptCountRef.current = 0;
@@ -182,7 +183,7 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
 
   return (
     <div className="watering-game">
-      <header className="watering-header"><div><p>BloomPal Game</p><h1>Collecting bugs</h1></div><Link className="watering-secondary-link" href="/dashboard">Dashboard</Link></header>
+      <header className="watering-header"><div><p>{t("gameLabel")}</p><h1>{t("title")}</h1></div><Link className="watering-secondary-link" href="/dashboard">{t("dashboard")}</Link></header>
       <section className={isChoosing || isComplete ? "watering-layout watering-layout-single" : "watering-playfield"} aria-live="polite">
         {isChoosing ? <BugPicker mysteryBugs={mysteryBugs} onSelect={startHunt} /> : isComplete && completion ? <BugRewardPanel bugAsset={mysteryBugs[selectedBug ?? 0]} sessionId={completion.sessionId} startedAtMs={completion.startedAtMs} totalAttempts={completion.totalAttempts} /> : <BugHuntPlayfield bugAsset={mysteryBugs[selectedBug ?? 0]} bugPosition={bugPosition} cameraError={cameraError} cameraStatus={cameraStatus} counts={counts} isComplete={isComplete} signals={signals} timingHint={timingHint} videoRef={videoRef} onRetryCamera={() => setCameraRunId((value) => value + 1)} />}
       </section>
@@ -191,11 +192,14 @@ export default function CollectBugsGameClient({ mysteryBugs }: CollectBugsGameCl
 }
 
 function BugPicker({ mysteryBugs, onSelect }: { mysteryBugs: readonly string[]; onSelect: (index: number) => void }) {
-  return <div className="watering-main-panel"><div className="watering-seed-stage"><div className="watering-stage-copy"><p>Mystery bugs</p><h2>Choose one bug</h2></div><div className="watering-seed-grid" aria-label="Choose a mystery bug">{mysteryBugs.map((asset, index) => <button className="watering-seed-card" key={asset} onClick={() => onSelect(index)} type="button"><span className="collectbugs-question-mark" aria-hidden="true">?</span><strong>Bug {index + 1}</strong></button>)}</div></div></div>;
+  const t = useTranslations("Games.collectBugs");
+  return <div className="watering-main-panel"><div className="watering-seed-stage"><div className="watering-stage-copy"><p>{t("mysteryBugs")}</p><h2>{t("chooseBug")}</h2></div><div className="watering-seed-grid" aria-label={t("chooseMysteryBug")}>{mysteryBugs.map((asset, index) => <button className="watering-seed-card" key={asset} onClick={() => onSelect(index)} type="button"><span className="collectbugs-question-mark" aria-hidden="true">?</span><strong>{t("bugNumber", { number: index + 1 })}</strong></button>)}</div></div></div>;
 }
 
 function BugRewardPanel({ bugAsset, sessionId, startedAtMs, totalAttempts }: { bugAsset: string; sessionId: string; startedAtMs: number; totalAttempts: number }) {
   const router = useRouter();
+  const t = useTranslations("Games.collectBugs");
+  const tErrors = useTranslations("Errors");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -211,7 +215,7 @@ function BugRewardPanel({ bugAsset, sessionId, startedAtMs, totalAttempts }: { b
         totalAttempts,
       });
       if (!result.ok) {
-        setError(result.error);
+        setError(tErrors(result.errorCode));
         return;
       }
       router.push("/dashboard");
@@ -219,7 +223,7 @@ function BugRewardPanel({ bugAsset, sessionId, startedAtMs, totalAttempts }: { b
     });
   }
 
-  return <div className="watering-main-panel watering-reward-main-panel"><div className="watering-reward-panel"><BugCaughtStage bugAsset={bugAsset} /><div className="watering-reward-copy"><p>Bug caught</p><h2>{formatBugName(bugAsset)}</h2><button className="watering-primary-link" disabled={isPending} onClick={saveAndReturn} type="button">{isPending ? "Saving bug" : "Back to garden"}</button>{error ? <p className="collectbugs-reward-error">{error}</p> : null}</div></div></div>;
+  return <div className="watering-main-panel watering-reward-main-panel"><div className="watering-reward-panel"><BugCaughtStage bugAsset={bugAsset} /><div className="watering-reward-copy"><p>{t("bugCaught")}</p><h2>{formatBugName(bugAsset)}</h2><button className="watering-primary-link" disabled={isPending} onClick={saveAndReturn} type="button">{isPending ? t("savingBug") : t("backToGarden")}</button>{error ? <p className="collectbugs-reward-error">{error}</p> : null}</div></div></div>;
 }
 
 function formatBugName(bugAsset: string) {
@@ -227,15 +231,16 @@ function formatBugName(bugAsset: string) {
 }
 
 function BugHuntPlayfield({ bugAsset, bugPosition, cameraError, cameraStatus, counts, isComplete, signals, timingHint, videoRef, onRetryCamera }: { bugAsset: string; bugPosition: number; cameraError: string | null; cameraStatus: string; counts: TouchCounts; isComplete: boolean; signals: ThumbTouchSignals; timingHint: string; videoRef: RefObject<HTMLVideoElement | null>; onRetryCamera: () => void }) {
+  const t = useTranslations("Games.collectBugs");
   const nextFingers = {
     left: thumbTouchFingerNames[Math.min(counts.left, requiredTouches - 1)],
     right: thumbTouchFingerNames[Math.min(counts.right, requiredTouches - 1)],
   };
 
   return <>
-    <div className="watering-camera-column"><section className="watering-camera-panel"><div className="watering-panel-heading"><p>Webcam</p><h2>Show your hands</h2></div><div className="watering-video-wrap"><video ref={videoRef} className="watering-video" muted playsInline aria-label="Collect Bugs webcam" /></div><div className="watering-camera-footer"><span>{cameraStatus}</span>{cameraError ? <button className="watering-text-button" onClick={onRetryCamera} type="button">Retry camera</button> : null}</div>{cameraError ? <p className="watering-error">{cameraError}</p> : null}</section></div>
-    <section className="watering-sprout-panel"><div className="watering-sprout-heading"><p>Live growth</p><h2>{isComplete ? "Bug found!" : "Time your thumb touch"}</h2></div><div className="watering-sprout-stage-shell collectbugs-log-stage"><span className="collectbugs-stump-grass collectbugs-stump-grass-left" aria-hidden="true" /><span className="collectbugs-stump-grass collectbugs-stump-grass-right" aria-hidden="true" /><div className="collectbugs-log" aria-hidden="true"><span className="collectbugs-log-bark" /><span className="collectbugs-log-end"><i /></span><span className="collectbugs-log-moss" /></div><MovingBugStage bugAsset={bugAsset} position={bugPosition} /><span className="collectbugs-centre-marker" aria-hidden="true" /><p>{isComplete ? "Both thumb-touch rounds are complete." : timingHint}</p></div></section>
-    <div className="watering-side-column"><aside className="watering-progress-panel"><div><p className="watering-panel-kicker">Bug finder</p><h2>Thumb touches</h2></div><div className="watering-progress-list">{sides.map((side) => <div className="watering-progress-row" key={side}><div><span>{side === "left" ? "Left" : "Right"}</span><strong>{counts[side]}/{requiredTouches}</strong></div><div className="watering-progress-track" aria-hidden="true"><span style={{ width: `${(counts[side] / requiredTouches) * 100}%` }} /></div><p>{counts[side] >= requiredTouches ? "Complete" : `Touch thumb to ${nextFingers[side]} fingertip${signals[side].touching ? " (touch detected)" : ""}`}</p></div>)}</div></aside><aside className="watering-guide-panel"><div><p className="watering-panel-kicker">How to play</p><h2>Thumb touch timing</h2></div><ol className="watering-guide-steps"><li><span className="collectbugs-guide-icon" aria-hidden="true">1</span><div><strong>Follow the order</strong><p>Index, middle, ring, then pinky.</p></div></li><li><span className="collectbugs-guide-icon" aria-hidden="true">2</span><div><strong>Wait for centre</strong><p>Only touch when the bug crosses the stump centre.</p></div></li><li><span className="collectbugs-guide-icon" aria-hidden="true">3</span><div><strong>Repeat both hands</strong><p>Score four correct touches with each hand.</p></div></li></ol><div className="watering-live-hint"><strong>Now</strong><p>{timingHint}</p></div></aside></div>
+    <div className="watering-camera-column"><section className="watering-camera-panel"><div className="watering-panel-heading"><p>{t("webcam")}</p><h2>{t("showHands")}</h2></div><div className="watering-video-wrap"><video ref={videoRef} className="watering-video" muted playsInline aria-label={t("webcamLabel")} /></div><div className="watering-camera-footer"><span>{cameraStatus}</span>{cameraError ? <button className="watering-text-button" onClick={onRetryCamera} type="button">{t("retryCamera")}</button> : null}</div>{cameraError ? <p className="watering-error">{cameraError}</p> : null}</section></div>
+    <section className="watering-sprout-panel"><div className="watering-sprout-heading"><p>{t("liveGrowth")}</p><h2>{isComplete ? t("bugFound") : t("timeTouch")}</h2></div><div className="watering-sprout-stage-shell collectbugs-log-stage"><span className="collectbugs-stump-grass collectbugs-stump-grass-left" aria-hidden="true" /><span className="collectbugs-stump-grass collectbugs-stump-grass-right" aria-hidden="true" /><div className="collectbugs-log" aria-hidden="true"><span className="collectbugs-log-bark" /><span className="collectbugs-log-end"><i /></span><span className="collectbugs-log-moss" /></div><MovingBugStage bugAsset={bugAsset} position={bugPosition} /><span className="collectbugs-centre-marker" aria-hidden="true" /><p>{isComplete ? t("roundsComplete") : timingHint}</p></div></section>
+    <div className="watering-side-column"><aside className="watering-progress-panel"><div><p className="watering-panel-kicker">{t("bugFinder")}</p><h2>{t("thumbTouches")}</h2></div><div className="watering-progress-list">{sides.map((side) => <div className="watering-progress-row" key={side}><div><span>{t(side)}</span><strong>{counts[side]}/{requiredTouches}</strong></div><div className="watering-progress-track" aria-hidden="true"><span style={{ width: `${(counts[side] / requiredTouches) * 100}%` }} /></div><p>{counts[side] >= requiredTouches ? t("complete") : t("touchFinger", { finger: t(`finger.${nextFingers[side]}`), detected: signals[side].touching ? t("touchDetected") : "" })}</p></div>)}</div></aside><aside className="watering-guide-panel"><div><p className="watering-panel-kicker">{t("howToPlay")}</p><h2>{t("thumbTouchTiming")}</h2></div><ol className="watering-guide-steps"><li><span className="collectbugs-guide-icon" aria-hidden="true">1</span><div><strong>{t("followOrder")}</strong><p>{t("fingerOrder")}</p></div></li><li><span className="collectbugs-guide-icon" aria-hidden="true">2</span><div><strong>{t("waitCentre")}</strong><p>{t("waitCentreDescription")}</p></div></li><li><span className="collectbugs-guide-icon" aria-hidden="true">3</span><div><strong>{t("repeatHands")}</strong><p>{t("repeatHandsDescription", { count: requiredTouches })}</p></div></li></ol><div className="watering-live-hint"><strong>{t("now")}</strong><p>{timingHint}</p></div></aside></div>
   </>;
 }
 

@@ -39,7 +39,8 @@ try {
       ADD COLUMN IF NOT EXISTS organization VARCHAR(120),
       ADD COLUMN IF NOT EXISTS account_status VARCHAR(16) NOT NULL DEFAULT 'active',
       ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
-      ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ
+      ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS preferred_locale VARCHAR(10)
   `);
 
   const passwordColumns = await client.query(`
@@ -109,6 +110,12 @@ try {
             AND CHAR_LENGTH(organization) BETWEEN 2 AND 120
           )
         );
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+  `);
+  await client.query(`
+    DO $$ BEGIN
+      ALTER TABLE users ADD CONSTRAINT users_preferred_locale_check
+        CHECK (preferred_locale IS NULL OR preferred_locale IN ('en-SG', 'zh-CN'));
     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
   `);
   await client.query(`

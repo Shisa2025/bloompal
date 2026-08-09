@@ -1,6 +1,7 @@
 import "server-only";
 
 import bcrypt from "bcryptjs";
+import type { SupportedLocale } from "@/i18n/routing";
 import { sql, type DatabaseClient } from "./connection";
 
 export type AccountRole = "admin" | "user";
@@ -20,6 +21,7 @@ export type AuthenticatedAccount = {
   adminUserid: string | null;
   status: AccountStatus;
   mustChangePassword: boolean;
+  preferredLocale: SupportedLocale | null;
 };
 
 type AccountRow = {
@@ -31,6 +33,7 @@ type AccountRow = {
   admin_userid: string | null;
   account_status: AccountStatus;
   must_change_password: boolean;
+  preferred_locale: SupportedLocale | null;
 };
 
 type AssignableAdminRow = {
@@ -41,7 +44,7 @@ type AssignableAdminRow = {
 
 const accountColumns = `
   userid, useremail, display_name, password_hash, role, admin_userid,
-  account_status, must_change_password
+  account_status, must_change_password, preferred_locale
 `;
 
 export async function createAccount({
@@ -53,6 +56,7 @@ export async function createAccount({
   organization = null,
   adminUserid = null,
   mustChangePassword = false,
+  preferredLocale = null,
   client = sql,
 }: {
   userid: string;
@@ -63,6 +67,7 @@ export async function createAccount({
   organization?: string | null;
   adminUserid?: string | null;
   mustChangePassword?: boolean;
+  preferredLocale?: SupportedLocale | null;
   client?: DatabaseClient;
 }): Promise<AuthenticatedAccount | null> {
   const passwordHash = await bcrypt.hash(password, 12);
@@ -72,9 +77,9 @@ export async function createAccount({
       `
       INSERT INTO users (
         userid, useremail, password_hash, display_name, role, admin_userid,
-        must_change_password, organization
+        must_change_password, organization, preferred_locale
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING ${accountColumns}
       `,
       [
@@ -86,6 +91,7 @@ export async function createAccount({
         adminUserid,
         mustChangePassword,
         role === "admin" ? organization?.trim() || null : null,
+        preferredLocale,
       ],
     );
 
@@ -197,6 +203,22 @@ export async function hashPassword(password: string) {
   return bcrypt.hash(password, 12);
 }
 
+export async function updatePreferredLocale(
+  userid: string,
+  preferredLocale: SupportedLocale,
+) {
+  const rows = await sql.query<{ userid: string }>(
+    `
+    UPDATE users
+    SET preferred_locale = $2, updated_at = NOW()
+    WHERE userid = $1 AND account_status = 'active'
+    RETURNING userid
+    `,
+    [userid, preferredLocale],
+  );
+  return Boolean(rows[0]);
+}
+
 function toAccount(row: AccountRow | undefined): AuthenticatedAccount | null {
   if (!row) return null;
   return {
@@ -207,6 +229,7 @@ function toAccount(row: AccountRow | undefined): AuthenticatedAccount | null {
     adminUserid: row.admin_userid,
     status: row.account_status,
     mustChangePassword: Boolean(row.must_change_password),
+    preferredLocale: row.preferred_locale,
   };
 }
 

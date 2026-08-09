@@ -11,11 +11,12 @@ import {
 } from "react";
 import {
   filterAdminOptions,
-  missingOrganization,
   type AdminOption,
 } from "./admin-options";
+import { useTranslations } from "next-intl";
 
 export default function AdminCombobox({ admins }: { admins: AdminOption[] }) {
+  const t = useTranslations("Auth");
   const inputId = useId();
   const listboxId = `${inputId}-listbox`;
   const inputRef = useRef<HTMLInputElement>(null);
@@ -131,7 +132,7 @@ export default function AdminCombobox({ admins }: { admins: AdminOption[] }) {
       }}
     >
       <label htmlFor={inputId}>
-        Admin <span>(optional)</span>
+        {t("admin")} <span>{t("optional")}</span>
       </label>
       <div className="signup-admin-picker">
         <div className="signup-admin-input-row">
@@ -141,7 +142,7 @@ export default function AdminCombobox({ admins }: { admins: AdminOption[] }) {
             className="login-input"
             type="text"
             value={searchValue}
-          placeholder="Search Admin ID, name, or organization"
+          placeholder={t("searchAdmin")}
           autoComplete="off"
           role="combobox"
             aria-autocomplete="list"
@@ -162,10 +163,10 @@ export default function AdminCombobox({ admins }: { admins: AdminOption[] }) {
             <button
               className="signup-admin-clear"
               type="button"
-              aria-label={`Clear selected Admin ${selectedAdmin.displayName}`}
+              aria-label={t("clearSelectedAdmin", { name: selectedAdmin.displayName })}
               onClick={clearAdmin}
             >
-              Clear
+              {t("clear")}
             </button>
           ) : null}
         </div>
@@ -176,7 +177,7 @@ export default function AdminCombobox({ admins }: { admins: AdminOption[] }) {
             className="signup-admin-results"
             id={listboxId}
             role="listbox"
-            aria-label="Active Admins"
+            aria-label={t("activeAdmins")}
           >
             {filteredAdmins.length ? (
               filteredAdmins.map((admin, index) => (
@@ -197,15 +198,15 @@ export default function AdminCombobox({ admins }: { admins: AdminOption[] }) {
                     <span>{admin.userid}</span>
                   </span>
                   <span className="signup-admin-organization">
-                    {admin.organization ?? missingOrganization}
+                    {admin.organization ?? t("organizationMissing")}
                   </span>
                 </button>
               ))
             ) : (
               <p className="signup-admin-empty" role="status">
                 {admins.length
-                  ? "No Admins match your search."
-                  : "No active Admins are available. You can continue without one."}
+                  ? t("noMatchingAdmins")
+                  : t("noActiveAdmins")}
               </p>
             )}
           </div>
@@ -218,8 +219,8 @@ export default function AdminCombobox({ admins }: { admins: AdminOption[] }) {
         aria-live="polite"
       >
         {selectedAdmin
-          ? `Selected: ${selectedAdmin.displayName} · ${selectedAdmin.organization ?? missingOrganization}`
-          : "No Admin selected. You can continue with an unassigned account."}
+          ? t("selectedAdmin", { name: selectedAdmin.displayName, organization: selectedAdmin.organization ?? t("organizationMissing") })
+          : t("noAdminSelected")}
       </p>
     </div>
   );

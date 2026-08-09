@@ -1,19 +1,20 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link, getPathname, usePathname } from "@/i18n/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 import { logoutAction } from "../actions";
 import { Icon, type IconName } from "./icons";
 import styles from "../dashboard.module.css";
+import LocaleSwitcher from "@/app/components/LocaleSwitcher";
 
-const navigation: { href: string; label: string; icon: IconName }[] = [
-  { href: "/admin/dashboard", label: "Overview", icon: "overview" },
-  { href: "/admin/dashboard/users", label: "Users", icon: "players" },
-  { href: "/admin/dashboard/sessions", label: "Sessions", icon: "sessions" },
-  { href: "/admin/dashboard/motion", label: "Motion records", icon: "motion" },
-  { href: "/admin/dashboard/analytics", label: "Analytics", icon: "analytics" },
-  { href: "/admin/dashboard/reports", label: "Reports", icon: "reports" },
+const navigation: { href: string; label: "overview" | "users" | "sessions" | "motionRecords" | "analytics" | "reports"; icon: IconName }[] = [
+  { href: "/admin/dashboard", label: "overview", icon: "overview" },
+  { href: "/admin/dashboard/users", label: "users", icon: "players" },
+  { href: "/admin/dashboard/sessions", label: "sessions", icon: "sessions" },
+  { href: "/admin/dashboard/motion", label: "motionRecords", icon: "motion" },
+  { href: "/admin/dashboard/analytics", label: "analytics", icon: "analytics" },
+  { href: "/admin/dashboard/reports", label: "reports", icon: "reports" },
 ];
 
 function isActive(pathname: string, href: string) {
@@ -40,6 +41,8 @@ export function DashboardShell({
   userName: string;
 }) {
   const pathname = usePathname();
+  const locale = useLocale();
+  const t = useTranslations("Admin");
   const [menuOpen, setMenuOpen] = useState(false);
   const userInitials = getInitials(userName);
 
@@ -52,11 +55,11 @@ export function DashboardShell({
               <span className={styles.brandMark} aria-hidden="true"><span /></span>
               <span>
                 <strong>BloomPal</strong>
-                <small>Care Management</small>
+                <small>{t("careManagement")}</small>
               </span>
             </Link>
             <button
-              aria-label="Close navigation"
+              aria-label={t("closeNavigation")}
               className={styles.mobileClose}
               onClick={() => setMenuOpen(false)}
               type="button"
@@ -65,8 +68,8 @@ export function DashboardShell({
             </button>
           </div>
 
-          <nav className={styles.nav} aria-label="Dashboard navigation">
-            <p className={styles.navLabel}>Workspace</p>
+          <nav className={styles.nav} aria-label={t("dashboardNavigation")}>
+            <p className={styles.navLabel}>{t("workspace")}</p>
             {navigation.map((item) => (
               <Link
                 className={`${styles.navItem} ${isActive(pathname, item.href) ? styles.navItemActive : ""}`}
@@ -75,7 +78,7 @@ export function DashboardShell({
                 onClick={() => setMenuOpen(false)}
               >
                 <Icon name={item.icon} size={19} />
-                <span>{item.label}</span>
+                <span>{t(item.label)}</span>
               </Link>
             ))}
           </nav>
@@ -85,24 +88,24 @@ export function DashboardShell({
           <div className={styles.sidebarHelp}>
             <span className={styles.helpIcon}><Icon name="activity" size={18} /></span>
             <div>
-              <strong>Live workspace</strong>
-              <p>Metrics use assigned-user activity.</p>
+              <strong>{t("liveWorkspace")}</strong>
+              <p>{t("metricsScope")}</p>
             </div>
           </div>
           <div className={styles.userCard}>
             <span className={styles.avatar}>{userInitials}</span>
             <div>
               <strong>{userName}</strong>
-              <small>Administrator</small>
+              <small>{t("administrator")}</small>
             </div>
-            <span className={styles.onlineDot} title="Online" />
+            <span className={styles.onlineDot} title={t("online")} />
           </div>
         </div>
       </aside>
 
       {menuOpen ? (
         <button
-          aria-label="Close navigation overlay"
+          aria-label={t("closeNavigationOverlay")}
           className={styles.overlay}
           onClick={() => setMenuOpen(false)}
           type="button"
@@ -112,25 +115,26 @@ export function DashboardShell({
       <div className={styles.workspace}>
         <header className={styles.topbar}>
           <button
-            aria-label="Open navigation"
+            aria-label={t("openNavigation")}
             className={styles.mobileMenu}
             onClick={() => setMenuOpen(true)}
             type="button"
           >
             <Icon name="menu" />
           </button>
-          <form action="/admin/dashboard/users" className={styles.search} method="get">
+          <form action={getPathname({ href: "/admin/dashboard/users", locale })} className={styles.search} method="get">
             <Icon name="search" size={18} />
-            <input aria-label="Search users" name="q" placeholder="Search users" />
-            <kbd>Enter</kbd>
+            <input aria-label={t("searchUsers")} name="q" placeholder={t("searchUsers")} />
+            <kbd>{t("enter")}</kbd>
           </form>
           <div className={styles.topbarActions}>
+            <LocaleSwitcher compact />
             <Link className={styles.logoutButton} href="/change-password">
-              Change password
+              {t("changePassword")}
             </Link>
             <span className={styles.topAvatar}>{userInitials}</span>
             <form action={logoutAction}>
-              <button className={styles.logoutButton} type="submit">Log out</button>
+              <button className={styles.logoutButton} type="submit">{t("logout")}</button>
             </form>
           </div>
         </header>

@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
@@ -57,13 +58,15 @@ const emptySignals: WateringSignals = {
 export default function WateringGameClient({
   initialPlant,
 }: WateringGameClientProps) {
+  const t = useTranslations("Games.watering");
+  const tErrors = useTranslations("Errors");
   const [plant, setPlant] = useState<WateringPlant | null>(initialPlant);
   const [phase, setPhase] = useState<GamePhase>(
     initialPlant ? "watering" : "choosing",
   );
   const [counts, setCounts] = useState<WaterCounts>(emptyCounts);
   const [signals, setSignals] = useState<WateringSignals>(emptySignals);
-  const [cameraStatus, setCameraStatus] = useState("Camera idle");
+  const [cameraStatus, setCameraStatus] = useState(t("cameraIdle"));
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [bursts, setBursts] = useState<WaterBurst[]>([]);
@@ -218,14 +221,14 @@ export default function WateringGameClient({
 
     if (!result.ok) {
       completingRef.current = false;
-      setActionError(result.error);
+      setActionError(tErrors(result.errorCode));
       setPhase("complete-error");
       return;
     }
 
     setPlant(result.plant);
     setPhase("reward");
-  }, [plant]);
+  }, [plant, tErrors]);
 
   useEffect(() => {
     if (phase === "watering" && counts.left >= 5 && counts.right >= 5) {
@@ -253,7 +256,7 @@ export default function WateringGameClient({
       }
 
       videoElement = video;
-      setCameraStatus("Starting camera");
+      setCameraStatus(t("startingCamera"));
       setCameraError(null);
 
       try {
@@ -275,7 +278,7 @@ export default function WateringGameClient({
         video.srcObject = stream;
         await video.play();
 
-        setCameraStatus("Loading hand tracker");
+        setCameraStatus(t("loadingTracker"));
 
         const tracker = await createHandsTracker();
 
@@ -285,7 +288,7 @@ export default function WateringGameClient({
         }
 
         trackerRef.current = tracker;
-        setCameraStatus("Tracking hands");
+        setCameraStatus(t("trackingHands"));
 
         const detectFrame = () => {
           if (disposed || !trackerRef.current || !videoRef.current) {
@@ -305,12 +308,8 @@ export default function WateringGameClient({
         detectFrame();
       } catch (error) {
         console.error("Watering camera setup failed.", error);
-        setCameraStatus("Camera unavailable");
-        setCameraError(
-          error instanceof Error
-            ? error.message
-            : "Could not start camera or hand tracking.",
-        );
+        setCameraStatus(t("cameraUnavailable"));
+        setCameraError(t("cameraStartFailed"));
       }
     }
 
@@ -329,7 +328,7 @@ export default function WateringGameClient({
         videoElement.srcObject = null;
       }
     };
-  }, [cameraRunId, phase, plant, processSignals]);
+  }, [cameraRunId, phase, plant, processSignals, t]);
 
   const handleSeedSelect = async (seedKey: (typeof seedKeys)[number]) => {
     setPhase("starting");
@@ -338,7 +337,7 @@ export default function WateringGameClient({
     const result = await selectMysterySeed(seedKey);
 
     if (!result.ok) {
-      setActionError(result.error);
+      setActionError(tErrors(result.errorCode));
       setPhase("choosing");
       return;
     }
@@ -354,11 +353,11 @@ export default function WateringGameClient({
     <div className="watering-game">
       <header className="watering-header">
         <div>
-          <p>BloomPal Game</p>
-          <h1>Watering</h1>
+          <p>{t("gameLabel")}</p>
+          <h1>{t("title")}</h1>
         </div>
         <Link className="watering-secondary-link" href="/dashboard">
-          Dashboard
+          {t("dashboard")}
         </Link>
       </header>
 
@@ -424,6 +423,7 @@ function WateringPlayfield({
   onRetryComplete: () => void;
   videoRef: RefObject<HTMLVideoElement | null>;
 }) {
+  const t = useTranslations("Games.watering");
   const progress = counts.left + counts.right;
 
   return (
@@ -442,8 +442,8 @@ function WateringPlayfield({
 
       <div className="watering-sprout-panel">
         <div className="watering-sprout-heading">
-          <p>Live growth</p>
-          <h2>{progress >= 10 ? "Ready to bloom" : "Keep watering"}</h2>
+          <p>{t("liveGrowth")}</p>
+          <h2>{progress >= 10 ? t("readyToBloom") : t("keepWatering")}</h2>
         </div>
         <SproutFeedbackStage progress={progress} waterBursts={bursts} />
       </div>
@@ -465,11 +465,12 @@ function SeedPicker({
   seedOrder: readonly (typeof seedKeys)[number][];
   onSelect: (seedKey: (typeof seedKeys)[number]) => void;
 }) {
+  const t = useTranslations("Games.watering");
   return (
     <div className="watering-seed-stage">
       <div className="watering-stage-copy">
-        <p>Mystery seeds</p>
-        <h2>Choose one seed</h2>
+        <p>{t("mysterySeeds")}</p>
+        <h2>{t("chooseSeed")}</h2>
       </div>
       <div className="watering-seed-grid">
         {seedOrder.map((seedKey, index) => (
@@ -481,7 +482,7 @@ function SeedPicker({
             type="button"
           >
             <span className="watering-seed-visual" aria-hidden="true" />
-            <strong>Seed {index + 1}</strong>
+            <strong>{t("seedNumber", { number: index + 1 })}</strong>
           </button>
         ))}
       </div>
@@ -506,11 +507,12 @@ function CameraPanel({
   onRetryComplete: () => void;
   videoRef: RefObject<HTMLVideoElement | null>;
 }) {
+  const t = useTranslations("Games.watering");
   return (
     <div className="watering-camera-panel">
       <div className="watering-panel-heading">
-        <p>Webcam</p>
-        <h2>Show your hands</h2>
+        <p>{t("webcam")}</p>
+        <h2>{t("showHands")}</h2>
       </div>
       <div className="watering-video-wrap">
         <video
@@ -518,10 +520,10 @@ function CameraPanel({
           className="watering-video"
           muted
           playsInline
-          aria-label="Watering webcam"
+          aria-label={t("webcamLabel")}
         />
         {phase === "completing" ? (
-          <div className="watering-overlay-message">Saving bloom</div>
+          <div className="watering-overlay-message">{t("savingBloom")}</div>
         ) : null}
       </div>
 
@@ -529,7 +531,7 @@ function CameraPanel({
         <span>{cameraStatus}</span>
         {cameraError ? (
           <button className="watering-text-button" onClick={onRetryCamera} type="button">
-            Retry camera
+            {t("retryCamera")}
           </button>
         ) : null}
         {phase === "complete-error" ? (
@@ -538,7 +540,7 @@ function CameraPanel({
             onClick={onRetryComplete}
             type="button"
           >
-            Retry save
+            {t("retrySave")}
           </button>
         ) : null}
       </div>
@@ -559,24 +561,25 @@ function ProgressPanel({
   phase: GamePhase;
   signals: WateringSignals;
 }) {
+  const t = useTranslations("Games.watering");
   return (
     <aside className="watering-progress-panel">
       <div>
-        <p className="watering-panel-kicker">Water level</p>
-        <h2>{phase === "reward" ? "Bloom unlocked" : "Wrist watering"}</h2>
+        <p className="watering-panel-kicker">{t("waterLevel")}</p>
+        <h2>{phase === "reward" ? t("bloomUnlocked") : t("wristWatering")}</h2>
       </div>
 
       <div className="watering-progress-list">
         {sides.map((side) => (
           <div className="watering-progress-row" key={side}>
             <div>
-              <span>{side === "left" ? "Left" : "Right"}</span>
+              <span>{side === "left" ? t("left") : t("right")}</span>
               <strong>{counts[side]}/5</strong>
             </div>
             <div className="watering-progress-track" aria-hidden="true">
               <span style={{ width: `${Math.min(counts[side], 5) * 20}%` }} />
             </div>
-            <p>{getSignalCopy(signals[side], counts[side])}</p>
+            <p>{getSignalCopy(signals[side], counts[side], t)}</p>
           </div>
         ))}
       </div>
@@ -591,11 +594,12 @@ function GestureGuidePanel({
   counts: WaterCounts;
   signals: WateringSignals;
 }) {
+  const t = useTranslations("Games.watering");
   return (
     <aside className="watering-guide-panel">
       <div>
-        <p className="watering-panel-kicker">How to play</p>
-        <h2>Fist, twist, return</h2>
+        <p className="watering-panel-kicker">{t("howToPlay")}</p>
+        <h2>{t("fistTwistReturn")}</h2>
       </div>
 
       <ol className="watering-guide-steps">
@@ -604,8 +608,8 @@ function GestureGuidePanel({
             <span />
           </span>
           <div>
-            <strong>Make a fist</strong>
-            <p>Close one hand clearly in view.</p>
+            <strong>{t("makeFist")}</strong>
+            <p>{t("makeFistDescription")}</p>
           </div>
         </li>
         <li>
@@ -613,8 +617,8 @@ function GestureGuidePanel({
             <span />
           </span>
           <div>
-            <strong>Twist your wrist</strong>
-            <p>Rotate the fist away from center.</p>
+            <strong>{t("twistWrist")}</strong>
+            <p>{t("twistWristDescription")}</p>
           </div>
         </li>
         <li>
@@ -622,29 +626,30 @@ function GestureGuidePanel({
             <span />
           </span>
           <div>
-            <strong>Return to center</strong>
-            <p>Come back to count one watering.</p>
+            <strong>{t("returnCenter")}</strong>
+            <p>{t("returnCenterDescription")}</p>
           </div>
         </li>
       </ol>
 
       <div className="watering-live-hint">
-        <strong>Now</strong>
-        <p>{getGuideHint(counts, signals)}</p>
+        <strong>{t("now")}</strong>
+        <p>{getGuideHint(counts, signals, t)}</p>
       </div>
     </aside>
   );
 }
 
 function RewardPanel({ flowerAsset }: { flowerAsset: string }) {
+  const t = useTranslations("Games.watering");
   return (
     <div className="watering-reward-panel">
       <FlowerRewardStage flowerAsset={flowerAsset} />
       <div className="watering-reward-copy">
-        <p>Bloom reward</p>
+        <p>{t("bloomReward")}</p>
         <h2>{flowerAsset.replace(".glb", "")}</h2>
         <Link className="watering-primary-link" href="/dashboard">
-          Back to garden
+          {t("backToGarden")}
         </Link>
       </div>
     </div>
@@ -684,21 +689,23 @@ function getAngleDelta(first: number, second: number) {
   return diff > 180 ? 360 - diff : diff;
 }
 
-function getSignalCopy(signal: WateringSignals[MotionSide], count: number) {
+type WateringTranslator = ReturnType<typeof useTranslations<"Games.watering">>;
+
+function getSignalCopy(signal: WateringSignals[MotionSide], count: number, t: WateringTranslator) {
   if (count >= 5) {
-    return "Complete";
+    return t("complete");
   }
 
   if (!signal.detected) {
-    return "Looking";
+    return t("looking");
   }
 
-  return signal.fist ? "Ready" : "Open hand";
+  return signal.fist ? t("ready") : t("openHand");
 }
 
-function getGuideHint(counts: WaterCounts, signals: WateringSignals) {
+function getGuideHint(counts: WaterCounts, signals: WateringSignals, t: WateringTranslator) {
   if (counts.left >= 5 && counts.right >= 5) {
-    return "Both hands are complete. Your bloom is being saved.";
+    return t("bothHandsComplete");
   }
 
   const activeSide = counts.left <= counts.right ? "left" : "right";
@@ -708,18 +715,18 @@ function getGuideHint(counts: WaterCounts, signals: WateringSignals) {
   if (counts[activeSide] >= 5) {
     const otherSide = activeSide === "left" ? "right" : "left";
 
-    return `${label} hand complete. Work on your ${otherSide} hand.`;
+    return t("handComplete", { side: t(label), otherSide: t(otherSide) });
   }
 
   if (!signal.detected) {
-    return `Show your ${label} fist to the camera.`;
+    return t("showFist", { side: t(label) });
   }
 
   if (!signal.fist) {
-    return `Close your ${label} hand into a fist.`;
+    return t("closeHand", { side: t(label) });
   }
 
-  return `Twist your ${label} wrist, then return to center.`;
+  return t("twistHint", { side: t(label) });
 }
 
 function shuffleSeeds(values: (typeof seedKeys)[number][]) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import * as THREE from "three";
+import { useTranslations } from "next-intl";
 
 export type ThreeStageContext = {
   scene: THREE.Scene;
@@ -104,6 +105,7 @@ export default function ThreeStage({
   ariaLabel,
   preserveDrawingBuffer = false,
 }: ThreeStageProps) {
+  const t = useTranslations("Common");
   const stageRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fallbackLabelRef = useRef<HTMLDivElement>(null);
@@ -128,7 +130,7 @@ export default function ThreeStage({
     };
 
     if (!isWebGLAvailable()) {
-      setStageStatus("unsupported", "3D scene unavailable");
+      setStageStatus("unsupported", t("sceneUnavailable"));
       return;
     }
 
@@ -228,7 +230,7 @@ export default function ThreeStage({
       }
     } catch (error) {
       console.error("ThreeStage setup failed", error);
-      setStageStatus("error", "3D scene failed to load");
+      setStageStatus("error", t("sceneLoadFailed"));
     }
 
     const resizeObserver = new ResizeObserver(resize);
@@ -246,7 +248,7 @@ export default function ThreeStage({
         renderer.domElement.remove();
       }
     };
-  }, [preserveDrawingBuffer, setup]);
+  }, [preserveDrawingBuffer, setup, t]);
 
   return (
     <div
@@ -261,7 +263,7 @@ export default function ThreeStage({
       <div className="three-stage-fallback-shell">
         {fallback ?? (
           <div ref={fallbackLabelRef} className="three-stage-fallback">
-            Loading 3D scene
+            {t("loading3d")}
           </div>
         )}
       </div>

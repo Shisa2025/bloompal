@@ -2,7 +2,9 @@ import "server-only";
 
 import { createHash, randomBytes } from "crypto";
 import { cookies } from "next/headers";
-import { redirect, RedirectType } from "next/navigation";
+import { getLocale } from "next-intl/server";
+import { RedirectType } from "next/navigation";
+import { redirect } from "@/i18n/navigation";
 import {
   createStoredSession,
   deleteExpiredSessions,
@@ -62,9 +64,12 @@ export async function rotateLoginSession(userid: string, remember = false) {
   await createLoginSession(userid, remember);
 }
 
-export async function requireSignedInAccount() {
+export async function requireSignedInAccount(): Promise<AuthenticatedAccount> {
   const account = await getCurrentAccount();
-  if (!account) redirect("/login", RedirectType.replace);
+  if (!account) {
+    const locale = await getLocale();
+    return redirect({ href: "/login", locale }, RedirectType.replace);
+  }
   return account;
 }
 
@@ -72,13 +77,18 @@ export async function requireRole(role: AccountRole) {
   const account = await requireSignedInAccount();
 
   if (account.role !== role) {
+    const locale = await getLocale();
     redirect(
-      account.role === "admin" ? "/admin/dashboard" : "/dashboard",
+      {
+        href: account.role === "admin" ? "/admin/dashboard" : "/dashboard",
+        locale,
+      },
       RedirectType.replace,
     );
   }
   if (account.mustChangePassword) {
-    redirect("/change-password", RedirectType.replace);
+    const locale = await getLocale();
+    redirect({ href: "/change-password", locale }, RedirectType.replace);
   }
 
   return account;

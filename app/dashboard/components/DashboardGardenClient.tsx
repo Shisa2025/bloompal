@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { deleteUserBug, deleteUserSnapshot, setActiveBug, setActiveSnapshot, setTableFlowerAsset, throwAwayUserFruit } from "../actions";
 import DashboardHomeScene from "./DashboardHomeScene";
@@ -24,6 +24,8 @@ export default function DashboardGardenClient({
   fruits,
 }: DashboardGardenClientProps) {
   const router = useRouter();
+  const t = useTranslations("Dashboard");
+  const tErrors = useTranslations("Errors");
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [localSelection, setLocalSelection] = useState<{
     serverAsset: string | null;
@@ -62,7 +64,7 @@ export default function DashboardGardenClient({
         const result = await setTableFlowerAsset(asset);
 
         if (!result.ok) {
-          setActionError(result.error);
+          setActionError(tErrors(result.errorCode));
           return;
         }
 
@@ -74,7 +76,7 @@ export default function DashboardGardenClient({
         router.refresh();
       });
     },
-    [router, tableFlowerAsset],
+    [router, tableFlowerAsset, tErrors],
   );
   const activeBugs = useMemo(() => caughtBugs.filter((bug) => bug.isActive), [caughtBugs]);
   const activeSnapshot = useMemo(() => snapshots.find((snapshot) => snapshot.isActive) ?? null, [snapshots]);
@@ -86,13 +88,13 @@ export default function DashboardGardenClient({
     startTransition(async () => {
       const result = await deleteUserBug(selectedBug.id);
       if (!result.ok) {
-        setActionError(result.error);
+        setActionError(tErrors(result.errorCode));
         return;
       }
       setSelectedBug(null);
       router.refresh();
     });
-  }, [router, selectedBug]);
+  }, [router, selectedBug, tErrors]);
 
   const chooseBug = useCallback(
     (bugId: string) => {
@@ -100,7 +102,7 @@ export default function DashboardGardenClient({
       startTransition(async () => {
         const result = await setActiveBug(bugId);
         if (!result.ok) {
-          setActionError(result.error);
+          setActionError(tErrors(result.errorCode));
           return;
         }
         setIsBugSelectorOpen(false);
@@ -108,38 +110,38 @@ export default function DashboardGardenClient({
         router.refresh();
       });
     },
-    [router],
+    [router, tErrors],
   );
 
   const chooseSnapshot = useCallback((snapshotId: string) => {
     setActionError(null);
     startTransition(async () => {
       const result = await setActiveSnapshot(snapshotId);
-      if (!result.ok) { setActionError(result.error); return; }
+      if (!result.ok) { setActionError(tErrors(result.errorCode)); return; }
       setIsSnapshotSelectorOpen(false);
       router.refresh();
     });
-  }, [router]);
+  }, [router, tErrors]);
 
   const removeSnapshot = useCallback((snapshotId: string) => {
-    if (!window.confirm("Delete this snapshot permanently?")) return;
+    if (!window.confirm(t("confirmDeleteSnapshot"))) return;
     setActionError(null);
     startTransition(async () => {
       const result = await deleteUserSnapshot(snapshotId);
-      if (!result.ok) { setActionError(result.error); return; }
+      if (!result.ok) { setActionError(tErrors(result.errorCode)); return; }
       router.refresh();
     });
-  }, [router]);
+  }, [router, t, tErrors]);
 
   const removeFruit = useCallback((fruitId: string) => {
-    if (!window.confirm("Throw this fruit away?")) return;
+    if (!window.confirm(t("confirmThrowFruit"))) return;
     setActionError(null);
     startTransition(async () => {
       const result = await throwAwayUserFruit(fruitId);
-      if (!result.ok) { setActionError(result.error); return; }
+      if (!result.ok) { setActionError(tErrors(result.errorCode)); return; }
       router.refresh();
     });
-  }, [router]);
+  }, [router, t, tErrors]);
 
   return (
     <>
@@ -162,7 +164,7 @@ export default function DashboardGardenClient({
         onFruitBasketClick={() => { setActionError(null); setIsFruitBasketOpen(true); }}
       />
 
-      {isFruitBasketOpen ? <div className="dashboard-table-flower-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isPending) setIsFruitBasketOpen(false); }}><section className="dashboard-table-flower-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboard-fruit-title"><div className="dashboard-table-flower-heading"><p>Fruit basket</p><h2 id="dashboard-fruit-title">Your harvest</h2></div>{fruits.length ? <div className="dashboard-fruit-grid">{fruits.map((fruit) => <div className="dashboard-fruit-item" key={fruit.id}><FruitArt kind={fruit.fruitKind as FruitArtKind} label={fruit.fruitKind} /><strong>{fruit.fruitKind[0].toUpperCase() + fruit.fruitKind.slice(1)}</strong><button disabled={isPending} onClick={() => removeFruit(fruit.id)} type="button">Throw away</button></div>)}</div> : <div className="dashboard-table-flower-empty"><BasketArt className="dashboard-empty-basket" label="Empty basket" /><strong>Your basket is empty</strong><p>Play Fruit Plucking to fill it.</p><Link className="dashboard-game-button" href="/games/pluckfruit">Pluck fruit</Link></div>}{actionError ? <p className="dashboard-table-flower-error">{actionError}</p> : null}<div className="dashboard-table-flower-actions"><button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setIsFruitBasketOpen(false)}>Close</button></div></section></div> : null}
+      {isFruitBasketOpen ? <div className="dashboard-table-flower-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isPending) setIsFruitBasketOpen(false); }}><section className="dashboard-table-flower-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboard-fruit-title"><div className="dashboard-table-flower-heading"><p>{t("fruitBasket")}</p><h2 id="dashboard-fruit-title">{t("yourHarvest")}</h2></div>{fruits.length ? <div className="dashboard-fruit-grid">{fruits.map((fruit) => <div className="dashboard-fruit-item" key={fruit.id}><FruitArt kind={fruit.fruitKind as FruitArtKind} label={t(`fruit.${fruit.fruitKind}` as "fruit.apple")} /><strong>{t(`fruit.${fruit.fruitKind}` as "fruit.apple")}</strong><button disabled={isPending} onClick={() => removeFruit(fruit.id)} type="button">{t("throwAway")}</button></div>)}</div> : <div className="dashboard-table-flower-empty"><BasketArt className="dashboard-empty-basket" label={t("emptyBasket")} /><strong>{t("basketEmpty")}</strong><p>{t("fillBasketHint")}</p><Link className="dashboard-game-button" href="/games/pluckfruit">{t("pluckFruit")}</Link></div>}{actionError ? <p className="dashboard-table-flower-error">{actionError}</p> : null}<div className="dashboard-table-flower-actions"><button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setIsFruitBasketOpen(false)}>{t("close")}</button></div></section></div> : null}
 
       {isSelectorOpen ? (
         <div
@@ -181,8 +183,8 @@ export default function DashboardGardenClient({
             aria-labelledby="dashboard-table-flower-title"
           >
             <div className="dashboard-table-flower-heading">
-              <p>Table planter</p>
-              <h2 id="dashboard-table-flower-title">Choose a bloom</h2>
+              <p>{t("tablePlanter")}</p>
+              <h2 id="dashboard-table-flower-title">{t("chooseBloom")}</h2>
             </div>
 
             {uniqueFlowerAssets.length > 0 ? (
@@ -206,9 +208,9 @@ export default function DashboardGardenClient({
                     >
                       <span />
                     </span>
-                    <strong>{formatFlowerName(asset)}</strong>
+                    <strong>{formatFlowerName(asset, t("flower"))}</strong>
                     <span>
-                      {selectedAsset === asset ? "On the table" : "Owned bloom"}
+                      {selectedAsset === asset ? t("onTable") : t("ownedBloom")}
                     </span>
                   </button>
                 ))}
@@ -216,10 +218,10 @@ export default function DashboardGardenClient({
             ) : (
               <div className="dashboard-table-flower-empty">
                 <span className="dashboard-table-flower-empty-icon" aria-hidden="true" />
-                <strong>No blooms yet</strong>
-                <p>Finish a watering run to unlock flowers for the table pot.</p>
+                <strong>{t("noBlooms")}</strong>
+                <p>{t("unlockFlowersHint")}</p>
                 <Link className="dashboard-game-button" href="/games/watering">
-                  Start watering
+                  {t("startWatering")}
                 </Link>
               </div>
             )}
@@ -235,7 +237,7 @@ export default function DashboardGardenClient({
                 type="button"
                 onClick={() => chooseFlower(null)}
               >
-                Empty pot
+                {t("emptyPot")}
               </button>
               <button
                 className="dashboard-table-flower-secondary"
@@ -243,7 +245,7 @@ export default function DashboardGardenClient({
                 type="button"
                 onClick={closeSelector}
               >
-                Close
+                {t("close")}
               </button>
             </div>
           </section>
@@ -256,13 +258,13 @@ export default function DashboardGardenClient({
         }}>
           <section className="dashboard-table-flower-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboard-bug-title">
             <div className="dashboard-table-flower-heading">
-              <p>Garden visitor</p>
+              <p>{t("gardenVisitor")}</p>
               <h2 id="dashboard-bug-title">{formatBugName(selectedBug.bugAsset)}</h2>
             </div>
             <div className="dashboard-table-flower-empty">
               <span className="dashboard-bug-dialog-icon" aria-hidden="true">&#128030;</span>
-              <strong>This bug is flying around your avatar.</strong>
-              <p>Release it to remove it from your garden.</p>
+              <strong>{t("bugFlying")}</strong>
+              <p>{t("releaseBugHint")}</p>
             </div>
             {actionError ? <p className="dashboard-table-flower-error">{actionError}</p> : null}
             <div className="dashboard-table-flower-actions">
@@ -270,9 +272,9 @@ export default function DashboardGardenClient({
                 setActionError(null);
                 setIsBugSelectorOpen(true);
                 setSelectedBug(null);
-              }}>Choose companion</button>
-              <button className="dashboard-table-flower-secondary dashboard-bug-delete" disabled={isPending} type="button" onClick={removeBug}>Release bug</button>
-              <button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setSelectedBug(null)}>Close</button>
+              }}>{t("chooseCompanion")}</button>
+              <button className="dashboard-table-flower-secondary dashboard-bug-delete" disabled={isPending} type="button" onClick={removeBug}>{t("releaseBug")}</button>
+              <button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setSelectedBug(null)}>{t("close")}</button>
             </div>
           </section>
         </div>
@@ -284,8 +286,8 @@ export default function DashboardGardenClient({
         }}>
           <section className="dashboard-table-flower-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboard-bug-selector-title">
             <div className="dashboard-table-flower-heading">
-              <p>Garden visitors</p>
-              <h2 id="dashboard-bug-selector-title">Choose a companion</h2>
+              <p>{t("gardenVisitors")}</p>
+              <h2 id="dashboard-bug-selector-title">{t("chooseCompanion")}</h2>
             </div>
             <div className="dashboard-table-flower-grid">
               {caughtBugs.map((bug) => (
@@ -298,13 +300,13 @@ export default function DashboardGardenClient({
                 >
                   <span className="dashboard-bug-dialog-icon" aria-hidden="true">&#128030;</span>
                   <strong>{formatBugName(bug.bugAsset)}</strong>
-                  <span>{bug.isActive ? "Flying with you" : "Choose companion"}</span>
+                  <span>{bug.isActive ? t("flyingWithYou") : t("chooseCompanion")}</span>
                 </button>
               ))}
             </div>
             {actionError ? <p className="dashboard-table-flower-error">{actionError}</p> : null}
             <div className="dashboard-table-flower-actions">
-              <button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setIsBugSelectorOpen(false)}>Close</button>
+              <button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setIsBugSelectorOpen(false)}>{t("close")}</button>
             </div>
           </section>
         </div>
@@ -315,19 +317,19 @@ export default function DashboardGardenClient({
           if (event.target === event.currentTarget && !isPending) setIsSnapshotSelectorOpen(false);
         }}>
           <section className="dashboard-table-flower-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboard-snapshot-selector-title">
-            <div className="dashboard-table-flower-heading"><p>Garden memories</p><h2 id="dashboard-snapshot-selector-title">Choose a snapshot</h2></div>
+            <div className="dashboard-table-flower-heading"><p>{t("gardenMemories")}</p><h2 id="dashboard-snapshot-selector-title">{t("chooseSnapshot")}</h2></div>
             <div className="dashboard-table-flower-grid">
               {snapshots.map((snapshot, index) => <div className={["dashboard-table-flower-option", "dashboard-snapshot-option", snapshot.isActive ? "is-selected" : ""].filter(Boolean).join(" ")} key={snapshot.id}>
                 <button className="dashboard-snapshot-select" disabled={isPending} type="button" onClick={() => chooseSnapshot(snapshot.id)}>
-                  <Image className="dashboard-snapshot-thumbnail" src={snapshot.imageData} alt={`Garden snapshot ${snapshots.length - index}`} width={480} height={270} unoptimized />
-                  <strong>Snapshot {snapshots.length - index}</strong>
-                  <span>{snapshot.isActive ? "On the wall" : "Choose snapshot"}</span>
+                  <Image className="dashboard-snapshot-thumbnail" src={snapshot.imageData} alt={t("gardenSnapshot", { number: snapshots.length - index })} width={480} height={270} unoptimized />
+                  <strong>{t("snapshotNumber", { number: snapshots.length - index })}</strong>
+                  <span>{snapshot.isActive ? t("onWall") : t("chooseSnapshot")}</span>
                 </button>
-                <button className="dashboard-snapshot-delete" disabled={isPending} type="button" onClick={() => removeSnapshot(snapshot.id)} aria-label={`Delete snapshot ${snapshots.length - index}`}>Delete</button>
+                <button className="dashboard-snapshot-delete" disabled={isPending} type="button" onClick={() => removeSnapshot(snapshot.id)} aria-label={t("deleteSnapshot", { number: snapshots.length - index })}>{t("delete")}</button>
               </div>)}
             </div>
             {actionError ? <p className="dashboard-table-flower-error">{actionError}</p> : null}
-            <div className="dashboard-table-flower-actions"><button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setIsSnapshotSelectorOpen(false)}>Close</button></div>
+            <div className="dashboard-table-flower-actions"><button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setIsSnapshotSelectorOpen(false)}>{t("close")}</button></div>
           </section>
         </div>
       ) : null}
@@ -335,8 +337,8 @@ export default function DashboardGardenClient({
   );
 }
 
-function formatFlowerName(asset: string) {
-  return asset.replace(".glb", "").replace("flower", "Flower ");
+function formatFlowerName(asset: string, flowerLabel: string) {
+  return asset.replace(".glb", "").replace("flower", `${flowerLabel} `);
 }
 
 function formatBugName(asset: string) {

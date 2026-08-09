@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect, RedirectType } from "next/navigation";
+import { getLocale } from "next-intl/server";
+import { RedirectType } from "next/navigation";
 import {
   isFlowerAsset,
   setTableFlowerAsset as saveTableFlowerAsset,
@@ -11,14 +12,18 @@ import { deleteUserSnapshot as removeUserSnapshot, setActiveUserSnapshot } from 
 import { deleteUserFish as removeUserFish } from "@/database/fish";
 import { deleteUserFruit as removeUserFruit } from "@/database/fruits";
 import { destroyCurrentSession, requireUser } from "@/lib/auth";
+import { redirect } from "@/i18n/navigation";
+import { getLocalizedPath } from "@/i18n/server";
+import type { ErrorCode } from "@/lib/message-codes";
 
 export type TableFlowerActionResult =
   | { ok: true; tableFlowerAsset: string | null }
-  | { ok: false; error: string };
+  | { ok: false; errorCode: ErrorCode };
 
 export async function logoutAction() {
+  const locale = await getLocale();
   await destroyCurrentSession();
-  redirect("/login", RedirectType.replace);
+  redirect({ href: "/login", locale }, RedirectType.replace);
 }
 
 export async function setTableFlowerAsset(
@@ -27,7 +32,7 @@ export async function setTableFlowerAsset(
   const { userid } = await requireUser();
 
   if (asset !== null && !isFlowerAsset(asset)) {
-    return { ok: false, error: "That flower is not available." };
+    return { ok: false, errorCode: "flowerUnavailable" };
   }
 
   const tableFlowerAsset = await saveTableFlowerAsset({
@@ -36,67 +41,67 @@ export async function setTableFlowerAsset(
   });
 
   if (asset !== null && tableFlowerAsset !== asset) {
-    return { ok: false, error: "You do not own that flower yet." };
+    return { ok: false, errorCode: "flowerNotOwned" };
   }
 
-  revalidatePath("/dashboard");
+  revalidatePath(await getLocalizedPath("/dashboard"));
 
   return { ok: true, tableFlowerAsset };
 }
 
-export async function deleteUserBug(bugId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function deleteUserBug(bugId: string): Promise<{ ok: true } | { ok: false; errorCode: ErrorCode }> {
   const { userid } = await requireUser();
-  if (!bugId) return { ok: false, error: "That bug could not be found." };
+  if (!bugId) return { ok: false, errorCode: "bugNotFound" };
 
   const deleted = await removeUserBug({ userid, bugId });
-  if (!deleted) return { ok: false, error: "That bug is no longer in your garden." };
+  if (!deleted) return { ok: false, errorCode: "bugGone" };
 
-  revalidatePath("/dashboard");
+  revalidatePath(await getLocalizedPath("/dashboard"));
   return { ok: true };
 }
 
-export async function setActiveBug(bugId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function setActiveBug(bugId: string): Promise<{ ok: true } | { ok: false; errorCode: ErrorCode }> {
   const { userid } = await requireUser();
-  if (!bugId) return { ok: false, error: "That bug could not be found." };
+  if (!bugId) return { ok: false, errorCode: "bugNotFound" };
 
   const activeBug = await setActiveUserBug({ userid, bugId });
-  if (!activeBug) return { ok: false, error: "That bug is no longer in your garden." };
+  if (!activeBug) return { ok: false, errorCode: "bugGone" };
 
-  revalidatePath("/dashboard");
+  revalidatePath(await getLocalizedPath("/dashboard"));
   return { ok: true };
 }
 
-export async function setActiveSnapshot(snapshotId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function setActiveSnapshot(snapshotId: string): Promise<{ ok: true } | { ok: false; errorCode: ErrorCode }> {
   const { userid } = await requireUser();
-  if (!(await setActiveUserSnapshot({ userid, snapshotId }))) return { ok: false, error: "That snapshot could not be found." };
-  revalidatePath("/dashboard");
+  if (!(await setActiveUserSnapshot({ userid, snapshotId }))) return { ok: false, errorCode: "snapshotNotFound" };
+  revalidatePath(await getLocalizedPath("/dashboard"));
   return { ok: true };
 }
 
-export async function deleteUserSnapshot(snapshotId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function deleteUserSnapshot(snapshotId: string): Promise<{ ok: true } | { ok: false; errorCode: ErrorCode }> {
   const { userid } = await requireUser();
-  if (!snapshotId) return { ok: false, error: "That snapshot could not be found." };
+  if (!snapshotId) return { ok: false, errorCode: "snapshotNotFound" };
   if (!(await removeUserSnapshot({ userid, snapshotId }))) {
-    return { ok: false, error: "That snapshot is no longer in your garden." };
+    return { ok: false, errorCode: "snapshotGone" };
   }
-  revalidatePath("/dashboard");
+  revalidatePath(await getLocalizedPath("/dashboard"));
   return { ok: true };
 }
 
-export async function releaseUserFish(fishId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function releaseUserFish(fishId: string): Promise<{ ok: true } | { ok: false; errorCode: ErrorCode }> {
   const { userid } = await requireUser();
-  if (!fishId) return { ok: false, error: "That fish could not be found." };
+  if (!fishId) return { ok: false, errorCode: "fishNotFound" };
   if (!(await removeUserFish({ userid, fishId }))) {
-    return { ok: false, error: "That fish is no longer in your pond." };
+    return { ok: false, errorCode: "fishGone" };
   }
-  revalidatePath("/dashboard");
+  revalidatePath(await getLocalizedPath("/dashboard"));
   return { ok: true };
 }
 
-export async function throwAwayUserFruit(fruitId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function throwAwayUserFruit(fruitId: string): Promise<{ ok: true } | { ok: false; errorCode: ErrorCode }> {
   const { userid } = await requireUser();
-  if (!fruitId) return { ok: false, error: "That fruit could not be found." };
-  if (!(await removeUserFruit({ userid, fruitId }))) return { ok: false, error: "That fruit is no longer in your basket." };
-  revalidatePath("/dashboard");
+  if (!fruitId) return { ok: false, errorCode: "fruitNotFound" };
+  if (!(await removeUserFruit({ userid, fruitId }))) return { ok: false, errorCode: "fruitGone" };
+  revalidatePath(await getLocalizedPath("/dashboard"));
   return { ok: true };
 }

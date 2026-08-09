@@ -374,15 +374,15 @@ export async function getAdminAnalytics(adminUserid: string, requestedDays: numb
     activeUsers: number(summaryRows[0]?.active_users),
     averageDurationSeconds: nullableRoundedNumber(summaryRows[0]?.average_duration),
     sessionsTrend: trendRows.map((row) => ({
-      label: formatBucket(row.bucket, bucket),
+      bucket: iso(row.bucket),
       value: number(row.session_count),
     })),
     durationTrend: trendRows.map((row) => ({
-      label: formatBucket(row.bucket, bucket),
+      bucket: iso(row.bucket),
       value: nullableRoundedNumber(row.average_duration) ?? 0,
     })),
     activityPopularity: activityRows.map((row) => ({
-      label: activityLabel(row.activity_type),
+      activityType: row.activity_type,
       value: number(row.count),
     })),
   };
@@ -495,26 +495,6 @@ function toAdminSession(row: SessionRow): AdminSession {
     totalAttempts: nullableNumber(row.total_attempts),
     resultMetadata: row.result_metadata ?? {},
   };
-}
-
-function activityLabel(activity: ActivityType) {
-  return activity === "watering"
-    ? "Watering"
-    : activity === "collect_bugs"
-      ? "Collect Bugs"
-      : activity === "catch_fish"
-        ? "Catching fishes"
-        : activity === "pluck_fruit"
-          ? "Fruit Plucking"
-          : "Snapshot";
-}
-
-function formatBucket(value: Date | string, bucket: string) {
-  const date = new Date(value);
-  return new Intl.DateTimeFormat("en-SG", {
-    ...(bucket === "day" ? { weekday: "short" as const } : { day: "numeric" as const, month: "short" as const }),
-    timeZone: "Asia/Singapore",
-  }).format(date);
 }
 
 function iso(value: Date | string) {

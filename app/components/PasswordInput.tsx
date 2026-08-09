@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ComponentPropsWithoutRef } from "react";
+import { useTranslations } from "next-intl";
 
 type PasswordInputProps = Omit<ComponentPropsWithoutRef<"input">, "type">;
 
@@ -11,7 +12,8 @@ export default function PasswordInput({
   ...props
 }: PasswordInputProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const actionLabel = isVisible ? "Hide password" : "Show password";
+  const t = useTranslations("Common");
+  const actionLabel = isVisible ? t("hidePassword") : t("showPassword");
 
   return (
     <div className="password-input-wrapper">

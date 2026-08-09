@@ -1,9 +1,12 @@
 "use server";
 
-import { redirect, RedirectType } from "next/navigation";
+import { getLocale } from "next-intl/server";
+import { RedirectType } from "next/navigation";
 import { destroyCurrentSession } from "@/lib/auth";
+import { redirect } from "@/i18n/navigation";
 
 export async function logoutAction() {
+  const locale = await getLocale();
   await destroyCurrentSession();
-  redirect("/login", RedirectType.replace);
+  redirect({ href: "/login", locale }, RedirectType.replace);
 }

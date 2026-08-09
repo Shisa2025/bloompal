@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ErrorCode } from "@/lib/message-codes";
 
 export const useridSchema = z
   .string()
@@ -6,33 +7,33 @@ export const useridSchema = z
   .toLowerCase()
   .regex(
     /^[a-z0-9][a-z0-9._-]{2,29}$/,
-    "User ID must be 3-30 lowercase letters, numbers, dots, underscores, or hyphens.",
+    "validationUserid",
   );
 
 export const displayNameSchema = z
   .string()
   .trim()
-  .min(2, "Name must be at least 2 characters.")
-  .max(120, "Name must be 120 characters or fewer.");
+  .min(2, "validationNameMin")
+  .max(120, "validationNameMax");
 
 export const organizationSchema = z
   .string()
   .trim()
-  .min(2, "Organization must be at least 2 characters.")
-  .max(120, "Organization must be 120 characters or fewer.");
+  .min(2, "validationOrganizationMin")
+  .max(120, "validationOrganizationMax");
 
 export const emailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .pipe(z.email("Enter a valid email address."));
+  .pipe(z.email("validationEmail"));
 
 export const passwordSchema = z
   .string()
-  .min(8, "Password must be at least 8 characters.")
-  .max(128, "Password must be 128 characters or fewer.")
-  .regex(/[A-Za-z]/, "Password must contain a letter.")
-  .regex(/[0-9]/, "Password must contain a number.");
+  .min(8, "validationPasswordMin")
+  .max(128, "validationPasswordMax")
+  .regex(/[A-Za-z]/, "validationPasswordLetter")
+  .regex(/[0-9]/, "validationPasswordNumber");
 
 export const accountInputSchema = z.object({
   userid: useridSchema,
@@ -41,8 +42,8 @@ export const accountInputSchema = z.object({
   password: passwordSchema,
 });
 
-export function firstValidationError(error: z.ZodError) {
-  return error.issues[0]?.message ?? "Check the information and try again.";
+export function firstValidationErrorCode(error: z.ZodError): ErrorCode {
+  return (error.issues[0]?.message as ErrorCode | undefined) ?? "validationGeneric";
 }
 
 export function normalizeDurationSeconds(value: number) {

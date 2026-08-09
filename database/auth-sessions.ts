@@ -1,6 +1,7 @@
 import "server-only";
 
 import { sql } from "./connection";
+import type { SupportedLocale } from "@/i18n/routing";
 import type { AccountRole, AccountStatus, AuthenticatedAccount } from "./users";
 
 type SessionAccountRow = {
@@ -11,6 +12,7 @@ type SessionAccountRow = {
   admin_userid: string | null;
   account_status: AccountStatus;
   must_change_password: boolean;
+  preferred_locale: SupportedLocale | null;
 };
 
 export async function createStoredSession({
@@ -35,7 +37,8 @@ export async function getSessionAccount(
     `
     SELECT
       users.userid, users.useremail, users.display_name, users.role,
-      users.admin_userid, users.account_status, users.must_change_password
+      users.admin_userid, users.account_status, users.must_change_password,
+      users.preferred_locale
     FROM auth_sessions
     JOIN users ON users.userid = auth_sessions.userid
     WHERE auth_sessions.token_hash = $1
@@ -56,6 +59,7 @@ export async function getSessionAccount(
     adminUserid: row.admin_userid,
     status: row.account_status,
     mustChangePassword: Boolean(row.must_change_password),
+    preferredLocale: row.preferred_locale,
   };
 }
 
