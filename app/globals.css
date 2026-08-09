@@ -521,38 +521,60 @@ body {
   box-shadow: 0 0 0 0.25rem rgb(107 155 116 / 16%);
 }
 
-.login-mode-fieldset {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  margin: 0;
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-input-wrapper .password-input-control {
+  width: 100%;
+  padding-right: 3.25rem;
+}
+
+.password-input-control::-ms-reveal,
+.password-input-control::-ms-clear {
+  display: none;
+}
+
+.password-visibility-button {
+  position: absolute;
+  top: 50%;
+  right: 0.42rem;
+  display: grid;
+  width: 2.3rem;
+  height: 2.3rem;
+  place-items: center;
   border: 0;
-  padding: 0;
-}
-
-.login-mode-fieldset legend {
-  margin-right: 0.15rem;
-  color: #304536;
-  font-size: 0.88rem;
-  font-weight: 700;
-}
-
-.login-mode-fieldset label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.42rem;
-  border: 1px solid rgb(82 115 90 / 16%);
-  border-radius: 0.5rem;
-  background: #fffdf7;
-  color: #4c6253;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: #607368;
   cursor: pointer;
-  font-size: 0.86rem;
-  font-weight: 700;
-  padding: 0.55rem 0.7rem;
+  padding: 0;
+  transform: translateY(-50%);
 }
 
-.login-mode-fieldset input {
-  accent-color: #52735a;
+.password-visibility-button svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.password-visibility-button:hover {
+  background: rgb(82 115 90 / 10%);
+  color: #365a43;
+}
+
+.password-visibility-button:focus-visible {
+  outline: 0.18rem solid rgb(107 155 116 / 32%);
+  outline-offset: 0.05rem;
+}
+
+.password-visibility-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .login-error {

@@ -764,6 +764,11 @@
   font-weight: 750;
 }
 
+.adminFormField {
+  display: grid;
+  gap: 6px;
+}
+
 .adminForm input {
   height: 40px;
   border: 1px solid var(--line);

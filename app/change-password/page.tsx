@@ -1,4 +1,5 @@
 import { requireSignedInAccount } from "@/lib/auth";
+import PasswordInput from "../components/PasswordInput";
 import { changePasswordAction } from "./actions";
 
 export default async function ChangePasswordPage({
@@ -20,10 +21,19 @@ export default async function ChangePasswordPage({
         </div>
         <form action={changePasswordAction} className="login-panel flex flex-col gap-4">
           {!account.mustChangePassword ? (
-            <label className="signup-field">Current password<input className="login-input" name="currentPassword" type="password" autoComplete="current-password" required /></label>
+            <div className="signup-field">
+              <label htmlFor="current-password">Current password</label>
+              <PasswordInput className="login-input" id="current-password" name="currentPassword" autoComplete="current-password" required />
+            </div>
           ) : null}
-          <label className="signup-field">New password<input className="login-input" name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
-          <label className="signup-field">Confirm password<input className="login-input" name="confirmation" type="password" autoComplete="new-password" minLength={8} required /></label>
+          <div className="signup-field">
+            <label htmlFor="new-password">New password</label>
+            <PasswordInput className="login-input" id="new-password" name="password" autoComplete="new-password" minLength={8} required />
+          </div>
+          <div className="signup-field">
+            <label htmlFor="confirm-password">Confirm password</label>
+            <PasswordInput className="login-input" id="confirm-password" name="confirmation" autoComplete="new-password" minLength={8} required />
+          </div>
           {error ? <p className="login-error" role="alert">{error}</p> : null}
           <button className="login-button" type="submit">Save password</button>
         </form>

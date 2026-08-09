@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import PasswordInput from "@/app/components/PasswordInput";
 import { getManagedUser } from "@/database/admin";
 import { requireAdmin } from "@/lib/auth";
 import { Avatar, Panel, StatusBadge, TableShell } from "../../_components/ui";
@@ -45,7 +46,7 @@ export default async function UserDetailPage({
         </Panel></div>
         <div>
           <Panel title="Account details" subtitle="Edit contact information"><form action={updateManagedUserAction} className={styles.adminForm}><input name="userid" type="hidden" value={user.userid} /><label>Name<input defaultValue={user.displayName} name="displayName" required /></label><label>Email<input defaultValue={user.email} name="email" type="email" required /></label><button className={styles.secondaryButton} type="submit">Save details</button></form></Panel>
-          <Panel className={styles.sectionGap} title="Reset password" subtitle="Signs out existing sessions and requires another change on login"><form action={resetManagedPasswordAction} className={styles.adminForm}><input name="userid" type="hidden" value={user.userid} /><label>Temporary password<input name="password" type="password" minLength={8} required /></label><button className={styles.secondaryButton} type="submit">Reset password</button></form></Panel>
+          <Panel className={styles.sectionGap} title="Reset password" subtitle="Signs out existing sessions and requires another change on login"><form action={resetManagedPasswordAction} className={styles.adminForm}><input name="userid" type="hidden" value={user.userid} /><div className={styles.adminFormField}><label htmlFor="reset-managed-user-password">Temporary password</label><PasswordInput id="reset-managed-user-password" name="password" minLength={8} required /></div><button className={styles.secondaryButton} type="submit">Reset password</button></form></Panel>
           <Panel className={styles.sectionGap} title="Account access" subtitle="Actions are scoped to this Admin"><div className={styles.accountActions}><form action={setManagedUserStatusAction}><input name="userid" type="hidden" value={user.userid} /><input name="status" type="hidden" value={user.status === "active" ? "disabled" : "active"} /><button className={styles.secondaryButton} type="submit">{user.status === "active" ? "Disable and sign out" : "Enable user"}</button></form><form action={releaseManagedUserAction}><input name="userid" type="hidden" value={user.userid} /><button className={styles.dangerButton} type="submit">Release from this Admin</button></form></div></Panel>
         </div>
       </div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { getAssignableAdmins, type AssignableAdmin } from "@/database/users";
 import DesktopOnly from "../components/DesktopOnly";
+import PasswordInput from "../components/PasswordInput";
 import AdminCombobox from "./AdminCombobox";
 import { signupAction } from "./actions";
 
@@ -39,14 +40,21 @@ export default async function SignupPage({
             <label className="signup-field">User ID<input className="login-input" name="userid" pattern="[a-z0-9][a-z0-9._-]{2,29}" placeholder="e.g. bloom-user" required /></label>
             <label className="signup-field">Name<input className="login-input" name="displayName" required /></label>
             <label className="signup-field">Email<input className="login-input" name="email" type="email" autoComplete="email" required /></label>
-            <label className="signup-field">Password<input className="login-input" name="password" type="password" autoComplete="new-password" minLength={8} required /><small>At least 8 characters with a letter and number.</small></label>
+            <div className="signup-field">
+              <label htmlFor="signup-password">Password</label>
+              <PasswordInput className="login-input" id="signup-password" name="password" autoComplete="new-password" minLength={8} required />
+              <small>At least 8 characters with a letter and number.</small>
+            </div>
             {role === "admin" ? (
               <>
                 <label className="signup-field">
                   Organization
                   <input className="login-input" name="organization" minLength={2} maxLength={120} autoComplete="organization" required />
                 </label>
-                <label className="signup-field">Admin registration code<input className="login-input" name="adminCode" type="password" required /></label>
+                <div className="signup-field">
+                  <label htmlFor="admin-registration-code">Admin registration code</label>
+                  <PasswordInput className="login-input" id="admin-registration-code" name="adminCode" required />
+                </div>
               </>
             ) : (
               <AdminCombobox admins={admins} />

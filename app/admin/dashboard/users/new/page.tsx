@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PasswordInput from "@/app/components/PasswordInput";
 import { PageHeader, Panel } from "../../_components/ui";
 import styles from "../../dashboard.module.css";
 import { createManagedUserAction } from "../actions";
@@ -14,7 +15,11 @@ export default async function NewUserPage({ searchParams }: { searchParams?: Pro
           <label>User ID<input name="userid" pattern="[a-z0-9][a-z0-9._-]{2,29}" required /><small>3–30 lowercase letters, numbers, dots, underscores, or hyphens.</small></label>
           <label>Name<input name="displayName" required /></label>
           <label>Email<input name="email" type="email" required /></label>
-          <label>Temporary password<input name="password" type="password" minLength={8} required /><small>At least 8 characters with a letter and number.</small></label>
+          <div className={styles.adminFormField}>
+            <label htmlFor="managed-user-password">Temporary password</label>
+            <PasswordInput id="managed-user-password" name="password" minLength={8} required />
+            <small>At least 8 characters with a letter and number.</small>
+          </div>
           {error ? <p className={styles.errorBanner} role="alert">{error}</p> : null}
           <button className={styles.primaryButton} type="submit">Create assigned user</button>
         </form>

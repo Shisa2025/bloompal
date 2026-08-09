@@ -1,5 +1,6 @@
 import Link from "next/link";
 import DesktopOnly from "../components/DesktopOnly";
+import PasswordInput from "../components/PasswordInput";
 import { loginAction } from "./actions";
 
 type LoginPageProps = {
@@ -62,18 +63,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
             <form action={loginAction} className="login-panel flex flex-col gap-5" aria-label={`${role} sign in`}>
               <input name="accountRole" type="hidden" value={role} />
-              <fieldset className="login-mode-fieldset">
-                <legend>Sign in with</legend>
-                <label><input defaultChecked name="loginMode" type="radio" value="userid" />User ID</label>
-                <label><input name="loginMode" type="radio" value="useremail" />Email</label>
-              </fieldset>
               <div className="flex flex-col gap-2 text-left">
                 <label className="text-sm font-medium text-[#304536]" htmlFor="identifier">User ID or email</label>
                 <input className="login-input" id="identifier" name="identifier" type="text" autoComplete="username" required />
               </div>
               <div className="flex flex-col gap-2 text-left">
                 <label className="text-sm font-medium text-[#304536]" htmlFor="password">Password</label>
-                <input className="login-input" id="password" name="password" type="password" autoComplete="current-password" required />
+                <PasswordInput className="login-input" id="password" name="password" autoComplete="current-password" required />
               </div>
               <div className="flex items-center justify-between gap-4 text-sm">
                 <label className="flex items-center gap-2 text-[#4c6253]"><input className="h-4 w-4 rounded border-[#b9c7b8] accent-[#52735a]" name="remember" type="checkbox" />Remember me</label>

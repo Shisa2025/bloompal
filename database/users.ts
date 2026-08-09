@@ -3,7 +3,6 @@ import "server-only";
 import bcrypt from "bcryptjs";
 import { sql, type DatabaseClient } from "./connection";
 
-export type LoginMode = "userid" | "useremail";
 export type AccountRole = "admin" | "user";
 export type AccountStatus = "active" | "disabled";
 
@@ -137,12 +136,10 @@ export async function isAssignableAdmin(
 }
 
 export async function verifyUserLogin({
-  mode,
   identifier,
   password,
   expectedRole,
 }: {
-  mode: LoginMode;
   identifier: string;
   password: string;
   expectedRole: AccountRole;
@@ -154,7 +151,7 @@ export async function verifyUserLogin({
     `
     SELECT ${accountColumns}
     FROM users
-    WHERE ${mode === "useremail" ? "LOWER(useremail) = LOWER($1)" : "userid = LOWER($1)"}
+    WHERE (userid = LOWER($1) OR LOWER(useremail) = LOWER($1))
       AND role = $2
       AND account_status = 'active'
     LIMIT 1

@@ -2,19 +2,16 @@
 
 import { redirect, RedirectType } from "next/navigation";
 import { createLoginSession } from "@/lib/auth";
-import { verifyUserLogin, type AccountRole, type LoginMode } from "@/database/users";
+import { verifyUserLogin, type AccountRole } from "@/database/users";
 
 export async function loginAction(formData: FormData) {
-  const loginMode = formData.get("loginMode");
   const identifier = formData.get("identifier");
   const password = formData.get("password");
   const role: AccountRole = formData.get("accountRole") === "admin" ? "admin" : "user";
-  const mode: LoginMode = loginMode === "useremail" ? "useremail" : "userid";
   let error = "invalid";
 
   try {
     const account = await verifyUserLogin({
-      mode,
       identifier: typeof identifier === "string" ? identifier : "",
       password: typeof password === "string" ? password : "",
       expectedRole: role,
