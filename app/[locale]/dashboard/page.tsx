@@ -3,7 +3,6 @@ import { Link } from "@/i18n/navigation";
 import { logoutAction } from "@/app/dashboard/actions";
 import DashboardGardenClient from "@/app/dashboard/components/DashboardGardenClient";
 import DashboardGamingBoard from "@/app/dashboard/components/DashboardGamingBoard";
-import DashboardPond from "@/app/dashboard/components/DashboardPond";
 import GameHistoryButton from "@/app/dashboard/components/GameHistoryButton";
 import {
   getLatestUserPlant,
@@ -16,14 +15,17 @@ import { getUserSnapshots } from "@/database/snapshots";
 import { getUserFish } from "@/database/fish";
 import { getUserGameHistory } from "@/database/game-sessions";
 import { getUserFruits } from "@/database/fruits";
+import { getShopState } from "@/database/shop";
 import { requireUser } from "@/lib/auth";
 import LocaleSwitcher from "@/app/components/LocaleSwitcher";
 import { getTranslations } from "next-intl/server";
+import { getCatalogAssetBySource } from "@/lib/asset-catalog";
 
 export default async function DashboardPage() {
   const t = await getTranslations("Dashboard");
+  const tAssets = await getTranslations("Assets");
   const account = await requireUser();
-  const [latestPlant, ownedFlowerAssets, tableFlowerAsset, caughtBugs, snapshots, caughtFish, gameHistory, fruits] =
+  const [latestPlant, ownedFlowerAssets, tableFlowerAsset, caughtBugs, snapshots, caughtFish, gameHistory, fruits, shopState] =
     await Promise.all([
       getLatestUserPlant(account.userid),
       getOwnedFlowerAssets(account.userid),
@@ -33,8 +35,9 @@ export default async function DashboardPage() {
       getUserFish(account.userid),
       getUserGameHistory(account.userid),
       getUserFruits(account.userid),
+      getShopState(account.userid),
     ]);
-  const boardState = getBoardState(latestPlant, t);
+  const boardState = getBoardState(latestPlant, t, tAssets);
 
   return (
     <DesktopOnly>
@@ -46,6 +49,8 @@ export default async function DashboardPage() {
           caughtBugs={caughtBugs}
           snapshots={snapshots}
           fruits={fruits}
+          caughtFish={caughtFish}
+          shopState={shopState}
         />
 
         <header className="dashboard-topbar" aria-label={t("accountBar")}>
@@ -59,6 +64,13 @@ export default async function DashboardPage() {
 
           <div className="dashboard-account">
             <LocaleSwitcher compact />
+            <span
+              aria-label={t("coinBalance", { count: shopState.coinBalance })}
+              className="dashboard-coin-pill"
+            >
+              <span aria-hidden="true">●</span>
+              {shopState.coinBalance}
+            </span>
             <span className="dashboard-user-pill">{account.displayName}</span>
             <GameHistoryButton history={gameHistory} />
             <Link className="dashboard-logout-button" href="/change-password">
@@ -73,13 +85,16 @@ export default async function DashboardPage() {
         </header>
 
         <DashboardGamingBoard boardState={boardState} isSignedIn />
-        <DashboardPond fish={caughtFish} />
       </main>
     </DesktopOnly>
   );
 }
 
-function getBoardState(plant: UserPlant | null, t: Awaited<ReturnType<typeof getTranslations<"Dashboard">>>) {
+function getBoardState(
+  plant: UserPlant | null,
+  t: Awaited<ReturnType<typeof getTranslations<"Dashboard">>>,
+  tAssets: Awaited<ReturnType<typeof getTranslations<"Assets">>>,
+) {
   if (!plant) {
     return {
       label: t("ready"),
@@ -96,9 +111,16 @@ function getBoardState(plant: UserPlant | null, t: Awaited<ReturnType<typeof get
     };
   }
 
+  const flowerCatalogEntry = plant.flowerAsset
+    ? getCatalogAssetBySource("flower", plant.flowerAsset)
+    : null;
   return {
     label: t("latestBloom"),
-    title: plant.flowerAsset ? plant.flowerAsset.replace(".glb", "") : t("flowerUnlocked"),
+    title: plant.flowerAsset
+      ? flowerCatalogEntry
+        ? tAssets(flowerCatalogEntry.nameKey)
+        : plant.flowerAsset
+      : t("flowerUnlocked"),
     description: t("latestBloomDescription"),
   };
 }

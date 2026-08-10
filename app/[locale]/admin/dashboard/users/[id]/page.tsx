@@ -10,6 +10,11 @@ import { releaseManagedUserAction, resetManagedPasswordAction, setManagedUserSta
 import { getLocale, getTranslations } from "next-intl/server";
 import type { SupportedLocale } from "@/i18n/routing";
 import { isErrorCode, isNoticeCode } from "@/lib/message-codes";
+import {
+  getCatalogAssetBySource,
+  type AssetCategory,
+  type AssetNameKey,
+} from "@/lib/asset-catalog";
 
 export default async function UserDetailPage({
   params,
@@ -20,7 +25,7 @@ export default async function UserDetailPage({
 }) {
   const admin = await requireAdmin();
   const locale = (await getLocale()) as SupportedLocale;
-  const t = await getTranslations("Admin"); const tErrors = await getTranslations("Errors"); const tNotices = await getTranslations("Notices");
+  const t = await getTranslations("Admin"); const tErrors = await getTranslations("Errors"); const tNotices = await getTranslations("Notices"); const tAssets = await getTranslations("Assets");
   const number = new Intl.NumberFormat(locale);
   const { id } = await params;
   const result = await getManagedUser(admin.userid, id);
@@ -49,7 +54,7 @@ export default async function UserDetailPage({
       </section>
       <div className={styles.profileGrid}>
         <div><Panel title={t("sessionHistory")} subtitle={t("realCompletedActivity")}>
-          {sessions.length ? <TableShell><thead><tr><th>{t("completed")}</th><th>{t("activity")}</th><th>{t("duration")}</th><th>{t("leftRight")}</th><th>{t("result")}</th></tr></thead><tbody>{sessions.map((session) => <tr key={session.id}><td>{formatDateTime(session.completedAt, locale)}</td><td>{t(`activityType.${session.activityType}`)}</td><td>{formatDuration(session.durationSeconds, locale)}</td><td>{session.leftRepetitions === null ? "—" : number.format(session.leftRepetitions)} / {session.rightRepetitions === null ? "—" : number.format(session.rightRepetitions)}</td><td>{sessionResult(session.resultMetadata, t("completed"))}</td></tr>)}</tbody></TableShell> : <p className={styles.emptyState}>{t("noCompletedSessionsYet")}</p>}
+          {sessions.length ? <TableShell><thead><tr><th>{t("completed")}</th><th>{t("activity")}</th><th>{t("duration")}</th><th>{t("leftRight")}</th><th>{t("result")}</th></tr></thead><tbody>{sessions.map((session) => <tr key={session.id}><td>{formatDateTime(session.completedAt, locale)}</td><td>{t(`activityType.${session.activityType}`)}</td><td>{formatDuration(session.durationSeconds, locale)}</td><td>{session.leftRepetitions === null ? "—" : number.format(session.leftRepetitions)} / {session.rightRepetitions === null ? "—" : number.format(session.rightRepetitions)}</td><td>{sessionResult(session.resultMetadata, t("completed"), tAssets)}</td></tr>)}</tbody></TableShell> : <p className={styles.emptyState}>{t("noCompletedSessionsYet")}</p>}
         </Panel></div>
         <div>
           <Panel title={t("accountDetails")} subtitle={t("editContact")}><form action={updateManagedUserAction} className={styles.adminForm}><input name="userid" type="hidden" value={user.userid} /><label>{t("name")}<input defaultValue={user.displayName} name="displayName" required /></label><label>{t("email")}<input defaultValue={user.email} name="email" type="email" required /></label><button className={styles.secondaryButton} type="submit">{t("saveDetails")}</button></form></Panel>
@@ -62,4 +67,21 @@ export default async function UserDetailPage({
 }
 
 function one(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] : value; }
-function sessionResult(metadata: Record<string, unknown>, completed: string) { const reward = metadata.flowerAsset ?? metadata.bugAsset; return typeof reward === "string" ? reward.replace(/\.glb$/i, "") : completed; }
+function sessionResult(
+  metadata: Record<string, unknown>,
+  completed: string,
+  translateAsset: (key: AssetNameKey) => string,
+) {
+  const sources: Array<[AssetCategory, unknown]> = [
+    ["flower", metadata.flowerAsset],
+    ["bug", metadata.bugAsset],
+    ["fish", metadata.fishKind],
+    ["fruit", metadata.fruitKind],
+  ];
+  for (const [category, source] of sources) {
+    if (typeof source !== "string") continue;
+    const asset = getCatalogAssetBySource(category, source);
+    return asset ? translateAsset(asset.nameKey) : source;
+  }
+  return completed;
+}

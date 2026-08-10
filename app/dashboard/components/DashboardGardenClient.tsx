@@ -3,11 +3,21 @@
 import Image from "next/image";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { deleteUserBug, deleteUserSnapshot, setActiveBug, setActiveSnapshot, setTableFlowerAsset, throwAwayUserFruit } from "../actions";
 import DashboardHomeScene from "./DashboardHomeScene";
 import { BasketArt, FruitArt, type FruitArtKind } from "@/app/components/FruitArt";
 import DashboardMusicPlayer from "./DashboardMusicPlayer";
+import DashboardCourtyardScene from "./DashboardCourtyardScene";
+import DashboardPond from "./DashboardPond";
+import DashboardShopPreview from "./DashboardShopPreview";
+import type { FishKind } from "@/lib/fish-assets";
+import {
+  getCatalogAssetBySource,
+  type AssetCategory,
+  type MusicTrackId,
+  type ShopState,
+} from "@/lib/asset-catalog";
 
 type DashboardGardenClientProps = {
   preferenceOwnerId: string;
@@ -16,6 +26,8 @@ type DashboardGardenClientProps = {
   caughtBugs: { id: string; bugAsset: string; isActive: boolean }[];
   snapshots: { id: string; imageData: string; isActive: boolean; createdAt: string }[];
   fruits: { id: string; fruitKind: string; createdAt: string }[];
+  caughtFish: { id: string; fishKind: FishKind }[];
+  shopState: ShopState;
 };
 
 export default function DashboardGardenClient({
@@ -25,9 +37,12 @@ export default function DashboardGardenClient({
   caughtBugs,
   snapshots,
   fruits,
+  caughtFish,
+  shopState,
 }: DashboardGardenClientProps) {
   const router = useRouter();
   const t = useTranslations("Dashboard");
+  const tAssets = useTranslations("Assets");
   const tErrors = useTranslations("Errors");
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [localSelection, setLocalSelection] = useState<{
@@ -41,6 +56,17 @@ export default function DashboardGardenClient({
   const [isFruitBasketOpen, setIsFruitBasketOpen] = useState(false);
   const [isMusicPlayerOpen, setIsMusicPlayerOpen] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [sceneLocation, setSceneLocation] = useState<"room" | "courtyard">("room");
+  const [isSceneCurtainVisible, setIsSceneCurtainVisible] = useState(false);
+  const [isJourneying, setIsJourneying] = useState(false);
+  const [isPondOpen, setIsPondOpen] = useState(false);
+  const [isShopOpen, setIsShopOpen] = useState(false);
+  const [previewTrackId, setPreviewTrackId] = useState<MusicTrackId | null>(null);
+  const [previewError, setPreviewError] = useState(false);
+  const pendingDestinationRef = useRef<"room" | "courtyard" | null>(null);
+  const sceneSwitchTimerRef = useRef<number | null>(null);
+  const sceneFallbackTimerRef = useRef<number | null>(null);
+  const sceneRevealTimerRef = useRef<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const selectedAsset =
     localSelection.serverAsset === tableFlowerAsset
@@ -50,6 +76,103 @@ export default function DashboardGardenClient({
     () => Array.from(new Set(ownedFlowerAssets)).sort(),
     [ownedFlowerAssets],
   );
+  const getAssetName = useCallback(
+    (category: AssetCategory, sourceValue: string) => {
+      const asset = getCatalogAssetBySource(category, sourceValue);
+      return asset ? tAssets(asset.nameKey) : sourceValue;
+    },
+    [tAssets],
+  );
+
+  useEffect(() => {
+    return () => {
+      [sceneSwitchTimerRef, sceneFallbackTimerRef, sceneRevealTimerRef].forEach(
+        (timerRef) => {
+          if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+        },
+      );
+    };
+  }, []);
+
+  const revealDestination = useCallback(() => {
+    const destination = pendingDestinationRef.current;
+    if (!destination) return;
+    pendingDestinationRef.current = null;
+    if (sceneFallbackTimerRef.current !== null) {
+      window.clearTimeout(sceneFallbackTimerRef.current);
+      sceneFallbackTimerRef.current = null;
+    }
+    sceneRevealTimerRef.current = window.setTimeout(() => {
+      setIsSceneCurtainVisible(false);
+      setIsJourneying(false);
+      window.setTimeout(() => {
+        document
+          .getElementById(
+            destination === "courtyard"
+              ? "dashboard-courtyard-door-trigger"
+              : "dashboard-room-door-trigger",
+          )
+          ?.focus();
+      }, 180);
+    }, 90);
+  }, []);
+
+  const switchScene = useCallback(
+    (destination: "room" | "courtyard") => {
+      pendingDestinationRef.current = destination;
+      setIsSceneCurtainVisible(true);
+      sceneSwitchTimerRef.current = window.setTimeout(() => {
+        setSceneLocation(destination);
+        sceneFallbackTimerRef.current = window.setTimeout(
+          revealDestination,
+          4500,
+        );
+      }, 320);
+    },
+    [revealDestination],
+  );
+
+  const beginSceneJourney = useCallback(() => {
+    setIsJourneying(true);
+    setIsPondOpen(false);
+    setIsShopOpen(false);
+    setPreviewTrackId(null);
+  }, []);
+
+  const closePond = useCallback(() => {
+    setIsPondOpen(false);
+    window.setTimeout(
+      () => document.getElementById("dashboard-courtyard-pond-trigger")?.focus(),
+      0,
+    );
+  }, []);
+
+  const closeShop = useCallback(() => {
+    setIsShopOpen(false);
+    setPreviewTrackId(null);
+    setPreviewError(false);
+    window.setTimeout(
+      () => document.getElementById("dashboard-courtyard-merchant-trigger")?.focus(),
+      0,
+    );
+  }, []);
+
+  const openPond = useCallback(() => setIsPondOpen(true), []);
+  const openShop = useCallback(() => {
+    setPreviewError(false);
+    setIsShopOpen(true);
+  }, []);
+  const previewShopTrack = useCallback((trackId: MusicTrackId | null) => {
+    setPreviewError(false);
+    setPreviewTrackId(trackId);
+  }, []);
+  const endShopPreview = useCallback(() => setPreviewTrackId(null), []);
+  const reportShopPreviewError = useCallback(() => setPreviewError(true), []);
+  const enterCourtyard = useCallback(
+    () => switchScene("courtyard"),
+    [switchScene],
+  );
+  const returnToRoom = useCallback(() => switchScene("room"), [switchScene]);
 
   const openSelector = useCallback(() => {
     setActionError(null);
@@ -93,6 +216,22 @@ export default function DashboardGardenClient({
   );
   const activeBugs = useMemo(() => caughtBugs.filter((bug) => bug.isActive), [caughtBugs]);
   const activeSnapshot = useMemo(() => snapshots.find((snapshot) => snapshot.isActive) ?? null, [snapshots]);
+  const openFruitBasket = useCallback(() => {
+    setActionError(null);
+    setIsFruitBasketOpen(true);
+  }, []);
+  const openSnapshotSelector = useCallback(() => {
+    if (!activeSnapshot) return;
+    setActionError(null);
+    setIsSnapshotSelectorOpen(true);
+  }, [activeSnapshot]);
+  const selectBugFromScene = useCallback(
+    (bugId: string) => {
+      setActionError(null);
+      setSelectedBug(activeBugs.find((bug) => bug.id === bugId) ?? null);
+    },
+    [activeBugs],
+  );
 
   const removeBug = useCallback(() => {
     if (!selectedBug) return;
@@ -158,35 +297,72 @@ export default function DashboardGardenClient({
 
   return (
     <>
-      <DashboardHomeScene
-        caughtBugs={activeBugs}
-        wallSnapshot={activeSnapshot}
-        tableFlowerAsset={selectedAsset}
-        onBugClick={(bugId) => {
-          setActionError(null);
-          setSelectedBug(activeBugs.find((bug) => bug.id === bugId) ?? null);
-        }}
-        onTablePotClick={openSelector}
-        onSnapshotClick={() => {
-          if (activeSnapshot) {
-            setActionError(null);
-            setIsSnapshotSelectorOpen(true);
-          }
-        }}
-        fruits={fruits}
-        onFruitBasketClick={() => { setActionError(null); setIsFruitBasketOpen(true); }}
-        isMusicPlaying={isMusicPlaying}
-        onGramophoneClick={openMusicPlayer}
+      {sceneLocation === "room" ? (
+        <DashboardHomeScene
+          caughtBugs={activeBugs}
+          wallSnapshot={activeSnapshot}
+          tableFlowerAsset={selectedAsset}
+          onBugClick={selectBugFromScene}
+          onTablePotClick={openSelector}
+          onSnapshotClick={openSnapshotSelector}
+          fruits={fruits}
+          onFruitBasketClick={openFruitBasket}
+          isMusicPlaying={isMusicPlaying}
+          onGramophoneClick={openMusicPlayer}
+          onDoorTransitionStart={beginSceneJourney}
+          onEnterCourtyard={enterCourtyard}
+          onSceneReady={revealDestination}
+        />
+      ) : (
+        <DashboardCourtyardScene
+          fish={caughtFish}
+          onMerchantClick={openShop}
+          onPondClick={openPond}
+          onReturnComplete={returnToRoom}
+          onReturnTransitionStart={beginSceneJourney}
+          onSceneReady={revealDestination}
+        />
+      )}
+
+      <div
+        aria-hidden="true"
+        className={[
+          "dashboard-scene-curtain",
+          isSceneCurtainVisible ? "is-visible" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
       />
+      <p aria-live="polite" className="sr-only" role="status">
+        {isJourneying
+          ? sceneLocation === "room"
+            ? t("goingToCourtyard")
+            : t("returningToRoom")
+          : ""}
+      </p>
 
       <DashboardMusicPlayer
         isOpen={isMusicPlayerOpen}
         onClose={closeMusicPlayer}
         onPlaybackChange={setIsMusicPlaying}
+        onPreviewEnd={endShopPreview}
+        onPreviewError={reportShopPreviewError}
+        ownedTrackIds={shopState.ownedMusicIds}
         preferenceOwnerId={preferenceOwnerId}
+        previewTrackId={previewTrackId}
       />
 
-      {isFruitBasketOpen ? <div className="dashboard-table-flower-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isPending) setIsFruitBasketOpen(false); }}><section className="dashboard-table-flower-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboard-fruit-title"><div className="dashboard-table-flower-heading"><p>{t("fruitBasket")}</p><h2 id="dashboard-fruit-title">{t("yourHarvest")}</h2></div>{fruits.length ? <div className="dashboard-fruit-grid">{fruits.map((fruit) => { const fruitName = formatFruitName(fruit.fruitKind); return <div className="dashboard-fruit-item" key={fruit.id}><FruitArt kind={fruit.fruitKind as FruitArtKind} label={fruitName} /><strong>{fruitName}</strong><button disabled={isPending} onClick={() => removeFruit(fruit.id)} type="button">{t("throwAway")}</button></div>; })}</div> : <div className="dashboard-table-flower-empty"><BasketArt className="dashboard-empty-basket" label={t("emptyBasket")} /><strong>{t("basketEmpty")}</strong><p>{t("fillBasketHint")}</p><Link className="dashboard-game-button" href="/games/pluckfruit">{t("pluckFruit")}</Link></div>}{actionError ? <p className="dashboard-table-flower-error">{actionError}</p> : null}<div className="dashboard-table-flower-actions"><button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setIsFruitBasketOpen(false)}>{t("close")}</button></div></section></div> : null}
+      <DashboardPond fish={caughtFish} isOpen={isPondOpen} onClose={closePond} />
+      <DashboardShopPreview
+        isOpen={isShopOpen}
+        onClose={closeShop}
+        onPreviewTrack={previewShopTrack}
+        previewError={previewError}
+        previewTrackId={previewTrackId}
+        shopState={shopState}
+      />
+
+      {isFruitBasketOpen ? <div className="dashboard-table-flower-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isPending) setIsFruitBasketOpen(false); }}><section className="dashboard-table-flower-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboard-fruit-title"><div className="dashboard-table-flower-heading"><p>{t("fruitBasket")}</p><h2 id="dashboard-fruit-title">{t("yourHarvest")}</h2></div>{fruits.length ? <div className="dashboard-fruit-grid">{fruits.map((fruit) => { const fruitName = getAssetName("fruit", fruit.fruitKind); return <div className="dashboard-fruit-item" key={fruit.id}><FruitArt kind={fruit.fruitKind as FruitArtKind} label={fruitName} /><strong>{fruitName}</strong><button disabled={isPending} onClick={() => removeFruit(fruit.id)} type="button">{t("throwAway")}</button></div>; })}</div> : <div className="dashboard-table-flower-empty"><BasketArt className="dashboard-empty-basket" label={t("emptyBasket")} /><strong>{t("basketEmpty")}</strong><p>{t("fillBasketHint")}</p><Link className="dashboard-game-button" href="/games/pluckfruit">{t("pluckFruit")}</Link></div>}{actionError ? <p className="dashboard-table-flower-error">{actionError}</p> : null}<div className="dashboard-table-flower-actions"><button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setIsFruitBasketOpen(false)}>{t("close")}</button></div></section></div> : null}
 
       {isSelectorOpen ? (
         <div
@@ -230,7 +406,7 @@ export default function DashboardGardenClient({
                     >
                       <span />
                     </span>
-                    <strong>{formatFlowerName(asset, t("flower"))}</strong>
+                    <strong>{getAssetName("flower", asset)}</strong>
                     <span>
                       {selectedAsset === asset ? t("onTable") : t("ownedBloom")}
                     </span>
@@ -281,7 +457,7 @@ export default function DashboardGardenClient({
           <section className="dashboard-table-flower-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboard-bug-title">
             <div className="dashboard-table-flower-heading">
               <p>{t("gardenVisitor")}</p>
-              <h2 id="dashboard-bug-title">{formatBugName(selectedBug.bugAsset)}</h2>
+              <h2 id="dashboard-bug-title">{getAssetName("bug", selectedBug.bugAsset)}</h2>
             </div>
             <div className="dashboard-table-flower-empty">
               <span className="dashboard-bug-dialog-icon" aria-hidden="true">&#128030;</span>
@@ -321,7 +497,7 @@ export default function DashboardGardenClient({
                   onClick={() => chooseBug(bug.id)}
                 >
                   <span className="dashboard-bug-dialog-icon" aria-hidden="true">&#128030;</span>
-                  <strong>{formatBugName(bug.bugAsset)}</strong>
+                  <strong>{getAssetName("bug", bug.bugAsset)}</strong>
                   <span>{bug.isActive ? t("flyingWithYou") : t("chooseCompanion")}</span>
                 </button>
               ))}
@@ -357,16 +533,4 @@ export default function DashboardGardenClient({
       ) : null}
     </>
   );
-}
-
-function formatFlowerName(asset: string, flowerLabel: string) {
-  return asset.replace(".glb", "").replace("flower", `${flowerLabel} `);
-}
-
-function formatBugName(asset: string) {
-  return asset.replace(/\.glb$/i, "");
-}
-
-function formatFruitName(kind: string) {
-  return kind.charAt(0).toUpperCase() + kind.slice(1);
 }

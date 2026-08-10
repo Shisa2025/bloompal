@@ -16,6 +16,7 @@ import { completeWateringRun, selectMysterySeed } from "./actions";
 import FlowerRewardStage from "./FlowerRewardStage";
 import SproutFeedbackStage from "./SproutFeedbackStage";
 import { getWateringSignals, type WateringSignals } from "./wateringRules";
+import { getCatalogAssetBySource } from "@/lib/asset-catalog";
 
 type WateringPlant = {
   id: string;
@@ -642,12 +643,14 @@ function GestureGuidePanel({
 
 function RewardPanel({ flowerAsset }: { flowerAsset: string }) {
   const t = useTranslations("Games.watering");
+  const tAssets = useTranslations("Assets");
+  const catalogAsset = getCatalogAssetBySource("flower", flowerAsset);
   return (
     <div className="watering-reward-panel">
       <FlowerRewardStage flowerAsset={flowerAsset} />
       <div className="watering-reward-copy">
         <p>{t("bloomReward")}</p>
-        <h2>{flowerAsset.replace(".glb", "")}</h2>
+        <h2>{catalogAsset ? tAssets(catalogAsset.nameKey) : flowerAsset}</h2>
         <Link className="watering-primary-link" href="/dashboard">
           {t("backToGarden")}
         </Link>

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, useTransition, type RefObject } from "react";
 import { createMotionTracker } from "@/mediapipe/motion";
 import type { MotionSide, MotionTracker } from "@/mediapipe/types";
+import { getCatalogAssetBySource } from "@/lib/asset-catalog";
 import { getThumbTouchSignals, thumbTouchFingerNames, type ThumbTouchSignals } from "./thumbTouchRules";
 import MovingBugStage from "./MovingBugStage";
 import BugCaughtStage from "./BugCaughtStage";
@@ -200,6 +201,8 @@ function BugRewardPanel({ bugAsset, sessionId, startedAtMs, totalAttempts }: { b
   const router = useRouter();
   const t = useTranslations("Games.collectBugs");
   const tErrors = useTranslations("Errors");
+  const tAssets = useTranslations("Assets");
+  const catalogAsset = getCatalogAssetBySource("bug", bugAsset);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -223,11 +226,7 @@ function BugRewardPanel({ bugAsset, sessionId, startedAtMs, totalAttempts }: { b
     });
   }
 
-  return <div className="watering-main-panel watering-reward-main-panel"><div className="watering-reward-panel"><BugCaughtStage bugAsset={bugAsset} /><div className="watering-reward-copy"><p>{t("bugCaught")}</p><h2>{formatBugName(bugAsset)}</h2><button className="watering-primary-link" disabled={isPending} onClick={saveAndReturn} type="button">{isPending ? t("savingBug") : t("backToGarden")}</button>{error ? <p className="collectbugs-reward-error">{error}</p> : null}</div></div></div>;
-}
-
-function formatBugName(bugAsset: string) {
-  return bugAsset.replace(/\.glb$/i, "");
+  return <div className="watering-main-panel watering-reward-main-panel"><div className="watering-reward-panel"><BugCaughtStage bugAsset={bugAsset} /><div className="watering-reward-copy"><p>{t("bugCaught")}</p><h2>{catalogAsset ? tAssets(catalogAsset.nameKey) : bugAsset}</h2><button className="watering-primary-link" disabled={isPending} onClick={saveAndReturn} type="button">{isPending ? t("savingBug") : t("backToGarden")}</button>{error ? <p className="collectbugs-reward-error">{error}</p> : null}</div></div></div>;
 }
 
 function BugHuntPlayfield({ bugAsset, bugPosition, cameraError, cameraStatus, counts, isComplete, signals, timingHint, videoRef, onRetryCamera }: { bugAsset: string; bugPosition: number; cameraError: string | null; cameraStatus: string; counts: TouchCounts; isComplete: boolean; signals: ThumbTouchSignals; timingHint: string; videoRef: RefObject<HTMLVideoElement | null>; onRetryCamera: () => void }) {

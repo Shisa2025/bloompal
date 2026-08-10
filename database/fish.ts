@@ -5,6 +5,7 @@ import { sql, withTransaction } from "./connection";
 import { insertCompletedSession, isCompletedSessionReplay } from "./game-sessions";
 import type { GameCompletionMetrics } from "@/lib/game-metrics";
 import { meshFishKinds, type FishKind } from "@/lib/fish-assets";
+import { ensureShopTables } from "./shop";
 
 export const fishKinds = meshFishKinds;
 export type { FishKind };
@@ -29,8 +30,11 @@ export function isFishKind(value: string): value is FishKind {
 
 export async function getUserFish(userid: string): Promise<UserFish[]> {
   await ensureFishTable();
+  await ensureShopTables();
   const rows = await sql.query<UserFishRow>(
-    "SELECT id, fish_kind, created_at FROM user_fish WHERE userid = $1 ORDER BY created_at ASC",
+    `SELECT id, fish_kind, created_at FROM user_fish WHERE userid = $1
+       AND NOT EXISTS (SELECT 1 FROM asset_sales sales WHERE sales.source_type = 'fish' AND sales.source_record_id = user_fish.id)
+     ORDER BY created_at ASC`,
     [userid],
   );
 
@@ -74,8 +78,11 @@ export async function addUserFishWithSession({ userid, fishKind, metrics }: { us
 
 export async function deleteUserFish({ userid, fishId }: { userid: string; fishId: string }) {
   await ensureFishTable();
+  await ensureShopTables();
   const rows = await sql.query<{ id: string }>(
-    "DELETE FROM user_fish WHERE id = $1 AND userid = $2 RETURNING id",
+    `DELETE FROM user_fish WHERE id = $1 AND userid = $2
+       AND NOT EXISTS (SELECT 1 FROM asset_sales sales WHERE sales.source_type = 'fish' AND sales.source_record_id = user_fish.id)
+     RETURNING id`,
     [fishId, userid],
   );
   return Boolean(rows[0]);

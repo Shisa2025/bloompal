@@ -10,9 +10,6 @@ const messages = {
     chooseMusic: "Choose music",
     musicKeepsPlaying: "Music keeps playing.",
     musicTracks: "Music tracks",
-    musicTrackCalmLoop: "Calm Loop",
-    musicTrackChill: "Chill",
-    musicTrackDream: "Dream",
     playTrack: "Play",
     playing: "Playing",
     playMusic: "Play music",
@@ -21,6 +18,15 @@ const messages = {
     volume: "Volume",
     volumePercent: "Volume {volume}%",
     musicPlaybackFailed: "Playback failed.",
+    noMusicOwned: "No records yet",
+    buyMusicFromRabbit: "Buy one from the rabbit shop.",
+  },
+  Assets: {
+    names: {
+      musicCalmLoop: "Quiet Garden",
+      musicChill: "Leisurely Time",
+      musicDream: "Gentle Dream",
+    },
   },
 };
 
@@ -30,9 +36,9 @@ describe("DashboardMusicPlayer", () => {
 
     expect(markup).toContain('role="dialog"');
     expect(markup).toContain('aria-modal="true"');
-    expect(markup).toContain("Calm Loop");
-    expect(markup).toContain("Chill");
-    expect(markup).toContain("Dream");
+    expect(markup).toContain("Quiet Garden");
+    expect(markup).toContain("Leisurely Time");
+    expect(markup).toContain("Gentle Dream");
     expect(markup.match(/aria-pressed=/g)).toHaveLength(3);
     expect(markup).toContain('type="range"');
     expect(markup).toContain('value="45"');
@@ -47,16 +53,34 @@ describe("DashboardMusicPlayer", () => {
     expect(markup).toContain('preload="metadata"');
     expect(markup).not.toContain('role="dialog"');
   });
+
+  it("renders an empty state and no selectable tracks without ownership", () => {
+    const markup = renderPlayer(true, []);
+
+    expect(markup).toContain("No records yet");
+    expect(markup).not.toContain('aria-pressed=');
+  });
 });
 
-function renderPlayer(isOpen: boolean) {
+function renderPlayer(
+  isOpen: boolean,
+  ownedTrackIds: Array<"calm-loop" | "chill-loopable" | "dream"> = [
+    "calm-loop",
+    "chill-loopable",
+    "dream",
+  ],
+) {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="en-SG" messages={messages}>
       <DashboardMusicPlayer
         isOpen={isOpen}
         onClose={vi.fn()}
         onPlaybackChange={vi.fn()}
+        onPreviewEnd={vi.fn()}
+        onPreviewError={vi.fn()}
+        ownedTrackIds={ownedTrackIds}
         preferenceOwnerId="music-test-user"
+        previewTrackId={null}
       />
     </NextIntlClientProvider>,
   );

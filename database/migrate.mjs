@@ -239,6 +239,53 @@ try {
   await client.query("CREATE INDEX IF NOT EXISTS user_fruits_userid_created_idx ON user_fruits(userid, created_at ASC)");
 
   await client.query(`
+    CREATE TABLE IF NOT EXISTS user_wallets (
+      userid VARCHAR(120) PRIMARY KEY REFERENCES users(userid) ON DELETE CASCADE,
+      balance INTEGER NOT NULL DEFAULT 0 CHECK (balance >= 0),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS user_music (
+      userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
+      track_id VARCHAR(80) NOT NULL,
+      purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (userid, track_id)
+    )
+  `);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS asset_sales (
+      id TEXT PRIMARY KEY,
+      userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
+      asset_id VARCHAR(120) NOT NULL,
+      source_type VARCHAR(24) NOT NULL CHECK (source_type IN ('flower', 'bug', 'fish', 'fruit')),
+      source_record_id TEXT NOT NULL,
+      coin_value INTEGER NOT NULL CHECK (coin_value > 0),
+      sold_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (source_type, source_record_id)
+    )
+  `);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS coin_transactions (
+      id TEXT PRIMARY KEY,
+      userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
+      amount INTEGER NOT NULL CHECK (amount <> 0),
+      balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
+      reason VARCHAR(32) NOT NULL CHECK (reason IN ('purchase_music', 'sell_asset')),
+      reference_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (userid, reason, reference_id)
+    )
+  `);
+  await client.query("CREATE INDEX IF NOT EXISTS asset_sales_userid_asset_idx ON asset_sales(userid, asset_id, sold_at)");
+  await client.query("CREATE INDEX IF NOT EXISTS coin_transactions_userid_created_idx ON coin_transactions(userid, created_at DESC)");
+  await client.query(`
+    INSERT INTO user_wallets (userid, balance)
+    SELECT userid, 0 FROM users WHERE role = 'user'
+    ON CONFLICT (userid) DO NOTHING
+  `);
+
+  await client.query(`
     CREATE TABLE IF NOT EXISTS game_sessions (
       id TEXT PRIMARY KEY,
       userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,

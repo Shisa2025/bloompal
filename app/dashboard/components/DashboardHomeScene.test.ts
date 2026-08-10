@@ -16,6 +16,8 @@ vi.mock("@/app/components/threejs/flowerModels", () => ({
 
 import {
   addGramophone,
+  addRoomDoor,
+  dashboardRoomDoorPosition,
   dashboardTableDisplayPositions,
 } from "./DashboardHomeScene";
 
@@ -45,5 +47,34 @@ describe("dashboard gramophone", () => {
 
     expect(flowerX - gramophoneX).toBeCloseTo(1.4);
     expect(fruitBasketX - flowerX).toBeCloseTo(1.4);
+  });
+});
+
+describe("dashboard room door", () => {
+  it("mounts the courtyard door on the room's right-hand wall", () => {
+    const parent = new THREE.Group();
+    const door = addRoomDoor(parent, {
+      wood: new THREE.MeshStandardMaterial(),
+    });
+
+    expect(parent.children).toContain(door.object);
+    expect(door.object.position.toArray()).toEqual(dashboardRoomDoorPosition);
+    expect(dashboardRoomDoorPosition[0]).toBeGreaterThan(6.5);
+    expect(door.object.rotation.y).toBeCloseTo(-Math.PI / 2);
+    expect(door.object.getObjectByName("dashboard-room-door-leaf")).toBeTruthy();
+    expect(
+      door.object.getObjectByName("dashboard-room-door-outdoor-preview"),
+    ).toBeTruthy();
+  });
+
+  it("opens the right-wall door around its hinge", () => {
+    const parent = new THREE.Group();
+    const door = addRoomDoor(parent, {
+      wood: new THREE.MeshStandardMaterial(),
+    });
+    const leaf = door.object.getObjectByName("dashboard-room-door-leaf");
+
+    door.update(1);
+    expect(leaf?.rotation.y).toBeCloseTo(-1.18);
   });
 });

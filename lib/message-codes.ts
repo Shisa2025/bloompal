@@ -42,6 +42,12 @@ export const errorCodes = [
   "snapshotTooLarge",
   "saveSnapshotFailed",
   "captureSceneFailed",
+  "musicUnavailable",
+  "musicAlreadyOwned",
+  "insufficientCoins",
+  "assetUnavailable",
+  "assetNotOwned",
+  "shopTransactionFailed",
 ] as const;
 
 export type ErrorCode = (typeof errorCodes)[number];

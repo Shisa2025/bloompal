@@ -4,16 +4,12 @@ import { randomUUID } from "crypto";
 import { sql, withTransaction } from "./connection";
 import { insertCompletedSession, isCompletedSessionReplay } from "./game-sessions";
 import type { GameCompletionMetrics } from "@/lib/game-metrics";
+import { bugCatalog } from "@/lib/asset-catalog";
+import { ensureShopTables } from "./shop";
 
-export const bugAssets = [
-  "Bee.glb",
-  "Beetle.glb",
-  "Butterfly.glb",
-  "Dragonfly.glb",
-  "Ladybug.glb",
-] as const;
+export const bugAssets = bugCatalog.map((asset) => asset.sourceValue);
 
-export type BugAsset = (typeof bugAssets)[number];
+export type BugAsset = (typeof bugCatalog)[number]["sourceValue"];
 
 export type UserBug = {
   id: string;
@@ -39,8 +35,12 @@ export function isBugAsset(value: string): value is BugAsset {
 
 export async function getUserBugs(userid: string): Promise<UserBug[]> {
   await ensureBugsTable();
+  await ensureShopTables();
   const rows = (await sql.query(
-    `SELECT id, userid, bug_asset, created_at, is_active FROM user_bugs WHERE userid = $1 ORDER BY created_at ASC`,
+    `SELECT id, userid, bug_asset, created_at, is_active FROM user_bugs
+     WHERE userid = $1
+       AND NOT EXISTS (SELECT 1 FROM asset_sales sales WHERE sales.source_type = 'bug' AND sales.source_record_id = user_bugs.id)
+     ORDER BY created_at ASC`,
     [userid],
   )) as UserBugRow[];
 
@@ -84,8 +84,11 @@ export async function addUserBugWithSession({
 
 export async function deleteUserBug({ userid, bugId }: { userid: string; bugId: string }): Promise<boolean> {
   await ensureBugsTable();
+  await ensureShopTables();
   const rows = (await sql.query(
-    `DELETE FROM user_bugs WHERE id = $1 AND userid = $2 RETURNING id, is_active`,
+    `DELETE FROM user_bugs WHERE id = $1 AND userid = $2
+       AND NOT EXISTS (SELECT 1 FROM asset_sales sales WHERE sales.source_type = 'bug' AND sales.source_record_id = user_bugs.id)
+     RETURNING id, is_active`,
     [bugId, userid],
   )) as { id: string; is_active: boolean }[];
 
@@ -98,6 +101,7 @@ export async function deleteUserBug({ userid, bugId }: { userid: string; bugId: 
         SET is_active = (id = (
           SELECT id FROM user_bugs
           WHERE userid = $1
+            AND NOT EXISTS (SELECT 1 FROM asset_sales sales WHERE sales.source_type = 'bug' AND sales.source_record_id = user_bugs.id)
           ORDER BY created_at DESC
           LIMIT 1
         ))
@@ -112,14 +116,20 @@ export async function deleteUserBug({ userid, bugId }: { userid: string; bugId: 
 
 export async function setActiveUserBug({ userid, bugId }: { userid: string; bugId: string }): Promise<UserBug | null> {
   await ensureBugsTable();
+  await ensureShopTables();
   const owned = (await sql.query(
-    "SELECT id FROM user_bugs WHERE id = $1 AND userid = $2",
+    `SELECT id FROM user_bugs WHERE id = $1 AND userid = $2
+       AND NOT EXISTS (SELECT 1 FROM asset_sales sales WHERE sales.source_type = 'bug' AND sales.source_record_id = user_bugs.id)`,
     [bugId, userid],
   )) as { id: string }[];
 
   if (owned.length === 0) return null;
 
-  await sql.query("UPDATE user_bugs SET is_active = (id = $1) WHERE userid = $2", [bugId, userid]);
+  await sql.query(
+    `UPDATE user_bugs SET is_active = (id = $1) WHERE userid = $2
+       AND NOT EXISTS (SELECT 1 FROM asset_sales sales WHERE sales.source_type = 'bug' AND sales.source_record_id = user_bugs.id)`,
+    [bugId, userid],
+  );
   const rows = (await sql.query(
     "SELECT id, userid, bug_asset, created_at, is_active FROM user_bugs WHERE id = $1 AND userid = $2",
     [bugId, userid],

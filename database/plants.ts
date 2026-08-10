@@ -4,19 +4,14 @@ import { randomUUID } from "crypto";
 import { sql, withTransaction } from "./connection";
 import { insertCompletedSession, isCompletedSessionReplay } from "./game-sessions";
 import type { GameCompletionMetrics } from "@/lib/game-metrics";
+import { flowerCatalog } from "@/lib/asset-catalog";
+import { ensureShopTables } from "./shop";
 
 export const mysterySeedKeys = ["mystery-a", "mystery-b", "mystery-c"] as const;
-export const flowerAssets = [
-  "flower1.glb",
-  "flower2.glb",
-  "flower3.glb",
-  "flower4.glb",
-  "flower5.glb",
-  "flower6.glb",
-] as const;
+export const flowerAssets = flowerCatalog.map((asset) => asset.sourceValue);
 
 export type MysterySeedKey = (typeof mysterySeedKeys)[number];
-export type FlowerAsset = (typeof flowerAssets)[number];
+export type FlowerAsset = (typeof flowerCatalog)[number]["sourceValue"];
 export type UserPlantStatus = "selected" | "completed";
 
 export type UserPlant = {
@@ -76,6 +71,7 @@ export async function getLatestUserPlant(
 }
 
 export async function getOwnedFlowerAssets(userid: string): Promise<FlowerAsset[]> {
+  await ensureShopTables();
   const rows = (await sql.query(
     `
     SELECT DISTINCT flower_asset
@@ -83,6 +79,10 @@ export async function getOwnedFlowerAssets(userid: string): Promise<FlowerAsset[
     WHERE userid = $1
       AND status = 'completed'
       AND flower_asset IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM asset_sales sales
+        WHERE sales.source_type = 'flower' AND sales.source_record_id = user_plants.id
+      )
     ORDER BY flower_asset ASC
     `,
     [userid],
@@ -96,6 +96,7 @@ export async function getOwnedFlowerAssets(userid: string): Promise<FlowerAsset[
 export async function getTableFlowerAsset(
   userid: string,
 ): Promise<FlowerAsset | null> {
+  await ensureShopTables();
   const rows = (await sql.query(
     `
     SELECT settings.table_flower_asset
@@ -109,6 +110,10 @@ export async function getTableFlowerAsset(
           WHERE plants.userid = settings.userid
             AND plants.status = 'completed'
             AND plants.flower_asset = settings.table_flower_asset
+            AND NOT EXISTS (
+              SELECT 1 FROM asset_sales sales
+              WHERE sales.source_type = 'flower' AND sales.source_record_id = plants.id
+            )
         )
       )
     LIMIT 1
@@ -126,6 +131,7 @@ export async function setTableFlowerAsset({
   userid: string;
   flowerAsset: FlowerAsset | null;
 }): Promise<FlowerAsset | null> {
+  await ensureShopTables();
   if (flowerAsset) {
     const ownedRows = (await sql.query(
       `
@@ -134,6 +140,10 @@ export async function setTableFlowerAsset({
       WHERE userid = $1
         AND status = 'completed'
         AND flower_asset = $2
+        AND NOT EXISTS (
+          SELECT 1 FROM asset_sales sales
+          WHERE sales.source_type = 'flower' AND sales.source_record_id = user_plants.id
+        )
       LIMIT 1
       `,
       [userid, flowerAsset],

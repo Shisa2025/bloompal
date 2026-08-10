@@ -15,6 +15,10 @@ import { destroyCurrentSession, requireUser } from "@/lib/auth";
 import { redirect } from "@/i18n/navigation";
 import { getLocalizedPath } from "@/i18n/server";
 import type { ErrorCode } from "@/lib/message-codes";
+import {
+  purchaseMusic as purchaseMusicRecord,
+  sellResource as sellResourceRecord,
+} from "@/database/shop";
 
 export type TableFlowerActionResult =
   | { ok: true; tableFlowerAsset: string | null }
@@ -104,4 +108,58 @@ export async function throwAwayUserFruit(fruitId: string): Promise<{ ok: true } 
   if (!(await removeUserFruit({ userid, fruitId }))) return { ok: false, errorCode: "fruitGone" };
   revalidatePath(await getLocalizedPath("/dashboard"));
   return { ok: true };
+}
+
+export async function buyMusicTrack(
+  trackId: string,
+): Promise<
+  | { ok: true; coinBalance: number; trackId: string }
+  | { ok: false; errorCode: ErrorCode }
+> {
+  const { userid } = await requireUser();
+
+  try {
+    const result = await purchaseMusicRecord({ userid, trackId });
+    if (!result.ok) {
+      const errorCode: ErrorCode =
+        result.reason === "already_owned"
+          ? "musicAlreadyOwned"
+          : result.reason === "insufficient_coins"
+            ? "insufficientCoins"
+            : "musicUnavailable";
+      return { ok: false, errorCode };
+    }
+
+    revalidatePath(await getLocalizedPath("/dashboard"));
+    return result;
+  } catch (error) {
+    console.error("Failed to purchase dashboard music.", error);
+    return { ok: false, errorCode: "shopTransactionFailed" };
+  }
+}
+
+export async function sellShopResource(
+  assetId: string,
+): Promise<
+  | { ok: true; assetId: string; coinBalance: number; remainingQuantity: number }
+  | { ok: false; errorCode: ErrorCode }
+> {
+  const { userid } = await requireUser();
+
+  try {
+    const result = await sellResourceRecord({ userid, assetId });
+    if (!result.ok) {
+      return {
+        ok: false,
+        errorCode:
+          result.reason === "not_owned" ? "assetNotOwned" : "assetUnavailable",
+      };
+    }
+
+    revalidatePath(await getLocalizedPath("/dashboard"));
+    return result;
+  } catch (error) {
+    console.error("Failed to sell dashboard resource.", error);
+    return { ok: false, errorCode: "shopTransactionFailed" };
+  }
 }

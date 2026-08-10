@@ -22,10 +22,9 @@ describe("dashboard music catalog", () => {
     }
   });
 
-  it("provides a valid default track and account-scoped storage key", () => {
-    expect(getMusicTrack(defaultMusicPreferences.trackId).id).toBe(
-      defaultMusicPreferences.trackId,
-    );
+  it("starts without a track and uses an account-scoped storage key", () => {
+    expect(defaultMusicPreferences.trackId).toBeNull();
+    expect(getMusicTrack(defaultMusicPreferences.trackId)).toBeUndefined();
     expect(getMusicStorageKey("user.name")).toBe("bloompal:music:v1:user.name");
   });
 });
@@ -33,23 +32,38 @@ describe("dashboard music catalog", () => {
 describe("music preference parsing", () => {
   it("restores a valid track and volume", () => {
     expect(
-      parseMusicPreferences(JSON.stringify({ trackId: "dream", volume: 0.72 })),
+      parseMusicPreferences(
+        JSON.stringify({ trackId: "dream", volume: 0.72 }),
+        ["dream"],
+      ),
     ).toEqual({ trackId: "dream", volume: 0.72 });
   });
 
   it("clamps volume and falls back from unknown tracks", () => {
     expect(
-      parseMusicPreferences(JSON.stringify({ trackId: "missing", volume: 4 })),
-    ).toEqual({ trackId: defaultMusicPreferences.trackId, volume: 1 });
+      parseMusicPreferences(
+        JSON.stringify({ trackId: "missing", volume: 4 }),
+        ["calm-loop"],
+      ),
+    ).toEqual({ trackId: "calm-loop", volume: 1 });
     expect(
-      parseMusicPreferences(JSON.stringify({ trackId: "chill-loopable", volume: -2 })),
+      parseMusicPreferences(
+        JSON.stringify({ trackId: "chill-loopable", volume: -2 }),
+        ["chill-loopable"],
+      ),
     ).toEqual({ trackId: "chill-loopable", volume: 0 });
   });
 
-  it("falls back safely for unavailable or corrupt storage", () => {
-    expect(parseMusicPreferences(null)).toEqual(defaultMusicPreferences);
-    expect(parseMusicPreferences("not-json")).toEqual(defaultMusicPreferences);
-    expect(parseMusicPreferences(JSON.stringify({ volume: "loud" }))).toEqual(
+  it("does not let unavailable or legacy preferences grant ownership", () => {
+    expect(parseMusicPreferences(null, [])).toEqual(defaultMusicPreferences);
+    expect(parseMusicPreferences("not-json", [])).toEqual(defaultMusicPreferences);
+    expect(
+      parseMusicPreferences(
+        JSON.stringify({ trackId: "dream", volume: 0.6 }),
+        [],
+      ),
+    ).toEqual({ trackId: null, volume: 0.6 });
+    expect(parseMusicPreferences(JSON.stringify({ volume: "loud" }), [])).toEqual(
       defaultMusicPreferences,
     );
   });

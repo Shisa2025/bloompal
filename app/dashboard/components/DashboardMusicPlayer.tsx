@@ -6,6 +6,7 @@ import {
   type MouseEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -15,14 +16,19 @@ import {
   getMusicTrack,
   musicTracks,
   parseMusicPreferences,
-  type MusicTrackId,
+  type MusicPreferences,
 } from "../music";
+import type { MusicTrackId } from "@/lib/asset-catalog";
 
 type DashboardMusicPlayerProps = {
   isOpen: boolean;
   onClose: () => void;
   onPlaybackChange: (isPlaying: boolean) => void;
+  onPreviewEnd: () => void;
+  onPreviewError: () => void;
+  ownedTrackIds: MusicTrackId[];
   preferenceOwnerId: string;
+  previewTrackId: MusicTrackId | null;
 };
 
 const gramophoneTriggerId = "dashboard-gramophone-trigger";
@@ -31,19 +37,29 @@ export default function DashboardMusicPlayer({
   isOpen,
   onClose,
   onPlaybackChange,
+  onPreviewEnd,
+  onPreviewError,
+  ownedTrackIds,
   preferenceOwnerId,
+  previewTrackId,
 }: DashboardMusicPlayerProps) {
   const t = useTranslations("Dashboard");
+  const tAssets = useTranslations("Assets");
   const audioRef = useRef<HTMLAudioElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
-  const [selectedTrackId, setSelectedTrackId] = useState<MusicTrackId>(
-    defaultMusicPreferences.trackId,
+  const wasPreviewingRef = useRef(false);
+  const [selectedTrackId, setSelectedTrackId] = useState<MusicTrackId | null>(
+    null,
   );
   const [volume, setVolume] = useState(defaultMusicPreferences.volume);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const storageKey = getMusicStorageKey(preferenceOwnerId);
+  const ownedTracks = useMemo(
+    () => musicTracks.filter((track) => ownedTrackIds.includes(track.id)),
+    [ownedTrackIds],
+  );
 
   const updatePlaybackState = useCallback(
     (nextIsPlaying: boolean) => {
@@ -64,19 +80,57 @@ export default function DashboardMusicPlayer({
     const audio = audioRef.current;
     if (!audio) return;
 
-    let preferences = defaultMusicPreferences;
+    let preferences: MusicPreferences = {
+      trackId: ownedTrackIds[0] ?? null,
+      volume: defaultMusicPreferences.volume,
+    };
     try {
-      preferences = parseMusicPreferences(window.localStorage.getItem(storageKey));
+      preferences = parseMusicPreferences(
+        window.localStorage.getItem(storageKey),
+        ownedTrackIds,
+      );
     } catch {
-      preferences = defaultMusicPreferences;
+      // Browser storage is optional; database ownership remains authoritative.
     }
 
     setSelectedTrackId(preferences.trackId);
     setVolume(preferences.volume);
     audio.volume = preferences.volume;
-    audio.src = getMusicTrack(preferences.trackId).src;
-    audio.load();
-  }, [storageKey]);
+    if (!previewTrackId) restoreOwnedSource(audio, preferences.trackId);
+  }, [ownedTrackIds, previewTrackId, storageKey]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (previewTrackId) {
+      const preview = getMusicTrack(previewTrackId);
+      if (!preview) {
+        onPreviewError();
+        onPreviewEnd();
+        return;
+      }
+      wasPreviewingRef.current = true;
+      audio.pause();
+      audio.loop = false;
+      audio.src = preview.src;
+      audio.currentTime = 0;
+      audio.load();
+      void audio.play().catch(() => {
+        setIsLoading(false);
+        onPreviewError();
+        onPreviewEnd();
+      });
+      return;
+    }
+
+    if (wasPreviewingRef.current) {
+      wasPreviewingRef.current = false;
+      audio.pause();
+      audio.loop = true;
+      restoreOwnedSource(audio, selectedTrackId);
+    }
+  }, [onPreviewEnd, onPreviewError, previewTrackId, selectedTrackId]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -92,11 +146,11 @@ export default function DashboardMusicPlayer({
 
     const previousOverflow = document.body.style.overflow;
     const focusFrame = window.requestAnimationFrame(() => {
-      dialogRef.current
-        ?.querySelector<HTMLElement>('[aria-pressed="true"]')
-        ?.focus();
+      const selected = dialogRef.current?.querySelector<HTMLElement>(
+        '[aria-pressed="true"]',
+      );
+      (selected ?? dialogRef.current?.querySelector<HTMLElement>("button"))?.focus();
     });
-
     document.body.style.overflow = "hidden";
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -105,7 +159,6 @@ export default function DashboardMusicPlayer({
         closePlayer();
         return;
       }
-
       if (event.key !== "Tab") return;
       const focusable = Array.from(
         dialogRef.current?.querySelectorAll<HTMLElement>(
@@ -136,7 +189,7 @@ export default function DashboardMusicPlayer({
     };
   }, [closePlayer, isOpen]);
 
-  function savePreferences(trackId: MusicTrackId, nextVolume: number) {
+  function savePreferences(trackId: MusicTrackId | null, nextVolume: number) {
     try {
       window.localStorage.setItem(
         storageKey,
@@ -149,11 +202,16 @@ export default function DashboardMusicPlayer({
 
   async function playAudio() {
     const audio = audioRef.current;
-    if (!audio) return;
+    const track = getMusicTrack(selectedTrackId);
+    if (!audio || !track || !ownedTrackIds.includes(track.id)) return;
 
     setHasError(false);
     setIsLoading(true);
     try {
+      if (audio.getAttribute("src") !== track.src) {
+        audio.src = track.src;
+        audio.load();
+      }
       await audio.play();
     } catch {
       setHasError(true);
@@ -165,35 +223,26 @@ export default function DashboardMusicPlayer({
 
   async function selectTrack(trackId: MusicTrackId) {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !ownedTrackIds.includes(trackId)) return;
 
-    const isNewTrack = trackId !== selectedTrackId;
     setSelectedTrackId(trackId);
     savePreferences(trackId, volume);
     setHasError(false);
-
-    if (isNewTrack || audio.getAttribute("src") !== getMusicTrack(trackId).src) {
-      audio.src = getMusicTrack(trackId).src;
-      audio.load();
-    }
-    await playAudio();
+    audio.src = getMusicTrack(trackId)!.src;
+    audio.load();
+    await playAudioFromElement(audio, updatePlaybackState, setHasError, setIsLoading);
   }
 
   function togglePlayback() {
     const audio = audioRef.current;
-    if (!audio || isLoading) return;
-
-    if (audio.paused) {
-      void playAudio();
-    } else {
-      audio.pause();
-    }
+    if (!audio || isLoading || !selectedTrackId) return;
+    if (audio.paused) void playAudio();
+    else audio.pause();
   }
 
   function changeVolume(event: ChangeEvent<HTMLInputElement>) {
     const nextVolume = Number(event.target.value) / 100;
     const audio = audioRef.current;
-
     setVolume(nextVolume);
     if (audio) audio.volume = nextVolume;
     savePreferences(selectedTrackId, nextVolume);
@@ -207,15 +256,35 @@ export default function DashboardMusicPlayer({
     <>
       <audio
         aria-hidden="true"
-        loop
+        loop={!previewTrackId}
         onError={() => {
-          setHasError(true);
           setIsLoading(false);
+          if (previewTrackId) {
+            onPreviewError();
+            onPreviewEnd();
+          } else {
+            setHasError(true);
+            updatePlaybackState(false);
+          }
+        }}
+        onPause={() => {
           updatePlaybackState(false);
         }}
-        onPause={() => updatePlaybackState(false)}
-        onPlay={() => updatePlaybackState(true)}
+        onPlay={() => {
+          if (!previewTrackId) updatePlaybackState(true);
+        }}
         onPlaying={() => setIsLoading(false)}
+        onTimeUpdate={(event) => {
+          const preview = getMusicTrack(previewTrackId);
+          if (
+            previewTrackId &&
+            preview &&
+            event.currentTarget.currentTime >= preview.previewSeconds
+          ) {
+            event.currentTarget.pause();
+            onPreviewEnd();
+          }
+        }}
         onWaiting={() => setIsLoading(true)}
         preload="metadata"
         ref={audioRef}
@@ -241,34 +310,42 @@ export default function DashboardMusicPlayer({
               <span>{t("musicKeepsPlaying")}</span>
             </div>
 
-            <div className="dashboard-music-track-list" aria-label={t("musicTracks")}>
-              {musicTracks.map((track) => (
-                <button
-                  aria-pressed={selectedTrackId === track.id}
-                  className={selectedTrackId === track.id ? "is-selected" : ""}
-                  key={track.id}
-                  onClick={() => void selectTrack(track.id)}
-                  type="button"
-                >
-                  <span className="dashboard-music-record" aria-hidden="true" />
-                  <span>
-                    <strong>{t(track.titleKey)}</strong>
-                    <small>{track.artist}</small>
-                  </span>
-                  <span className="dashboard-music-track-state">
-                    {selectedTrackId === track.id && isPlaying
-                      ? t("playing")
-                      : t("playTrack")}
-                  </span>
-                </button>
-              ))}
-            </div>
+            {ownedTracks.length > 0 ? (
+              <div className="dashboard-music-track-list" aria-label={t("musicTracks")}>
+                {ownedTracks.map((track) => (
+                  <button
+                    aria-pressed={selectedTrackId === track.id}
+                    className={selectedTrackId === track.id ? "is-selected" : ""}
+                    key={track.id}
+                    onClick={() => void selectTrack(track.id)}
+                    type="button"
+                  >
+                    <span className="dashboard-music-record" aria-hidden="true" />
+                    <span>
+                      <strong>{tAssets(track.nameKey)}</strong>
+                      <small>{track.artist}</small>
+                    </span>
+                    <span className="dashboard-music-track-state">
+                      {selectedTrackId === track.id && isPlaying
+                        ? t("playing")
+                        : t("playTrack")}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="dashboard-table-flower-empty dashboard-music-empty">
+                <span className="dashboard-music-record" aria-hidden="true" />
+                <strong>{t("noMusicOwned")}</strong>
+                <p>{t("buyMusicFromRabbit")}</p>
+              </div>
+            )}
 
             <div className="dashboard-music-controls">
               <button
                 aria-label={isPlaying ? t("pauseMusic") : t("playMusic")}
                 className="dashboard-music-play"
-                disabled={isLoading}
+                disabled={isLoading || !selectedTrackId}
                 onClick={togglePlayback}
                 type="button"
               >
@@ -297,11 +374,7 @@ export default function DashboardMusicPlayer({
             ) : null}
 
             <div className="dashboard-table-flower-actions">
-              <button
-                className="dashboard-table-flower-secondary"
-                onClick={closePlayer}
-                type="button"
-              >
+              <button className="dashboard-table-flower-secondary" onClick={closePlayer} type="button">
                 {t("close")}
               </button>
             </div>
@@ -310,4 +383,37 @@ export default function DashboardMusicPlayer({
       ) : null}
     </>
   );
+}
+
+function restoreOwnedSource(
+  audio: HTMLAudioElement,
+  trackId: MusicTrackId | null,
+) {
+  const track = getMusicTrack(trackId);
+  audio.pause();
+  audio.loop = true;
+  if (!track) {
+    audio.removeAttribute("src");
+    audio.load();
+    return;
+  }
+  audio.src = track.src;
+  audio.load();
+}
+
+async function playAudioFromElement(
+  audio: HTMLAudioElement,
+  updatePlaybackState: (value: boolean) => void,
+  setHasError: (value: boolean) => void,
+  setIsLoading: (value: boolean) => void,
+) {
+  setIsLoading(true);
+  try {
+    await audio.play();
+  } catch {
+    setHasError(true);
+    updatePlaybackState(false);
+  } finally {
+    setIsLoading(false);
+  }
 }

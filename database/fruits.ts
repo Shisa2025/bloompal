@@ -4,9 +4,11 @@ import { randomUUID } from "node:crypto";
 import { sql, withTransaction } from "./connection";
 import { insertCompletedSession, isCompletedSessionReplay } from "./game-sessions";
 import type { GameCompletionMetrics } from "@/lib/game-metrics";
+import { fruitCatalog } from "@/lib/asset-catalog";
+import { ensureShopTables } from "./shop";
 
-export const fruitKinds = ["apple", "cherry", "lemon", "pear", "strawberry"] as const;
-export type FruitKind = (typeof fruitKinds)[number];
+export const fruitKinds = fruitCatalog.map((asset) => asset.sourceValue);
+export type FruitKind = (typeof fruitCatalog)[number]["sourceValue"];
 export type UserFruit = { id: string; fruitKind: FruitKind; createdAt: string };
 let tableReady: Promise<void> | null = null;
 
@@ -16,8 +18,11 @@ export function isFruitKind(value: string): value is FruitKind {
 
 export async function getUserFruits(userid: string): Promise<UserFruit[]> {
   await ensureFruitTable();
+  await ensureShopTables();
   const rows = await sql.query<{ id: string; fruit_kind: string; created_at: Date | string }>(
-    "SELECT id, fruit_kind, created_at FROM user_fruits WHERE userid = $1 ORDER BY created_at ASC",
+    `SELECT id, fruit_kind, created_at FROM user_fruits WHERE userid = $1
+       AND NOT EXISTS (SELECT 1 FROM asset_sales sales WHERE sales.source_type = 'fruit' AND sales.source_record_id = user_fruits.id)
+     ORDER BY created_at ASC`,
     [userid],
   );
   return rows.filter((row) => isFruitKind(row.fruit_kind)).map((row) => ({
@@ -48,8 +53,11 @@ export async function addUserFruitWithSession({ userid, fruitKind, metrics }: {
 
 export async function deleteUserFruit({ userid, fruitId }: { userid: string; fruitId: string }) {
   await ensureFruitTable();
+  await ensureShopTables();
   const rows = await sql.query<{ id: string }>(
-    "DELETE FROM user_fruits WHERE id = $1 AND userid = $2 RETURNING id",
+    `DELETE FROM user_fruits WHERE id = $1 AND userid = $2
+       AND NOT EXISTS (SELECT 1 FROM asset_sales sales WHERE sales.source_type = 'fruit' AND sales.source_record_id = user_fruits.id)
+     RETURNING id`,
     [fruitId, userid],
   );
   return Boolean(rows[0]);

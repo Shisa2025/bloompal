@@ -2,7 +2,9 @@ import DesktopOnly from "@/app/components/DesktopOnly";
 import CollectBugsGameClient from "@/app/games/collectbugs/CollectBugsGameClient";
 import { requireUser } from "@/lib/auth";
 
-const bugAssets = ["Bee.glb", "Beetle.glb", "Butterfly.glb", "Dragonfly.glb", "Ladybug.glb"] as const;
+import { bugCatalog } from "@/lib/asset-catalog";
+
+const bugAssets = bugCatalog.map((asset) => asset.sourceValue);
 
 export default async function CollectBugsPage() {
   await requireUser();

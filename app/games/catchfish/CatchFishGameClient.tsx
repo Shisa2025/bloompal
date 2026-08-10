@@ -7,6 +7,7 @@ import FishModel from "@/app/components/FishModel";
 import { createMotionTracker } from "@/mediapipe/motion";
 import type { MotionSide, MotionTracker } from "@/mediapipe/types";
 import { getFishAssetPath, type FishKind } from "@/lib/fish-assets";
+import { getCatalogAssetBySource } from "@/lib/asset-catalog";
 import { getFishingSignals, type FishingHandSignal, type FishingSignals } from "./fishingRules";
 import { saveCaughtFish } from "./actions";
 
@@ -28,6 +29,7 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
   const router = useRouter();
   const t = useTranslations("Games.catchFish");
   const tErrors = useTranslations("Errors");
+  const tAssets = useTranslations("Assets");
   const [fishRun] = useState(() => {
     const sequence = Array.from({ length: totalFish }, () => fishKinds[randomIndex(fishKinds.length)]);
     return { sequence, reward: sequence[randomIndex(sequence.length)] };
@@ -215,9 +217,11 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
     });
   }
 
+  const rewardAsset = getCatalogAssetBySource("fish", fishRun.reward);
+
   return <div className="watering-game">
     <header className="watering-header"><div><p>{t("gameLabel")}</p><h1>{t("title")}</h1></div><Link className="watering-secondary-link" href="/dashboard">{t("dashboard")}</Link></header>
-    {completion ? <section className="watering-layout watering-layout-single"><div className="watering-main-panel"><div className="fishing-reward"><div className="fishing-reward-fish"><FishModel assetPath={getFishAssetPath(fishRun.reward)} ariaLabel={t("rewardDescription")} /></div><h2>{t("allCaught", { count: totalFish })}</h2><p>{t("rewardDescription")}</p><button className="watering-primary-link" disabled={isPending} onClick={saveAndReturn} type="button">{isPending ? t("savingFish") : t("addToPond")}</button>{saveError ? <p className="collectbugs-reward-error">{saveError}</p> : null}</div></div></section> :
+    {completion ? <section className="watering-layout watering-layout-single"><div className="watering-main-panel"><div className="fishing-reward"><div className="fishing-reward-fish"><FishModel assetPath={getFishAssetPath(fishRun.reward)} ariaLabel={t("rewardDescription")} /></div><h2>{t("allCaught", { count: totalFish })}</h2>{rewardAsset ? <strong>{tAssets(rewardAsset.nameKey)}</strong> : null}<p>{t("rewardDescription")}</p><button className="watering-primary-link" disabled={isPending} onClick={saveAndReturn} type="button">{isPending ? t("savingFish") : t("addToPond")}</button>{saveError ? <p className="collectbugs-reward-error">{saveError}</p> : null}</div></div></section> :
       <FishingPlayfield activeSide={activeSide} cameraError={cameraError} cameraStatus={cameraStatus} counts={counts} fishAssetPath={getFishAssetPath(fishRun.sequence[Math.min(counts.left + counts.right, totalFish - 1)])} fishElementRef={fishElementRef} hint={hint} onRetry={() => setCameraRunId((value) => value + 1)} signals={signals} videoRef={videoRef} />}
   </div>;
 }

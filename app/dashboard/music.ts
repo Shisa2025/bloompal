@@ -1,34 +1,30 @@
-export const musicTracks = [
-  {
-    id: "calm-loop",
-    src: "/audio/calm-loop.mp3",
-    titleKey: "musicTrackCalmLoop",
-    artist: "wipics",
-  },
-  {
-    id: "chill-loopable",
-    src: "/audio/chill-loopable.mp3",
-    titleKey: "musicTrackChill",
-    artist: "Alex McCulloch",
-  },
-  {
-    id: "dream",
-    src: "/audio/dream.mp3",
-    titleKey: "musicTrackDream",
-    artist: "jkjkke",
-  },
-] as const;
+import {
+  isMusicTrackId,
+  musicCatalog,
+  type MusicTrackId,
+} from "../../lib/asset-catalog";
+
+export const musicTracks = musicCatalog.map((track) => ({
+  id: track.id,
+  src: track.assetPath,
+  nameKey: track.nameKey,
+  artist: track.artist,
+  license: track.license,
+  sourceUrl: track.sourceUrl,
+  buyPrice: track.buyPrice,
+  previewSeconds: track.previewSeconds,
+}));
 
 export type MusicTrack = (typeof musicTracks)[number];
-export type MusicTrackId = MusicTrack["id"];
+export type { MusicTrackId };
 
 export type MusicPreferences = {
-  trackId: MusicTrackId;
+  trackId: MusicTrackId | null;
   volume: number;
 };
 
 export const defaultMusicPreferences: MusicPreferences = {
-  trackId: "calm-loop",
+  trackId: null,
   volume: 0.45,
 };
 
@@ -36,18 +32,26 @@ export function getMusicStorageKey(userid: string) {
   return `bloompal:music:v1:${userid}`;
 }
 
-export function getMusicTrack(trackId: MusicTrackId) {
-  return musicTracks.find((track) => track.id === trackId) ?? musicTracks[0];
+export function getMusicTrack(trackId: MusicTrackId | null) {
+  if (!trackId) return undefined;
+  return musicTracks.find((track) => track.id === trackId);
 }
 
-export function parseMusicPreferences(rawValue: string | null): MusicPreferences {
-  if (!rawValue) return { ...defaultMusicPreferences };
+export function parseMusicPreferences(
+  rawValue: string | null,
+  ownedTrackIds: readonly MusicTrackId[],
+): MusicPreferences {
+  const fallbackTrackId = ownedTrackIds[0] ?? null;
+  if (!rawValue) {
+    return { trackId: fallbackTrackId, volume: defaultMusicPreferences.volume };
+  }
 
   try {
     const value = JSON.parse(rawValue) as { trackId?: unknown; volume?: unknown };
-    const trackId = isMusicTrackId(value.trackId)
-      ? value.trackId
-      : defaultMusicPreferences.trackId;
+    const trackId =
+      isMusicTrackId(value.trackId) && ownedTrackIds.includes(value.trackId)
+        ? value.trackId
+        : fallbackTrackId;
     const volume =
       typeof value.volume === "number" && Number.isFinite(value.volume)
         ? Math.min(1, Math.max(0, value.volume))
@@ -55,10 +59,6 @@ export function parseMusicPreferences(rawValue: string | null): MusicPreferences
 
     return { trackId, volume };
   } catch {
-    return { ...defaultMusicPreferences };
+    return { trackId: fallbackTrackId, volume: defaultMusicPreferences.volume };
   }
-}
-
-function isMusicTrackId(value: unknown): value is MusicTrackId {
-  return musicTracks.some((track) => track.id === value);
 }
