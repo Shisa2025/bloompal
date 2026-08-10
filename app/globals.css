@@ -237,6 +237,205 @@ body {
   isolation: isolate;
 }
 
+.login-language-overlay {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  background: rgb(29 43 34 / 48%);
+  padding: 1.25rem;
+  backdrop-filter: blur(10px);
+  animation: login-language-fade-in 180ms ease-out;
+}
+
+.login-language-dialog {
+  position: relative;
+  width: min(100%, 34rem);
+  overflow: hidden;
+  border: 1px solid rgb(82 115 90 / 18%);
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(circle at 12% 0%, rgb(246 215 127 / 28%), transparent 32%),
+    radial-gradient(circle at 100% 92%, rgb(237 136 170 / 18%), transparent 34%),
+    #fffdf8;
+  box-shadow: 0 2rem 6rem rgb(20 40 26 / 30%);
+  color: #1d2b22;
+  padding: 2.25rem;
+  text-align: center;
+  animation: login-language-rise-in 220ms ease-out;
+}
+
+.login-language-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border: 1px solid rgb(82 115 90 / 14%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 72%);
+  color: #52735a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.login-language-close:hover {
+  background: #edf2ec;
+  color: #294934;
+}
+
+.login-language-mark {
+  display: grid;
+  width: 4.25rem;
+  height: 4.25rem;
+  margin: 0 auto 1.15rem;
+  place-items: center;
+  border: 1px solid rgb(82 115 90 / 16%);
+  border-radius: 1.2rem;
+  background: linear-gradient(145deg, #eff5e9, #f9edcf);
+  color: #365a43;
+  font-size: 1.05rem;
+  font-weight: 850;
+  box-shadow: 0 0.7rem 1.8rem rgb(72 93 72 / 12%);
+}
+
+.login-language-dialog .login-kicker {
+  margin: 0;
+}
+
+.login-language-dialog h2 {
+  margin: 0.7rem 2rem 0;
+  font-size: clamp(1.7rem, 5vw, 2.2rem);
+  line-height: 1.15;
+}
+
+.login-language-dialog > p:not(.login-kicker, .login-language-status, .login-language-error) {
+  margin: 0.85rem auto 0;
+  max-width: 27rem;
+  color: #5f6f63;
+  line-height: 1.65;
+}
+
+.login-language-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  margin-top: 1.65rem;
+}
+
+.login-language-options button {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.8rem;
+  border: 1px solid rgb(82 115 90 / 18%);
+  border-radius: 0.9rem;
+  background: rgb(255 255 255 / 82%);
+  color: #294934;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.95rem;
+  text-align: left;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.login-language-options button:hover {
+  border-color: rgb(82 115 90 / 44%);
+  box-shadow: 0 0.65rem 1.4rem rgb(60 86 67 / 10%);
+  transform: translateY(-2px);
+}
+
+.login-language-close:focus-visible,
+.login-language-options button:focus-visible {
+  outline: 0.2rem solid rgb(107 155 116 / 38%);
+  outline-offset: 0.12rem;
+}
+
+.login-language-close:disabled,
+.login-language-options button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.login-language-option-code {
+  display: grid;
+  flex: 0 0 auto;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: 0.72rem;
+  background: #edf2ec;
+  color: #365a43;
+  font-size: 0.88rem;
+  font-weight: 850;
+}
+
+.login-language-options button > span:last-child {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.login-language-options strong {
+  font-size: 1rem;
+}
+
+.login-language-options small {
+  color: #718078;
+  font-size: 0.75rem;
+}
+
+.login-language-status,
+.login-language-error {
+  margin: 1rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.login-language-status {
+  color: #52735a;
+}
+
+.login-language-error {
+  color: #a33d4d;
+}
+
+@keyframes login-language-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes login-language-rise-in {
+  from { opacity: 0; transform: translateY(0.75rem) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 540px) {
+  .login-language-dialog {
+    padding: 1.75rem 1.15rem 1.25rem;
+  }
+
+  .login-language-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-language-overlay,
+  .login-language-dialog {
+    animation: none;
+  }
+
+  .login-language-options button {
+    transition: none;
+  }
+}
+
 .login-layout {
   display: grid;
   grid-template-columns: minmax(32rem, 1.05fr) minmax(28rem, 0.95fr);
