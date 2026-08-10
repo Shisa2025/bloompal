@@ -9,14 +9,25 @@ import {
   type MusicTrackId,
   type ShopState,
 } from "../../../lib/asset-catalog";
-import { buyMusicTrack, sellShopResource } from "../actions";
+import {
+  purchasableDashboardOutfits,
+  type DashboardOutfitId,
+  type PurchasableDashboardOutfitId,
+} from "../../../lib/dashboard-outfits";
+import {
+  buyDashboardOutfit,
+  buyMusicTrack,
+  sellShopResource,
+} from "../actions";
 
 type DashboardShopPreviewProps = {
   isOpen: boolean;
   onClose: () => void;
   onPreviewTrack: (trackId: MusicTrackId | null) => void;
+  onOutfitPurchased: (outfitId: PurchasableDashboardOutfitId) => void;
   previewError: boolean;
   previewTrackId: MusicTrackId | null;
+  selectedOutfitId: DashboardOutfitId;
   shopState: ShopState;
 };
 
@@ -27,12 +38,82 @@ const sellCategoryKeys = {
   fruit: "shopFruit",
 } as const;
 
+export function DashboardShopOutfitList({
+  coinBalance,
+  isPending,
+  onPurchase,
+  ownedOutfitIds,
+  selectedOutfitId,
+}: {
+  coinBalance: number;
+  isPending: boolean;
+  onPurchase: (outfitId: PurchasableDashboardOutfitId) => void;
+  ownedOutfitIds: readonly PurchasableDashboardOutfitId[];
+  selectedOutfitId: DashboardOutfitId;
+}) {
+  const t = useTranslations("Dashboard");
+
+  return (
+    <div
+      aria-labelledby="dashboard-shop-outfits-tab"
+      className="dashboard-shop-outfit-list"
+      id="dashboard-shop-outfits-panel"
+      role="tabpanel"
+    >
+      {purchasableDashboardOutfits.map((outfit) => {
+        const isOwned = ownedOutfitIds.includes(outfit.id);
+        const isEquipped = selectedOutfitId === outfit.id;
+        return (
+          <article className="dashboard-shop-outfit-card" key={outfit.id}>
+            <span
+              aria-hidden="true"
+              className={`dashboard-wardrobe-swatch is-${outfit.id}`}
+            >
+              <span className="dashboard-wardrobe-swatch-body" />
+              <span className="dashboard-wardrobe-swatch-sleeve is-left" />
+              <span className="dashboard-wardrobe-swatch-sleeve is-right" />
+            </span>
+            <div className="dashboard-shop-outfit-copy">
+              <strong>{t(outfit.nameKey)}</strong>
+              <small>{t(outfit.descriptionKey)}</small>
+            </div>
+            <span className="dashboard-shop-price">
+              <span aria-hidden="true">●</span> {outfit.buyPrice}
+            </span>
+            <button
+              className="dashboard-shop-buy-button"
+              disabled={
+                isPending ||
+                isEquipped ||
+                isOwned ||
+                coinBalance < outfit.buyPrice
+              }
+              onClick={() => onPurchase(outfit.id)}
+              type="button"
+            >
+              {isEquipped
+                ? t("outfitEquipped")
+                : isOwned
+                  ? t("outfitOwned")
+                  : coinBalance < outfit.buyPrice
+                    ? t("notEnoughCoins")
+                    : t("buyForCoins", { count: outfit.buyPrice })}
+            </button>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function DashboardShopPreview({
   isOpen,
   onClose,
+  onOutfitPurchased,
   onPreviewTrack,
   previewError,
   previewTrackId,
+  selectedOutfitId,
   shopState,
 }: DashboardShopPreviewProps) {
   const router = useRouter();
@@ -40,7 +121,9 @@ export default function DashboardShopPreview({
   const tAssets = useTranslations("Assets");
   const tErrors = useTranslations("Errors");
   const dialogRef = useRef<HTMLElement>(null);
-  const [activeTab, setActiveTab] = useState<"buy" | "sell">("buy");
+  const [activeTab, setActiveTab] = useState<
+    "music" | "outfits" | "sell"
+  >("music");
   const [confirmAssetId, setConfirmAssetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -103,6 +186,19 @@ export default function DashboardShopPreview({
     });
   }
 
+  function purchaseOutfit(outfitId: PurchasableDashboardOutfitId) {
+    setError(null);
+    startTransition(async () => {
+      const result = await buyDashboardOutfit(outfitId);
+      if (!result.ok) {
+        setError(tErrors(result.errorCode));
+        return;
+      }
+      onOutfitPurchased(result.outfitId);
+      router.refresh();
+    });
+  }
+
   function sell(assetId: string) {
     setError(null);
     startTransition(async () => {
@@ -143,7 +239,7 @@ export default function DashboardShopPreview({
         </button>
         <div className="dashboard-table-flower-heading dashboard-shop-heading">
           <p>{t("rabbitMerchant")}</p>
-          <h2 id="dashboard-shop-title">{t("rabbitRecordShop")}</h2>
+          <h2 id="dashboard-shop-title">{t("rabbitShop")}</h2>
           <span className="dashboard-shop-balance">
             <span aria-hidden="true">●</span>
             {t("coinBalance", { count: shopState.coinBalance })}
@@ -152,20 +248,37 @@ export default function DashboardShopPreview({
 
         <div aria-label={t("shopTabs")} className="dashboard-shop-tabs" role="tablist">
           <button
-            aria-controls="dashboard-shop-buy-panel"
-            aria-selected={activeTab === "buy"}
+            aria-controls="dashboard-shop-music-panel"
+            aria-selected={activeTab === "music"}
             disabled={isPending}
             onClick={() => {
-              setActiveTab("buy");
+              setActiveTab("music");
               setConfirmAssetId(null);
               setError(null);
             }}
             role="tab"
-            id="dashboard-shop-buy-tab"
-            tabIndex={activeTab === "buy" ? 0 : -1}
+            id="dashboard-shop-music-tab"
+            tabIndex={activeTab === "music" ? 0 : -1}
             type="button"
           >
             {t("buyMusic")}
+          </button>
+          <button
+            aria-controls="dashboard-shop-outfits-panel"
+            aria-selected={activeTab === "outfits"}
+            disabled={isPending}
+            id="dashboard-shop-outfits-tab"
+            onClick={() => {
+              onPreviewTrack(null);
+              setActiveTab("outfits");
+              setConfirmAssetId(null);
+              setError(null);
+            }}
+            role="tab"
+            tabIndex={activeTab === "outfits" ? 0 : -1}
+            type="button"
+          >
+            {t("buyOutfits")}
           </button>
           <button
             aria-controls="dashboard-shop-sell-panel"
@@ -185,11 +298,11 @@ export default function DashboardShopPreview({
           </button>
         </div>
 
-        {activeTab === "buy" ? (
+        {activeTab === "music" ? (
           <div
-            aria-labelledby="dashboard-shop-buy-tab"
+            aria-labelledby="dashboard-shop-music-tab"
             className="dashboard-shop-music-list"
-            id="dashboard-shop-buy-panel"
+            id="dashboard-shop-music-panel"
             role="tabpanel"
           >
             {musicCatalog.map((track) => {
@@ -234,6 +347,14 @@ export default function DashboardShopPreview({
               </p>
             ) : null}
           </div>
+        ) : activeTab === "outfits" ? (
+          <DashboardShopOutfitList
+            coinBalance={shopState.coinBalance}
+            isPending={isPending}
+            onPurchase={purchaseOutfit}
+            ownedOutfitIds={shopState.ownedOutfitIds}
+            selectedOutfitId={selectedOutfitId}
+          />
         ) : (
           <div
             aria-labelledby="dashboard-shop-sell-tab"

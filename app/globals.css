@@ -1303,7 +1303,7 @@ body {
 }
 
 .dashboard-wardrobe-dialog {
-  width: min(92vw, 27rem);
+  width: min(92vw, 40rem);
   text-align: center;
 }
 
@@ -1343,6 +1343,173 @@ body {
 
 .dashboard-wardrobe-icon span:last-child {
   right: calc(50% - 0.58rem);
+}
+
+.dashboard-wardrobe-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-top: 1.25rem;
+}
+
+.dashboard-wardrobe-option {
+  display: grid;
+  grid-template-columns: 4.6rem minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: center;
+  min-height: 7.8rem;
+  padding: 0.9rem;
+  border: 1px solid rgb(88 102 75 / 22%);
+  border-radius: 1rem;
+  color: #3f493a;
+  text-align: left;
+  background: #fffaf0;
+  box-shadow: 0 0.35rem 0.9rem rgb(78 67 51 / 8%);
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.dashboard-wardrobe-option:hover,
+.dashboard-wardrobe-option:focus-visible {
+  border-color: #768c6e;
+  box-shadow: 0 0.5rem 1.2rem rgb(78 91 67 / 16%);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.dashboard-wardrobe-option.is-selected {
+  border-color: #637d60;
+  box-shadow: 0 0 0 2px rgb(99 125 96 / 18%), 0 0.5rem 1.2rem rgb(78 91 67 / 14%);
+  background: #f4f6ea;
+}
+
+.dashboard-wardrobe-option-copy {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.dashboard-wardrobe-option-copy strong {
+  color: #354232;
+  font-size: 0.98rem;
+}
+
+.dashboard-wardrobe-option-copy > span {
+  color: #697064;
+  font-size: 0.79rem;
+  line-height: 1.45;
+}
+
+.dashboard-wardrobe-option-copy small {
+  width: fit-content;
+  margin-top: 0.18rem;
+  padding: 0.22rem 0.52rem;
+  border-radius: 999px;
+  color: #4c654a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #e2ead8;
+}
+
+.dashboard-wardrobe-swatch {
+  position: relative;
+  display: block;
+  width: 4.25rem;
+  height: 4.9rem;
+  margin: 0 auto;
+}
+
+.dashboard-wardrobe-swatch-body,
+.dashboard-wardrobe-swatch-sleeve {
+  position: absolute;
+  background: #2854a6;
+  box-shadow: inset 0 -0.35rem 0 rgb(38 53 78 / 12%);
+}
+
+.dashboard-wardrobe-swatch-body {
+  inset: 0.65rem 0.8rem 0.15rem;
+  border-radius: 0.8rem 0.8rem 0.38rem 0.38rem;
+}
+
+.dashboard-wardrobe-swatch-sleeve {
+  top: 0.92rem;
+  width: 1.15rem;
+  height: 3.1rem;
+  border-radius: 0.65rem;
+}
+
+.dashboard-wardrobe-swatch-sleeve.is-left {
+  left: 0.15rem;
+  transform: rotate(9deg);
+}
+
+.dashboard-wardrobe-swatch-sleeve.is-right {
+  right: 0.15rem;
+  transform: rotate(-9deg);
+}
+
+.dashboard-wardrobe-swatch.is-base .dashboard-wardrobe-swatch-sleeve {
+  background: linear-gradient(#2854a6 0 48%, #56bbaa 48%);
+}
+
+.dashboard-wardrobe-swatch.is-moss-cardigan .dashboard-wardrobe-swatch-body,
+.dashboard-wardrobe-swatch.is-moss-cardigan .dashboard-wardrobe-swatch-sleeve {
+  background: #71866f;
+}
+
+.dashboard-wardrobe-swatch.is-moss-cardigan .dashboard-wardrobe-swatch-body::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 0.15rem);
+  width: 0.3rem;
+  background: #eee2c9;
+  box-shadow: -0.42rem 0 0 -0.3rem #8b5d3d, 0.42rem 0 0 -0.3rem #8b5d3d;
+}
+
+.dashboard-wardrobe-swatch.is-honey-raincoat .dashboard-wardrobe-swatch-body,
+.dashboard-wardrobe-swatch.is-honey-raincoat .dashboard-wardrobe-swatch-sleeve {
+  background: #dba536;
+}
+
+.dashboard-wardrobe-swatch.is-honey-raincoat .dashboard-wardrobe-swatch-body {
+  bottom: 0.05rem;
+}
+
+.dashboard-wardrobe-swatch.is-honey-raincoat .dashboard-wardrobe-swatch-body::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 0.12rem);
+  width: 0.24rem;
+  background: #f2e2bd;
+  box-shadow: -0.35rem 0.7rem 0 -0.25rem #765035, 0.35rem 0.7rem 0 -0.25rem #765035;
+}
+
+.dashboard-wardrobe-swatch.is-honey-raincoat .dashboard-wardrobe-swatch-body::after {
+  content: "";
+  position: absolute;
+  right: 0.25rem;
+  bottom: 0.52rem;
+  left: 0.25rem;
+  height: 0.5rem;
+  border-right: 0.48rem solid #93613b;
+  border-left: 0.48rem solid #93613b;
+}
+
+.dashboard-wardrobe-swatch.is-honey-raincoat .dashboard-wardrobe-swatch-sleeve {
+  background: linear-gradient(#dba536 0 82%, #93613b 82%);
+}
+
+@media (max-width: 36rem) {
+  .dashboard-wardrobe-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-wardrobe-option {
+    min-height: 6.8rem;
+  }
 }
 
 .sr-only {
@@ -2248,7 +2415,7 @@ body {
 
 .dashboard-shop-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.35rem;
   border-radius: 0.75rem;
   background: #edf3e9;
@@ -2274,9 +2441,42 @@ body {
 }
 
 .dashboard-shop-music-list,
+.dashboard-shop-outfit-list,
 .dashboard-shop-inventory {
   display: grid;
   gap: 0.7rem;
+}
+
+.dashboard-shop-outfit-card {
+  display: grid;
+  grid-template-columns: 4.8rem minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.85rem;
+  border: 1px solid rgb(82 115 90 / 14%);
+  border-radius: 0.82rem;
+  background: rgb(255 255 255 / 72%);
+  padding: 0.85rem;
+}
+
+.dashboard-shop-outfit-card .dashboard-wardrobe-swatch {
+  transform: scale(0.86);
+}
+
+.dashboard-shop-outfit-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.22rem;
+}
+
+.dashboard-shop-outfit-copy strong {
+  color: #304536;
+  font-size: 0.9rem;
+}
+
+.dashboard-shop-outfit-copy small {
+  color: #78877d;
+  font-size: 0.72rem;
+  line-height: 1.45;
 }
 
 .dashboard-shop-music-card {
@@ -2343,6 +2543,7 @@ body {
 }
 
 .dashboard-shop-music-card button:disabled,
+.dashboard-shop-outfit-card button:disabled,
 .dashboard-shop-inventory-row button:disabled,
 .dashboard-shop-tabs button:disabled {
   cursor: wait;
@@ -2503,6 +2704,14 @@ body {
 
   .dashboard-shop-music-card {
     grid-template-columns: 2.8rem minmax(0, 1fr) auto;
+  }
+
+  .dashboard-shop-outfit-card {
+    grid-template-columns: 4.2rem minmax(0, 1fr) auto;
+  }
+
+  .dashboard-shop-outfit-card .dashboard-shop-buy-button {
+    grid-column: 2 / -1;
   }
 
   .dashboard-shop-preview-button,

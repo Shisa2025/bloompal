@@ -17,6 +17,10 @@ import {
   dashboardBedroomDoorStyle,
 } from "./dashboardBedroomDoor";
 import { loadDashboardCharacter } from "./dashboardCharacter";
+import {
+  defaultDashboardOutfitId,
+  type DashboardOutfitId,
+} from "./dashboardOutfits";
 
 const bugModelBaseUrl = "/meshes/bugs/";
 const flowerModelBaseUrl = "/meshes/flowers/";
@@ -50,6 +54,7 @@ export const dashboardBedroomExitPath = {
 const tablePotPosition = new THREE.Vector3(...dashboardTableDisplayPositions.flowerPot);
 
 type DashboardHomeSceneProps = {
+  outfitId?: DashboardOutfitId;
   caughtBugs?: DashboardBug[];
   embedded?: boolean;
   wallSnapshot?: { id: string; imageData: string } | null;
@@ -1249,6 +1254,7 @@ function addFruitBasket(parent: THREE.Group, fruits: { id: string; fruitKind: st
 }
 
 export default function DashboardHomeScene({
+  outfitId = defaultDashboardOutfitId,
   caughtBugs = [],
   embedded = false,
   wallSnapshot = null,
@@ -1271,11 +1277,20 @@ export default function DashboardHomeScene({
   const bedroomDoorHotspotRef = useRef<HTMLButtonElement>(null);
   const courtyardDoorActionRef = useRef<(() => void) | null>(null);
   const bedroomDoorActionRef = useRef<(() => void) | null>(null);
+  const outfitActionRef = useRef<
+    ((outfitId: DashboardOutfitId) => void) | null
+  >(null);
+  const outfitIdRef = useRef(outfitId);
   const isMusicPlayingRef = useRef(isMusicPlaying);
 
   useEffect(() => {
     isMusicPlayingRef.current = isMusicPlaying;
   }, [isMusicPlaying]);
+
+  useEffect(() => {
+    outfitIdRef.current = outfitId;
+    outfitActionRef.current?.(outfitId);
+  }, [outfitId]);
 
   const setup = useCallback((context: ThreeStageContext) => {
     const { scene, camera, reducedMotion, renderer } = context;
@@ -1348,12 +1363,14 @@ export default function DashboardHomeScene({
     };
     const maleCharacter = loadDashboardCharacter({
       initialAnimation: "sit",
+      initialOutfitId: outfitIdRef.current,
       name: "dashboard-sitting-character",
       onError: markCharacterReady,
       onReady: markCharacterReady,
       parent: root,
       position: characterPosition,
     });
+    outfitActionRef.current = maleCharacter.setOutfit;
     const orbitingBugs = loadOrbitingBugs({ parent: root, caughtBugs });
     const fruitBasket = addFruitBasket(root, fruits, () => { fruitModelsReady = true; reportSceneReady(); });
     const gramophone = addGramophone(root);
@@ -1657,6 +1674,9 @@ export default function DashboardHomeScene({
       onFrame,
       onResize,
       dispose: () => {
+        if (outfitActionRef.current === maleCharacter.setOutfit) {
+          outfitActionRef.current = null;
+        }
         maleCharacter.dispose();
         orbitingBugs.dispose();
         tablePot.dispose();

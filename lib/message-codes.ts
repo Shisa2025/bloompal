@@ -44,6 +44,8 @@ export const errorCodes = [
   "captureSceneFailed",
   "musicUnavailable",
   "musicAlreadyOwned",
+  "outfitUnavailable",
+  "outfitAlreadyOwned",
   "insufficientCoins",
   "assetUnavailable",
   "assetNotOwned",

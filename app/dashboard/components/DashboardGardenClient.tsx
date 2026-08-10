@@ -13,6 +13,14 @@ import DashboardPond from "./DashboardPond";
 import DashboardShopPreview from "./DashboardShopPreview";
 import DashboardBedroomScene from "./DashboardBedroomScene";
 import DashboardWardrobePreview from "./DashboardWardrobePreview";
+import {
+  defaultDashboardOutfitId,
+  getDashboardOutfitStorageKey,
+  isPurchasableDashboardOutfitId,
+  parseDashboardOutfitPreferences,
+  type DashboardOutfitId,
+  type PurchasableDashboardOutfitId,
+} from "./dashboardOutfits";
 import type { FishKind } from "@/lib/fish-assets";
 import {
   getCatalogAssetBySource,
@@ -69,13 +77,23 @@ export default function DashboardGardenClient({
   const [isPondOpen, setIsPondOpen] = useState(false);
   const [isShopOpen, setIsShopOpen] = useState(false);
   const [isWardrobeOpen, setIsWardrobeOpen] = useState(false);
+  const [selectedOutfitId, setSelectedOutfitId] =
+    useState<DashboardOutfitId>(defaultDashboardOutfitId);
   const [previewTrackId, setPreviewTrackId] = useState<MusicTrackId | null>(null);
   const [previewError, setPreviewError] = useState(false);
   const pendingDestinationRef = useRef<PendingDestination | null>(null);
   const sceneSwitchTimerRef = useRef<number | null>(null);
   const sceneFallbackTimerRef = useRef<number | null>(null);
   const sceneRevealTimerRef = useRef<number | null>(null);
+  const selectedOutfitIdRef = useRef<DashboardOutfitId>(
+    defaultDashboardOutfitId,
+  );
+  const activeOutfitStorageKeyRef = useRef<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const outfitStorageKey = useMemo(
+    () => getDashboardOutfitStorageKey(preferenceOwnerId),
+    [preferenceOwnerId],
+  );
   const selectedAsset =
     localSelection.serverAsset === tableFlowerAsset
       ? localSelection.asset
@@ -101,6 +119,46 @@ export default function DashboardGardenClient({
       );
     };
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (activeOutfitStorageKeyRef.current !== outfitStorageKey) {
+        activeOutfitStorageKeyRef.current = outfitStorageKey;
+        selectedOutfitIdRef.current = defaultDashboardOutfitId;
+      }
+      const sessionOutfitId = selectedOutfitIdRef.current;
+      const sessionOutfitIsAvailable =
+        sessionOutfitId === defaultDashboardOutfitId ||
+        (isPurchasableDashboardOutfitId(sessionOutfitId) &&
+          shopState.ownedOutfitIds.includes(sessionOutfitId));
+      try {
+        const storedPreferences = window.localStorage.getItem(outfitStorageKey);
+        const preferences = storedPreferences
+          ? parseDashboardOutfitPreferences(
+              storedPreferences,
+              shopState.ownedOutfitIds,
+            )
+          : {
+              outfitId: sessionOutfitIsAvailable
+                ? sessionOutfitId
+                : defaultDashboardOutfitId,
+            };
+        selectedOutfitIdRef.current = preferences.outfitId;
+        setSelectedOutfitId(preferences.outfitId);
+        window.localStorage.setItem(
+          outfitStorageKey,
+          JSON.stringify(preferences),
+        );
+      } catch {
+        const outfitId = sessionOutfitIsAvailable
+          ? sessionOutfitId
+          : defaultDashboardOutfitId;
+        selectedOutfitIdRef.current = outfitId;
+        setSelectedOutfitId(outfitId);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [outfitStorageKey, shopState.ownedOutfitIds]);
 
   const revealDestination = useCallback(() => {
     const pending = pendingDestinationRef.current;
@@ -181,6 +239,39 @@ export default function DashboardGardenClient({
       0,
     );
   }, []);
+  const equipOutfit = useCallback(
+    (outfitId: DashboardOutfitId) => {
+      selectedOutfitIdRef.current = outfitId;
+      setSelectedOutfitId(outfitId);
+      try {
+        window.localStorage.setItem(
+          outfitStorageKey,
+          JSON.stringify({ outfitId }),
+        );
+      } catch {
+        // The selection still applies for this session when storage is unavailable.
+      }
+    },
+    [outfitStorageKey],
+  );
+  const chooseOutfit = useCallback(
+    (outfitId: DashboardOutfitId) => {
+      if (
+        outfitId !== defaultDashboardOutfitId &&
+        (!isPurchasableDashboardOutfitId(outfitId) ||
+          !shopState.ownedOutfitIds.includes(outfitId))
+      ) {
+        return;
+      }
+      equipOutfit(outfitId);
+      closeWardrobe();
+    },
+    [closeWardrobe, equipOutfit, shopState.ownedOutfitIds],
+  );
+  const equipPurchasedOutfit = useCallback(
+    (outfitId: PurchasableDashboardOutfitId) => equipOutfit(outfitId),
+    [equipOutfit],
+  );
   const beginRoomJourney = useCallback(
     (destination: "courtyard" | "bedroom") => beginSceneJourney(destination),
     [beginSceneJourney],
@@ -331,6 +422,7 @@ export default function DashboardGardenClient({
     <>
       {sceneLocation === "room" ? (
         <DashboardHomeScene
+          outfitId={selectedOutfitId}
           caughtBugs={activeBugs}
           wallSnapshot={activeSnapshot}
           tableFlowerAsset={selectedAsset}
@@ -349,6 +441,7 @@ export default function DashboardGardenClient({
       ) : sceneLocation === "courtyard" ? (
         <DashboardCourtyardScene
           fish={caughtFish}
+          outfitId={selectedOutfitId}
           onMerchantClick={openShop}
           onPondClick={openPond}
           onReturnComplete={returnFromCourtyard}
@@ -357,6 +450,7 @@ export default function DashboardGardenClient({
         />
       ) : (
         <DashboardBedroomScene
+          outfitId={selectedOutfitId}
           onReturnComplete={returnFromBedroom}
           onReturnTransitionStart={beginReturnJourney}
           onSceneReady={revealDestination}
@@ -398,14 +492,19 @@ export default function DashboardGardenClient({
       <DashboardShopPreview
         isOpen={isShopOpen}
         onClose={closeShop}
+        onOutfitPurchased={equipPurchasedOutfit}
         onPreviewTrack={previewShopTrack}
         previewError={previewError}
         previewTrackId={previewTrackId}
+        selectedOutfitId={selectedOutfitId}
         shopState={shopState}
       />
       <DashboardWardrobePreview
         isOpen={isWardrobeOpen}
         onClose={closeWardrobe}
+        onSelectOutfit={chooseOutfit}
+        ownedOutfitIds={shopState.ownedOutfitIds}
+        selectedOutfitId={selectedOutfitId}
       />
 
       {isFruitBasketOpen ? <div className="dashboard-table-flower-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isPending) setIsFruitBasketOpen(false); }}><section className="dashboard-table-flower-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboard-fruit-title"><div className="dashboard-table-flower-heading"><p>{t("fruitBasket")}</p><h2 id="dashboard-fruit-title">{t("yourHarvest")}</h2></div>{fruits.length ? <div className="dashboard-fruit-grid">{fruits.map((fruit) => { const fruitName = getAssetName("fruit", fruit.fruitKind); return <div className="dashboard-fruit-item" key={fruit.id}><FruitArt kind={fruit.fruitKind as FruitArtKind} label={fruitName} /><strong>{fruitName}</strong><button disabled={isPending} onClick={() => removeFruit(fruit.id)} type="button">{t("throwAway")}</button></div>; })}</div> : <div className="dashboard-table-flower-empty"><BasketArt className="dashboard-empty-basket" label={t("emptyBasket")} /><strong>{t("basketEmpty")}</strong><p>{t("fillBasketHint")}</p><Link className="dashboard-game-button" href="/games/pluckfruit">{t("pluckFruit")}</Link></div>}{actionError ? <p className="dashboard-table-flower-error">{actionError}</p> : null}<div className="dashboard-table-flower-actions"><button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setIsFruitBasketOpen(false)}>{t("close")}</button></div></section></div> : null}

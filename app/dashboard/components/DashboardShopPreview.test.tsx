@@ -7,11 +7,14 @@ vi.mock("@/i18n/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn() }),
 }));
 vi.mock("../actions", () => ({
+  buyDashboardOutfit: vi.fn(),
   buyMusicTrack: vi.fn(),
   sellShopResource: vi.fn(),
 }));
 
-import DashboardShopPreview from "./DashboardShopPreview";
+import DashboardShopPreview, {
+  DashboardShopOutfitList,
+} from "./DashboardShopPreview";
 
 describe("DashboardShopPreview", () => {
   it("renders the registered music catalog, prices, ownership, and tabs", () => {
@@ -20,12 +23,14 @@ describe("DashboardShopPreview", () => {
         <DashboardShopPreview
           isOpen
           onClose={vi.fn()}
+          onOutfitPurchased={vi.fn()}
           onPreviewTrack={vi.fn()}
           previewError={false}
           previewTrackId={null}
           shopState={{
             coinBalance: 10,
             ownedMusicIds: ["dream"],
+            ownedOutfitIds: [],
             inventory: [
               {
                 assetId: "flower-rose-puff",
@@ -34,6 +39,7 @@ describe("DashboardShopPreview", () => {
               },
             ],
           }}
+          selectedOutfitId="base"
         />
       </NextIntlClientProvider>,
     );
@@ -47,6 +53,8 @@ describe("DashboardShopPreview", () => {
     expect(markup).toContain("Owned");
     expect(markup).toContain('role="tablist"');
     expect(markup).toContain('aria-controls="dashboard-shop-sell-panel"');
+    expect(markup).toContain('aria-controls="dashboard-shop-outfits-panel"');
+    expect(markup).toContain("Buy outfits");
     expect(markup).toContain("10 coins");
   });
 
@@ -56,14 +64,41 @@ describe("DashboardShopPreview", () => {
         <DashboardShopPreview
           isOpen={false}
           onClose={vi.fn()}
+          onOutfitPurchased={vi.fn()}
           onPreviewTrack={vi.fn()}
           previewError={false}
           previewTrackId={null}
-          shopState={{ coinBalance: 0, ownedMusicIds: [], inventory: [] }}
+          selectedOutfitId="base"
+          shopState={{
+            coinBalance: 0,
+            ownedMusicIds: [],
+            ownedOutfitIds: [],
+            inventory: [],
+          }}
         />
       </NextIntlClientProvider>,
     );
 
     expect(markup).toBe("");
+  });
+
+  it("renders purchasable outfits with ownership, price, and equip state", () => {
+    const markup = renderToStaticMarkup(
+      <NextIntlClientProvider locale="en-SG" messages={messages}>
+        <DashboardShopOutfitList
+          coinBalance={10}
+          isPending={false}
+          onPurchase={vi.fn()}
+          ownedOutfitIds={["moss-cardigan"]}
+          selectedOutfitId="moss-cardigan"
+        />
+      </NextIntlClientProvider>,
+    );
+
+    expect(markup.match(/dashboard-shop-outfit-card/g)).toHaveLength(2);
+    expect(markup).toContain("Sage green cardigan");
+    expect(markup).toContain("Honey yellow raincoat");
+    expect(markup).toContain("Wearing now");
+    expect(markup).toContain("Buy for 10 coins");
   });
 });

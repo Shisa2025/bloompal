@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import * as THREE from "three";
 import {
@@ -15,6 +15,10 @@ import {
   dashboardBedroomDoorStyle,
 } from "./dashboardBedroomDoor";
 import { loadDashboardCharacter } from "./dashboardCharacter";
+import {
+  defaultDashboardOutfitId,
+  type DashboardOutfitId,
+} from "./dashboardOutfits";
 
 export const bedroomPositions = {
   door: [6.02, 0, -2.85],
@@ -34,6 +38,7 @@ export const bedroomBedInteraction = {
 } as const;
 
 type DashboardBedroomSceneProps = {
+  outfitId?: DashboardOutfitId;
   onReturnComplete?: () => void;
   onReturnTransitionStart?: () => void;
   onSceneReady?: () => void;
@@ -283,6 +288,7 @@ export function addBedroomDoor(parent: THREE.Group): BedroomDoor {
 }
 
 export default function DashboardBedroomScene({
+  outfitId = defaultDashboardOutfitId,
   onReturnComplete,
   onReturnTransitionStart,
   onSceneReady,
@@ -294,7 +300,16 @@ export default function DashboardBedroomScene({
   const wardrobeHotspotRef = useRef<HTMLButtonElement>(null);
   const returnActionRef = useRef<(() => void) | null>(null);
   const bedActionRef = useRef<(() => void) | null>(null);
+  const outfitActionRef = useRef<
+    ((outfitId: DashboardOutfitId) => void) | null
+  >(null);
+  const outfitIdRef = useRef(outfitId);
   const [isResting, setIsResting] = useState(false);
+
+  useEffect(() => {
+    outfitIdRef.current = outfitId;
+    outfitActionRef.current?.(outfitId);
+  }, [outfitId]);
 
   const setup = useCallback((context: ThreeStageContext) => {
     const { camera, reducedMotion, renderer, scene } = context;
@@ -391,12 +406,14 @@ export default function DashboardBedroomScene({
     };
     const character = loadDashboardCharacter({
       initialAnimation: reducedMotion ? "idle" : "walk",
+      initialOutfitId: outfitIdRef.current,
       name: "dashboard-bedroom-character",
       onError: markCharacterError,
       onReady: markCharacterReady,
       parent: root,
       position: entryPosition,
     });
+    outfitActionRef.current = character.setOutfit;
 
     const beginBedAction = () => {
       if (characterUnavailable || !character.isReady()) return;
@@ -639,6 +656,9 @@ export default function DashboardBedroomScene({
 
     return {
       dispose: () => {
+        if (outfitActionRef.current === character.setOutfit) {
+          outfitActionRef.current = null;
+        }
         character.dispose();
         renderer.domElement.removeEventListener("pointermove", onPointerMove);
         renderer.domElement.removeEventListener("pointerdown", onPointerDown);

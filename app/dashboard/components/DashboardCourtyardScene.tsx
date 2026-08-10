@@ -13,6 +13,10 @@ import {
 } from "@/app/components/threejs";
 import { getFishAssetPath, type FishKind } from "@/lib/fish-assets";
 import { loadDashboardCharacter } from "./dashboardCharacter";
+import {
+  defaultDashboardOutfitId,
+  type DashboardOutfitId,
+} from "./dashboardOutfits";
 
 export const rabbitMerchantModelUrl = "/meshes/characters/rabbit_merchant.glb";
 
@@ -44,6 +48,7 @@ type CourtyardFish = { id: string; fishKind: FishKind };
 
 type DashboardCourtyardSceneProps = {
   fish: CourtyardFish[];
+  outfitId?: DashboardOutfitId;
   onMerchantClick?: () => void;
   onPondClick?: () => void;
   onReturnComplete?: () => void;
@@ -212,15 +217,73 @@ export function addCourtyardDoor(parent: THREE.Group) {
     metalness: 0.46,
     roughness: 0.38,
   });
+  const roomPreviewMaterial = new THREE.ShaderMaterial({
+    depthWrite: true,
+    fragmentShader: `
+      varying vec2 vUv;
+      void main() {
+        float floorLine = smoothstep(0.27, 0.39, vUv.y);
+        vec3 floorColour = mix(
+          vec3(0.48, 0.33, 0.23),
+          vec3(0.69, 0.51, 0.35),
+          vUv.y * 2.1
+        );
+        vec3 wallColour = mix(
+          vec3(0.88, 0.82, 0.70),
+          vec3(0.98, 0.91, 0.77),
+          vUv.y
+        );
+        vec3 colour = mix(floorColour, wallColour, floorLine);
+
+        vec2 rugPoint = (vUv - vec2(0.5, 0.19)) * vec2(1.05, 2.7);
+        float rug = 1.0 - smoothstep(0.2, 0.72, dot(rugPoint, rugPoint));
+        colour = mix(colour, vec3(0.73, 0.58, 0.42), rug * 0.55);
+
+        float table = smoothstep(0.12, 0.2, vUv.x) *
+          (1.0 - smoothstep(0.82, 0.9, vUv.x));
+        table *= smoothstep(0.34, 0.4, vUv.y) *
+          (1.0 - smoothstep(0.5, 0.57, vUv.y));
+        colour = mix(colour, vec3(0.38, 0.25, 0.17), table * 0.82);
+
+        float windowGlow = smoothstep(0.55, 0.63, vUv.x) *
+          (1.0 - smoothstep(0.88, 0.94, vUv.x));
+        windowGlow *= smoothstep(0.62, 0.69, vUv.y) *
+          (1.0 - smoothstep(0.91, 0.96, vUv.y));
+        colour = mix(colour, vec3(0.82, 0.92, 0.89), windowGlow * 0.78);
+
+        float warmGlow = exp(
+          -dot(vUv - vec2(0.25, 0.58), vUv - vec2(0.25, 0.58)) * 28.0
+        );
+        colour += vec3(0.16, 0.1, 0.035) * warmGlow;
+        gl_FragColor = vec4(colour, 1.0);
+      }
+    `,
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+  });
+
+  const roomPreview = createMesh(
+    new THREE.PlaneGeometry(1.34, 2.58),
+    roomPreviewMaterial,
+    { position: [0, 1.29, -0.055] },
+  );
+  roomPreview.name = "dashboard-courtyard-room-preview";
 
   const pivot = new THREE.Group();
   pivot.name = "dashboard-courtyard-door-leaf";
   pivot.position.set(-0.67, 0, 0.08);
+  const doorPanel = createBox([1.34, 2.58, 0.12], wood, {
+    position: [0.67, 1.29, 0],
+    castShadow: true,
+  });
+  doorPanel.name = "dashboard-courtyard-door-panel";
   pivot.add(
-    createBox([1.34, 2.58, 0.12], wood, {
-      position: [0.67, 1.29, 0],
-      castShadow: true,
-    }),
+    doorPanel,
     createBox([0.88, 0.78, 0.04], inset, {
       position: [0.67, 1.84, 0.075],
       castShadow: true,
@@ -236,6 +299,7 @@ export function addCourtyardDoor(parent: THREE.Group) {
   );
 
   group.add(
+    roomPreview,
     pivot,
     createBox([1.64, 0.17, 0.2], trim, {
       position: [0, 2.65, 0.12],
@@ -551,6 +615,7 @@ export function addCourtyardMerchant(
 
 export default function DashboardCourtyardScene({
   fish,
+  outfitId = defaultDashboardOutfitId,
   onMerchantClick,
   onPondClick,
   onReturnComplete,
@@ -564,10 +629,19 @@ export default function DashboardCourtyardScene({
   const returnActionRef = useRef<(() => void) | null>(null);
   const pondFishSyncRef = useRef<((nextFish: CourtyardFish[]) => void) | null>(null);
   const initialFishRef = useRef(fish);
+  const outfitActionRef = useRef<
+    ((outfitId: DashboardOutfitId) => void) | null
+  >(null);
+  const outfitIdRef = useRef(outfitId);
 
   useEffect(() => {
     pondFishSyncRef.current?.(fish);
   }, [fish]);
+
+  useEffect(() => {
+    outfitIdRef.current = outfitId;
+    outfitActionRef.current?.(outfitId);
+  }, [outfitId]);
 
   const setup = useCallback((context: ThreeStageContext) => {
     const { camera, reducedMotion, renderer, scene } = context;
@@ -637,12 +711,14 @@ export default function DashboardCourtyardScene({
     };
     const character = loadDashboardCharacter({
       initialAnimation: reducedMotion ? "idle" : "walk",
+      initialOutfitId: outfitIdRef.current,
       name: "dashboard-courtyard-character",
       onError: markCharacterSettled,
       onReady: markCharacterSettled,
       parent: root,
       position: characterEntryPosition,
     });
+    outfitActionRef.current = character.setOutfit;
 
     const beginReturn = () => {
       if (!onReturnComplete || characterState === "returning" || returnCompleted) {
@@ -815,6 +891,9 @@ export default function DashboardCourtyardScene({
         courtyardPond.dispose();
         if (pondFishSyncRef.current === courtyardPond.setFish) {
           pondFishSyncRef.current = null;
+        }
+        if (outfitActionRef.current === character.setOutfit) {
+          outfitActionRef.current = null;
         }
         character.dispose();
         renderer.domElement.removeEventListener("pointermove", onPointerMove);

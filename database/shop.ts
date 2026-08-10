@@ -12,6 +12,11 @@ import {
   type ShopInventoryItem,
   type ShopState,
 } from "../lib/asset-catalog";
+import {
+  getPurchasableDashboardOutfit,
+  isPurchasableDashboardOutfitId,
+  type PurchasableDashboardOutfitId,
+} from "../lib/dashboard-outfits";
 import { sql, withTransaction, type DatabaseClient } from "./connection";
 
 type SellableCategory = ShopInventoryItem["category"];
@@ -38,6 +43,14 @@ export function ensureShopTables() {
         )
       `);
       await client.query(`
+        CREATE TABLE IF NOT EXISTS user_outfits (
+          userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
+          outfit_id VARCHAR(80) NOT NULL,
+          purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (userid, outfit_id)
+        )
+      `);
+      await client.query(`
         CREATE TABLE IF NOT EXISTS asset_sales (
           id TEXT PRIMARY KEY,
           userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
@@ -55,11 +68,19 @@ export function ensureShopTables() {
           userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
           amount INTEGER NOT NULL CHECK (amount <> 0),
           balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
-          reason VARCHAR(32) NOT NULL CHECK (reason IN ('purchase_music', 'sell_asset')),
+          reason VARCHAR(32) NOT NULL CHECK (reason IN ('purchase_music', 'purchase_outfit', 'sell_asset')),
           reference_id TEXT NOT NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           UNIQUE (userid, reason, reference_id)
         )
+      `);
+      await client.query(
+        "ALTER TABLE coin_transactions DROP CONSTRAINT IF EXISTS coin_transactions_reason_check",
+      );
+      await client.query(`
+        ALTER TABLE coin_transactions
+        ADD CONSTRAINT coin_transactions_reason_check
+        CHECK (reason IN ('purchase_music', 'purchase_outfit', 'sell_asset'))
       `);
       await client.query(
         "CREATE INDEX IF NOT EXISTS asset_sales_userid_asset_idx ON asset_sales(userid, asset_id, sold_at)",
@@ -79,13 +100,17 @@ export function ensureShopTables() {
 
 export async function getShopState(userid: string): Promise<ShopState> {
   await ensureShopTables();
-  const [walletRows, musicRows, inventoryRows] = await Promise.all([
+  const [walletRows, musicRows, outfitRows, inventoryRows] = await Promise.all([
     sql.query<{ balance: number }>(
       "SELECT balance FROM user_wallets WHERE userid = $1",
       [userid],
     ),
     sql.query<{ track_id: string }>(
       "SELECT track_id FROM user_music WHERE userid = $1 ORDER BY purchased_at ASC",
+      [userid],
+    ),
+    sql.query<{ outfit_id: string }>(
+      "SELECT outfit_id FROM user_outfits WHERE userid = $1 ORDER BY purchased_at ASC",
       [userid],
     ),
     sql.query<{ category: SellableCategory; source_value: string; quantity: string | number }>(
@@ -123,6 +148,9 @@ export async function getShopState(userid: string): Promise<ShopState> {
     ownedMusicIds: musicRows.flatMap((row) =>
       isMusicTrackId(row.track_id) ? [row.track_id] : [],
     ),
+    ownedOutfitIds: outfitRows.flatMap((row) =>
+      isPurchasableDashboardOutfitId(row.outfit_id) ? [row.outfit_id] : [],
+    ),
     inventory: inventoryRows.flatMap((row) => {
       const asset = getCatalogAssetBySource(row.category, row.source_value);
       return asset && getSellableAsset(asset.id)
@@ -136,6 +164,67 @@ export async function getShopState(userid: string): Promise<ShopState> {
         : [];
     }),
   };
+}
+
+export async function purchaseOutfit({
+  userid,
+  outfitId,
+}: {
+  userid: string;
+  outfitId: string;
+}): Promise<
+  | {
+      ok: true;
+      coinBalance: number;
+      outfitId: PurchasableDashboardOutfitId;
+    }
+  | { ok: false; reason: "invalid" | "already_owned" | "insufficient_coins" }
+> {
+  const outfit = getPurchasableDashboardOutfit(outfitId);
+  if (!outfit || !isPurchasableDashboardOutfitId(outfit.id)) {
+    return { ok: false, reason: "invalid" };
+  }
+
+  await ensureShopTables();
+  return withTransaction(async (client) => {
+    await ensureWalletRow(client, userid);
+    const walletRows = await client.query<{ balance: number }>(
+      "SELECT balance FROM user_wallets WHERE userid = $1 FOR UPDATE",
+      [userid],
+    );
+    const currentBalance = Number(walletRows[0]?.balance ?? 0);
+    const ownedRows = await client.query<{ outfit_id: string }>(
+      "SELECT outfit_id FROM user_outfits WHERE userid = $1 AND outfit_id = $2",
+      [userid, outfit.id],
+    );
+    if (ownedRows.length > 0) {
+      return { ok: false as const, reason: "already_owned" as const };
+    }
+    if (currentBalance < outfit.buyPrice) {
+      return { ok: false as const, reason: "insufficient_coins" as const };
+    }
+
+    await client.query(
+      "INSERT INTO user_outfits (userid, outfit_id) VALUES ($1, $2)",
+      [userid, outfit.id],
+    );
+    const balanceRows = await client.query<{ balance: number }>(
+      "UPDATE user_wallets SET balance = balance - $2, updated_at = NOW() WHERE userid = $1 RETURNING balance",
+      [userid, outfit.buyPrice],
+    );
+    const coinBalance = Number(balanceRows[0].balance);
+    await client.query(
+      `INSERT INTO coin_transactions (id, userid, amount, balance_after, reason, reference_id)
+       VALUES ($1, $2, $3, $4, 'purchase_outfit', $5)`,
+      [randomUUID(), userid, -outfit.buyPrice, coinBalance, outfit.id],
+    );
+
+    return {
+      ok: true as const,
+      coinBalance,
+      outfitId: outfit.id,
+    };
+  });
 }
 
 export async function purchaseMusic({

@@ -15,6 +15,7 @@ import {
   ensureShopTables,
   getShopState,
   purchaseMusic,
+  purchaseOutfit,
   sellResource,
 } from "./shop";
 
@@ -34,6 +35,12 @@ describe("shop database operations", () => {
       if (text.includes("SELECT track_id FROM user_music")) {
         return [{ track_id: "dream" }, { track_id: "removed-track" }];
       }
+      if (text.includes("SELECT outfit_id FROM user_outfits")) {
+        return [
+          { outfit_id: "moss-cardigan" },
+          { outfit_id: "removed-outfit" },
+        ];
+      }
       if (text.includes("UNION ALL")) {
         return [
           { category: "flower", source_value: "flower1.glb", quantity: "2" },
@@ -47,11 +54,78 @@ describe("shop database operations", () => {
     await expect(getShopState("user-1")).resolves.toEqual({
       coinBalance: 0,
       ownedMusicIds: ["dream"],
+      ownedOutfitIds: ["moss-cardigan"],
       inventory: [
         { assetId: "flower-rose-puff", category: "flower", quantity: 2 },
         { assetId: "fish-moonfin-blue", category: "fish", quantity: 1 },
       ],
     });
+  });
+
+  it("rejects an unknown outfit ID before touching the database", async () => {
+    await expect(
+      purchaseOutfit({ userid: "user-1", outfitId: "made-up-outfit" }),
+    ).resolves.toEqual({ ok: false, reason: "invalid" });
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
+  it("does not debit an insufficient wallet for an outfit", async () => {
+    queryMock.mockImplementation(async (text: string) => {
+      if (text.includes("SELECT balance") && text.includes("FOR UPDATE")) {
+        return [{ balance: 9 }];
+      }
+      if (text.includes("SELECT outfit_id FROM user_outfits")) return [];
+      return [];
+    });
+
+    await expect(
+      purchaseOutfit({ userid: "user-1", outfitId: "honey-raincoat" }),
+    ).resolves.toEqual({ ok: false, reason: "insufficient_coins" });
+    expect(callsContaining("INSERT INTO user_outfits")).toHaveLength(0);
+    expect(callsContaining("balance = balance -")).toHaveLength(0);
+  });
+
+  it("prevents a duplicate outfit purchase without a second debit", async () => {
+    queryMock.mockImplementation(async (text: string) => {
+      if (text.includes("SELECT balance") && text.includes("FOR UPDATE")) {
+        return [{ balance: 20 }];
+      }
+      if (text.includes("SELECT outfit_id FROM user_outfits")) {
+        return [{ outfit_id: "moss-cardigan" }];
+      }
+      return [];
+    });
+
+    await expect(
+      purchaseOutfit({ userid: "user-1", outfitId: "moss-cardigan" }),
+    ).resolves.toEqual({ ok: false, reason: "already_owned" });
+    expect(callsContaining("balance = balance -")).toHaveLength(0);
+  });
+
+  it("purchases an outfit under a wallet lock and writes an audit record", async () => {
+    queryMock.mockImplementation(async (text: string) => {
+      if (text.includes("SELECT balance") && text.includes("FOR UPDATE")) {
+        return [{ balance: 14 }];
+      }
+      if (text.includes("SELECT outfit_id FROM user_outfits")) return [];
+      if (text.includes("UPDATE user_wallets SET balance = balance -")) {
+        return [{ balance: 4 }];
+      }
+      return [];
+    });
+
+    await expect(
+      purchaseOutfit({ userid: "user-1", outfitId: "honey-raincoat" }),
+    ).resolves.toEqual({
+      ok: true,
+      coinBalance: 4,
+      outfitId: "honey-raincoat",
+    });
+    expect(callsContaining("FOR UPDATE")).toHaveLength(1);
+    expect(callsContaining("INSERT INTO user_outfits")).toHaveLength(1);
+    expect(callsContaining("'purchase_outfit'")[0]?.[1]).toEqual(
+      expect.arrayContaining(["user-1", -10, 4, "honey-raincoat"]),
+    );
   });
 
   it("rejects an unknown music ID before touching the database", async () => {

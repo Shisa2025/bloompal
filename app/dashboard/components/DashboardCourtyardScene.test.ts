@@ -54,6 +54,29 @@ describe("dashboard courtyard", () => {
     ).toBeTruthy();
   });
 
+  it("shows a soft room preview behind the open courtyard door", () => {
+    const parent = new THREE.Group();
+    const door = addCourtyardDoor(parent);
+    const preview = door.object.getObjectByName(
+      "dashboard-courtyard-room-preview",
+    ) as THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+    const panel = door.object.getObjectByName(
+      "dashboard-courtyard-door-panel",
+    );
+
+    expect(preview).toBeTruthy();
+    expect(preview.material).toBeInstanceOf(THREE.ShaderMaterial);
+    expect(preview.geometry.parameters.width).toBeCloseTo(1.34);
+    expect(preview.geometry.parameters.height).toBeCloseTo(2.58);
+    expect(preview.position.z).toBeLessThan(0.08);
+    expect(preview.position.z).toBeGreaterThan(-0.19);
+    expect(preview.material.fragmentShader).toContain("windowGlow");
+    expect(preview.material.fragmentShader).toContain("table");
+
+    door.update(1);
+    expect(panel?.parent?.rotation.y).toBeGreaterThan(1);
+  });
+
   it("loads the user-provided rabbit merchant and loops its idle animation", () => {
     expect(rabbitMerchantModelUrl).toBe(
       "/meshes/characters/rabbit_merchant.glb",

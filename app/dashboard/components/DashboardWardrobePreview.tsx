@@ -2,15 +2,26 @@
 
 import { useEffect, useRef, type MouseEvent } from "react";
 import { useTranslations } from "next-intl";
+import {
+  dashboardOutfits,
+  type DashboardOutfitId,
+  type PurchasableDashboardOutfitId,
+} from "./dashboardOutfits";
 
 type DashboardWardrobePreviewProps = {
   isOpen: boolean;
   onClose: () => void;
+  onSelectOutfit: (outfitId: DashboardOutfitId) => void;
+  ownedOutfitIds: readonly PurchasableDashboardOutfitId[];
+  selectedOutfitId: DashboardOutfitId;
 };
 
 export default function DashboardWardrobePreview({
   isOpen,
   onClose,
+  onSelectOutfit,
+  ownedOutfitIds,
+  selectedOutfitId,
 }: DashboardWardrobePreviewProps) {
   const t = useTranslations("Dashboard");
   const dialogRef = useRef<HTMLElement>(null);
@@ -83,8 +94,48 @@ export default function DashboardWardrobePreview({
         </div>
         <div className="dashboard-table-flower-heading">
           <p>{t("bedroomWardrobe")}</p>
-          <h2 id="dashboard-wardrobe-title">{t("wardrobeComingSoon")}</h2>
-          <span>{t("wardrobeComingSoonHint")}</span>
+          <h2 id="dashboard-wardrobe-title">{t("wardrobeChooseOutfit")}</h2>
+          <span>{t("wardrobeChooseOutfitHint")}</span>
+        </div>
+        <div className="dashboard-wardrobe-grid">
+          {dashboardOutfits
+            .filter(
+              (outfit) =>
+                !outfit.ownable || ownedOutfitIds.includes(outfit.id),
+            )
+            .map((outfit) => {
+            const isSelected = outfit.id === selectedOutfitId;
+            return (
+              <button
+                aria-pressed={isSelected}
+                className={[
+                  "dashboard-wardrobe-option",
+                  isSelected ? "is-selected" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                key={outfit.id}
+                onClick={() => onSelectOutfit(outfit.id)}
+                type="button"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`dashboard-wardrobe-swatch is-${outfit.id}`}
+                >
+                  <span className="dashboard-wardrobe-swatch-body" />
+                  <span className="dashboard-wardrobe-swatch-sleeve is-left" />
+                  <span className="dashboard-wardrobe-swatch-sleeve is-right" />
+                </span>
+                <span className="dashboard-wardrobe-option-copy">
+                  <strong>{t(outfit.nameKey)}</strong>
+                  <span>{t(outfit.descriptionKey)}</span>
+                  <small>
+                    {isSelected ? t("outfitEquipped") : t("equipOutfit")}
+                  </small>
+                </span>
+              </button>
+            );
+            })}
         </div>
         <div className="dashboard-table-flower-actions">
           <button

@@ -1,6 +1,11 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { disposeObject3D } from "@/app/components/threejs";
+import { createDashboardCharacterOutfit } from "./dashboardCharacterOutfit";
+import {
+  defaultDashboardOutfitId,
+  type DashboardOutfitId,
+} from "./dashboardOutfits";
 
 const characterModelUrl = "/meshes/characters/male.glb";
 const characterHeight = 1.92;
@@ -17,11 +22,13 @@ export type DashboardCharacterController = {
     animation: DashboardCharacterAnimation,
     options?: { fadeDuration?: number; loopOnce?: boolean },
   ) => number;
+  setOutfit: (outfitId: DashboardOutfitId) => void;
   update: (delta: number) => void;
 };
 
 export function loadDashboardCharacter({
   initialAnimation,
+  initialOutfitId = defaultDashboardOutfitId,
   name,
   onError,
   onReady,
@@ -29,6 +36,7 @@ export function loadDashboardCharacter({
   position,
 }: {
   initialAnimation: DashboardCharacterAnimation;
+  initialOutfitId?: DashboardOutfitId;
   name: string;
   onError?: () => void;
   onReady?: () => void;
@@ -40,6 +48,8 @@ export function loadDashboardCharacter({
   let currentAction: THREE.AnimationAction | null = null;
   let character: THREE.Group | null = null;
   let mixer: THREE.AnimationMixer | null = null;
+  let outfitController: ReturnType<typeof createDashboardCharacterOutfit> = null;
+  let requestedOutfitId = initialOutfitId;
   let disposed = false;
 
   const findClip = (
@@ -59,6 +69,10 @@ export function loadDashboardCharacter({
 
       configureCharacterModel(gltf.scene);
       frameCharacterModel(gltf.scene);
+      outfitController = createDashboardCharacterOutfit(
+        gltf.scene,
+        requestedOutfitId,
+      );
 
       character = new THREE.Group();
       character.name = name;
@@ -87,6 +101,8 @@ export function loadDashboardCharacter({
   return {
     dispose: () => {
       disposed = true;
+      outfitController?.dispose();
+      outfitController = null;
       if (character) parent.remove(character);
       if (mixer && character?.children[0]) mixer.uncacheRoot(character.children[0]);
     },
@@ -126,6 +142,10 @@ export function loadDashboardCharacter({
       currentAction = nextAction;
 
       return nextAction.getClip().duration;
+    },
+    setOutfit: (outfitId) => {
+      requestedOutfitId = outfitId;
+      outfitController?.setOutfit(outfitId);
     },
     update: (delta) => mixer?.update(delta),
   };

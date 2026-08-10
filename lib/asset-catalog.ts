@@ -1,3 +1,5 @@
+import type { PurchasableDashboardOutfitId } from "./dashboard-outfits";
+
 export const assetCategories = [
   "flower",
   "bug",
@@ -131,6 +133,7 @@ export type ShopInventoryItem = {
 export type ShopState = {
   coinBalance: number;
   ownedMusicIds: MusicTrackId[];
+  ownedOutfitIds: PurchasableDashboardOutfitId[];
   inventory: ShopInventoryItem[];
 };
 

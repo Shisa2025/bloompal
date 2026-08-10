@@ -254,6 +254,14 @@ try {
     )
   `);
   await client.query(`
+    CREATE TABLE IF NOT EXISTS user_outfits (
+      userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
+      outfit_id VARCHAR(80) NOT NULL,
+      purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (userid, outfit_id)
+    )
+  `);
+  await client.query(`
     CREATE TABLE IF NOT EXISTS asset_sales (
       id TEXT PRIMARY KEY,
       userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
@@ -271,11 +279,17 @@ try {
       userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
       amount INTEGER NOT NULL CHECK (amount <> 0),
       balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
-      reason VARCHAR(32) NOT NULL CHECK (reason IN ('purchase_music', 'sell_asset')),
+      reason VARCHAR(32) NOT NULL CHECK (reason IN ('purchase_music', 'purchase_outfit', 'sell_asset')),
       reference_id TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       UNIQUE (userid, reason, reference_id)
     )
+  `);
+  await client.query("ALTER TABLE coin_transactions DROP CONSTRAINT IF EXISTS coin_transactions_reason_check");
+  await client.query(`
+    ALTER TABLE coin_transactions
+    ADD CONSTRAINT coin_transactions_reason_check
+    CHECK (reason IN ('purchase_music', 'purchase_outfit', 'sell_asset'))
   `);
   await client.query("CREATE INDEX IF NOT EXISTS asset_sales_userid_asset_idx ON asset_sales(userid, asset_id, sold_at)");
   await client.query("CREATE INDEX IF NOT EXISTS coin_transactions_userid_created_idx ON coin_transactions(userid, created_at DESC)");

@@ -16,9 +16,11 @@ import { redirect } from "@/i18n/navigation";
 import { getLocalizedPath } from "@/i18n/server";
 import type { ErrorCode } from "@/lib/message-codes";
 import {
+  purchaseOutfit as purchaseOutfitRecord,
   purchaseMusic as purchaseMusicRecord,
   sellResource as sellResourceRecord,
 } from "@/database/shop";
+import type { PurchasableDashboardOutfitId } from "@/lib/dashboard-outfits";
 
 export type TableFlowerActionResult =
   | { ok: true; tableFlowerAsset: string | null }
@@ -134,6 +136,38 @@ export async function buyMusicTrack(
     return result;
   } catch (error) {
     console.error("Failed to purchase dashboard music.", error);
+    return { ok: false, errorCode: "shopTransactionFailed" };
+  }
+}
+
+export async function buyDashboardOutfit(
+  outfitId: string,
+): Promise<
+  | {
+      ok: true;
+      coinBalance: number;
+      outfitId: PurchasableDashboardOutfitId;
+    }
+  | { ok: false; errorCode: ErrorCode }
+> {
+  const { userid } = await requireUser();
+
+  try {
+    const result = await purchaseOutfitRecord({ userid, outfitId });
+    if (!result.ok) {
+      const errorCode: ErrorCode =
+        result.reason === "already_owned"
+          ? "outfitAlreadyOwned"
+          : result.reason === "insufficient_coins"
+            ? "insufficientCoins"
+            : "outfitUnavailable";
+      return { ok: false, errorCode };
+    }
+
+    revalidatePath(await getLocalizedPath("/dashboard"));
+    return result;
+  } catch (error) {
+    console.error("Failed to purchase dashboard outfit.", error);
     return { ok: false, errorCode: "shopTransactionFailed" };
   }
 }
