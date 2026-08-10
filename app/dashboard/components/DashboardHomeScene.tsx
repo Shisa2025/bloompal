@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import {
@@ -30,7 +31,12 @@ const cameraTarget = new THREE.Vector3(0, 1.7, -2.6);
 const characterPosition = new THREE.Vector3(0.2, 0, 1.25);
 const snapshotCameraTarget = new THREE.Vector3(characterPosition.x, 1.55, characterPosition.z);
 const characterLookTarget = new THREE.Vector3();
-const tablePotPosition = new THREE.Vector3(-3.12, 1.2, -3.35);
+export const dashboardTableDisplayPositions = {
+  gramophone: [-4.05, 1.19, -3.38],
+  flowerPot: [-2.65, 1.2, -3.35],
+  fruitBasket: [-1.25, 1.25, -3.36],
+} as const;
+const tablePotPosition = new THREE.Vector3(...dashboardTableDisplayPositions.flowerPot);
 
 type DashboardHomeSceneProps = {
   caughtBugs?: DashboardBug[];
@@ -42,6 +48,8 @@ type DashboardHomeSceneProps = {
   onTablePotClick?: () => void;
   fruits?: { id: string; fruitKind: string }[];
   onFruitBasketClick?: () => void;
+  isMusicPlaying?: boolean;
+  onGramophoneClick?: () => void;
   onSceneReady?: () => void;
 };
 
@@ -532,10 +540,131 @@ function createMaterials() {
   };
 }
 
+export function addGramophone(parent: THREE.Group) {
+  const gramophone = new THREE.Group();
+  gramophone.name = "dashboard-gramophone";
+  gramophone.position.set(...dashboardTableDisplayPositions.gramophone);
+
+  const cabinetMaterial = new THREE.MeshStandardMaterial({
+    color: "#70452f",
+    roughness: 0.66,
+  });
+  const cabinetEdgeMaterial = new THREE.MeshStandardMaterial({
+    color: "#4d2d20",
+    roughness: 0.72,
+  });
+  const brassMaterial = new THREE.MeshStandardMaterial({
+    color: "#c79a43",
+    metalness: 0.48,
+    roughness: 0.35,
+    side: THREE.DoubleSide,
+  });
+  const recordMaterial = new THREE.MeshStandardMaterial({
+    color: "#191b1a",
+    metalness: 0.2,
+    roughness: 0.42,
+  });
+  const labelMaterial = new THREE.MeshStandardMaterial({
+    color: "#bb6652",
+    roughness: 0.65,
+  });
+
+  const cabinet = createBox([1, 0.18, 0.7], cabinetMaterial, {
+    position: [0, 0.09, 0],
+    castShadow: true,
+    receiveShadow: true,
+  });
+  const cabinetEdge = createBox([1.04, 0.08, 0.74], cabinetEdgeMaterial, {
+    position: [0, 0.035, 0],
+    castShadow: true,
+  });
+  const platter = createMesh(
+    new THREE.CylinderGeometry(0.33, 0.33, 0.045, 40),
+    cabinetEdgeMaterial,
+    { position: [-0.17, 0.205, 0.02], castShadow: true },
+  );
+  const record = createMesh(
+    new THREE.CylinderGeometry(0.29, 0.29, 0.025, 48),
+    recordMaterial,
+    { position: [-0.17, 0.245, 0.02], castShadow: true },
+  );
+  record.name = "dashboard-gramophone-record";
+  const recordLabel = createMesh(
+    new THREE.CylinderGeometry(0.075, 0.075, 0.029, 32),
+    labelMaterial,
+    { position: [-0.17, 0.263, 0.02], castShadow: true },
+  );
+  recordLabel.name = "dashboard-gramophone-record-label";
+  const spindle = createMesh(
+    new THREE.CylinderGeometry(0.012, 0.012, 0.075, 16),
+    brassMaterial,
+    { position: [-0.17, 0.285, 0.02], castShadow: true },
+  );
+
+  const tonearmCurve = new THREE.QuadraticBezierCurve3(
+    new THREE.Vector3(0.24, 0.31, 0.2),
+    new THREE.Vector3(0.1, 0.4, 0.12),
+    new THREE.Vector3(-0.02, 0.29, 0.04),
+  );
+  const tonearm = createMesh(
+    new THREE.TubeGeometry(tonearmCurve, 18, 0.018, 8, false),
+    brassMaterial,
+    { castShadow: true },
+  );
+  const needle = createBox([0.08, 0.035, 0.055], cabinetEdgeMaterial, {
+    position: [-0.035, 0.285, 0.04],
+    rotation: [0, 0.22, 0],
+    castShadow: true,
+  });
+
+  const hornStem = createMesh(
+    new THREE.CylinderGeometry(0.055, 0.07, 0.42, 20),
+    brassMaterial,
+    { position: [0.29, 0.39, -0.14], castShadow: true },
+  );
+  const hornBell = createMesh(
+    new THREE.CylinderGeometry(0.34, 0.075, 0.52, 36, 1, true),
+    brassMaterial,
+    { position: [0.29, 0.79, -0.14], castShadow: true },
+  );
+  const hornRim = createMesh(
+    new THREE.TorusGeometry(0.34, 0.025, 10, 36),
+    brassMaterial,
+    {
+      position: [0.29, 1.05, -0.14],
+      rotation: [Math.PI / 2, 0, 0],
+      castShadow: true,
+    },
+  );
+
+  gramophone.add(
+    cabinetEdge,
+    cabinet,
+    platter,
+    record,
+    recordLabel,
+    spindle,
+    tonearm,
+    needle,
+    hornStem,
+    hornBell,
+    hornRim,
+  );
+  parent.add(gramophone);
+
+  return {
+    object: gramophone,
+    update: (delta: number) => {
+      record.rotation.y += delta * 1.7;
+      recordLabel.rotation.y = record.rotation.y;
+    },
+  };
+}
+
 function addFruitBasket(parent: THREE.Group, fruits: { id: string; fruitKind: string }[], onReady?: () => void) {
   const group = new THREE.Group();
   group.name = "dashboard-fruit-basket";
-  group.position.set(-1.75, 1.25, -3.36);
+  group.position.set(...dashboardTableDisplayPositions.fruitBasket);
 
   const wicker = new THREE.MeshStandardMaterial({ color: "#b97a3f", roughness: 0.82 });
   const darkWicker = new THREE.MeshStandardMaterial({ color: "#805027", roughness: 0.88 });
@@ -614,8 +743,18 @@ export default function DashboardHomeScene({
   onTablePotClick,
   fruits = [],
   onFruitBasketClick,
+  isMusicPlaying = false,
+  onGramophoneClick,
   onSceneReady,
 }: DashboardHomeSceneProps) {
+  const t = useTranslations("Dashboard");
+  const gramophoneHotspotRef = useRef<HTMLButtonElement>(null);
+  const isMusicPlayingRef = useRef(isMusicPlaying);
+
+  useEffect(() => {
+    isMusicPlayingRef.current = isMusicPlaying;
+  }, [isMusicPlaying]);
+
   const setup = useCallback((context: ThreeStageContext) => {
     const { scene, camera, renderer } = context;
     const root = new THREE.Group();
@@ -627,6 +766,7 @@ export default function DashboardHomeScene({
       : new THREE.Vector3(0, 3.2, 8.25);
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
+    const gramophoneAnchor = new THREE.Vector3();
 
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = embedded ? 0.82 : 1.05;
@@ -670,21 +810,20 @@ export default function DashboardHomeScene({
     const maleCharacter = loadMaleCharacter({ camera, root, mixers, onReady: () => { characterReady = true; reportSceneReady(); } });
     const orbitingBugs = loadOrbitingBugs({ parent: root, caughtBugs });
     const fruitBasket = addFruitBasket(root, fruits, () => { fruitModelsReady = true; reportSceneReady(); });
+    const gramophone = addGramophone(root);
 
     const readPointer = (event: PointerEvent) => {
       const bounds = renderer.domElement.getBoundingClientRect();
 
       pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
       pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
-    };
-
-    const isTablePotHit = () => {
       raycaster.setFromCamera(pointer, camera);
-
-      return raycaster.intersectObject(tablePot.object, true).length > 0;
     };
+
+    const isTablePotHit = () => raycaster.intersectObject(tablePot.object, true).length > 0;
     const isSnapshotHit = () => raycaster.intersectObject(mountedWallSnapshot, true).length > 0;
     const isFruitBasketHit = () => raycaster.intersectObject(fruitBasket.object, true).length > 0;
+    const isGramophoneHit = () => raycaster.intersectObject(gramophone.object, true).length > 0;
 
     const getBugHit = () => {
       const intersections = raycaster.intersectObjects(orbitingBugs.objects, true);
@@ -703,16 +842,16 @@ export default function DashboardHomeScene({
     };
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!onTablePotClick && !onBugClick && !onSnapshotClick && !onFruitBasketClick) {
+      if (!onTablePotClick && !onBugClick && !onSnapshotClick && !onFruitBasketClick && !onGramophoneClick) {
         return;
       }
 
       readPointer(event);
-      renderer.domElement.style.cursor = getBugHit() || (onTablePotClick && isTablePotHit()) || (onSnapshotClick && isSnapshotHit()) || (onFruitBasketClick && isFruitBasketHit()) ? "pointer" : "";
+      renderer.domElement.style.cursor = getBugHit() || (onTablePotClick && isTablePotHit()) || (onSnapshotClick && isSnapshotHit()) || (onFruitBasketClick && isFruitBasketHit()) || (onGramophoneClick && isGramophoneHit()) ? "pointer" : "";
     };
 
     const onPointerDown = (event: PointerEvent) => {
-      if (!onTablePotClick && !onBugClick && !onSnapshotClick && !onFruitBasketClick) {
+      if (!onTablePotClick && !onBugClick && !onSnapshotClick && !onFruitBasketClick && !onGramophoneClick) {
         return;
       }
 
@@ -722,6 +861,12 @@ export default function DashboardHomeScene({
       if (bugId && onBugClick) {
         event.preventDefault();
         onBugClick(bugId);
+        return;
+      }
+
+      if (onGramophoneClick && isGramophoneHit()) {
+        event.preventDefault();
+        onGramophoneClick();
         return;
       }
 
@@ -761,6 +906,24 @@ export default function DashboardHomeScene({
       camera.lookAt(viewTarget);
       camera.updateProjectionMatrix();
       maleCharacter.face();
+      updateGramophoneHotspot();
+    };
+
+    const updateGramophoneHotspot = () => {
+      const hotspot = gramophoneHotspotRef.current;
+      if (!hotspot) return;
+
+      gramophoneAnchor.set(0, 0.55, 0);
+      gramophone.object.localToWorld(gramophoneAnchor);
+      gramophoneAnchor.project(camera);
+
+      const isVisible = Math.abs(gramophoneAnchor.x) <= 1.05 && Math.abs(gramophoneAnchor.y) <= 1.05 && gramophoneAnchor.z <= 1;
+      hotspot.hidden = !isVisible;
+      if (!isVisible) return;
+
+      hotspot.style.left = `${(gramophoneAnchor.x * 0.5 + 0.5) * 100}%`;
+      hotspot.style.top = `${(-gramophoneAnchor.y * 0.5 + 0.5) * 100}%`;
+      hotspot.dataset.positioned = "true";
     };
 
     const onFrame = ({ delta, elapsed }: ThreeStageFrame) => {
@@ -771,6 +934,8 @@ export default function DashboardHomeScene({
       maleCharacter.face();
       mixers.forEach((mixer) => mixer.update(delta));
       orbitingBugs.update(elapsed);
+      if (isMusicPlayingRef.current) gramophone.update(delta);
+      updateGramophoneHotspot();
     };
 
     return {
@@ -787,18 +952,17 @@ export default function DashboardHomeScene({
         disposeObject3D(root);
       },
     };
-  }, [caughtBugs, embedded, fruits, onBugClick, onFruitBasketClick, onSceneReady, onSnapshotClick, onTablePotClick, tableFlowerAsset, wallSnapshot]);
+  }, [caughtBugs, embedded, fruits, onBugClick, onFruitBasketClick, onGramophoneClick, onSceneReady, onSnapshotClick, onTablePotClick, tableFlowerAsset, wallSnapshot]);
 
   return (
     <div
       className={[
         "dashboard-three-layer",
         embedded ? "dashboard-three-layer-embedded" : "",
-        onTablePotClick || onBugClick || onSnapshotClick || onFruitBasketClick ? "dashboard-three-layer-interactive" : "",
+        onTablePotClick || onBugClick || onSnapshotClick || onFruitBasketClick || onGramophoneClick ? "dashboard-three-layer-interactive" : "",
       ]
         .filter(Boolean)
         .join(" ")}
-      aria-hidden="true"
     >
       <ThreeStage
         className="dashboard-three-stage"
@@ -806,6 +970,18 @@ export default function DashboardHomeScene({
         preserveDrawingBuffer={embedded}
         fallback={<div className="dashboard-three-fallback" />}
       />
+      {onGramophoneClick ? (
+        <button
+          aria-label={t("openMusicPlayer")}
+          className="dashboard-gramophone-hotspot"
+          id="dashboard-gramophone-trigger"
+          onClick={onGramophoneClick}
+          ref={gramophoneHotspotRef}
+          type="button"
+        >
+          <span>{t("openMusicPlayer")}</span>
+        </button>
+      ) : null}
     </div>
   );
 }

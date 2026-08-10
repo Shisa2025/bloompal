@@ -7,8 +7,10 @@ import { useCallback, useMemo, useState, useTransition } from "react";
 import { deleteUserBug, deleteUserSnapshot, setActiveBug, setActiveSnapshot, setTableFlowerAsset, throwAwayUserFruit } from "../actions";
 import DashboardHomeScene from "./DashboardHomeScene";
 import { BasketArt, FruitArt, type FruitArtKind } from "@/app/components/FruitArt";
+import DashboardMusicPlayer from "./DashboardMusicPlayer";
 
 type DashboardGardenClientProps = {
+  preferenceOwnerId: string;
   ownedFlowerAssets: string[];
   tableFlowerAsset: string | null;
   caughtBugs: { id: string; bugAsset: string; isActive: boolean }[];
@@ -17,6 +19,7 @@ type DashboardGardenClientProps = {
 };
 
 export default function DashboardGardenClient({
+  preferenceOwnerId,
   ownedFlowerAssets,
   tableFlowerAsset,
   caughtBugs,
@@ -36,6 +39,8 @@ export default function DashboardGardenClient({
   const [isBugSelectorOpen, setIsBugSelectorOpen] = useState(false);
   const [isSnapshotSelectorOpen, setIsSnapshotSelectorOpen] = useState(false);
   const [isFruitBasketOpen, setIsFruitBasketOpen] = useState(false);
+  const [isMusicPlayerOpen, setIsMusicPlayerOpen] = useState(false);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isPending, startTransition] = useTransition();
   const selectedAsset =
     localSelection.serverAsset === tableFlowerAsset
@@ -49,6 +54,14 @@ export default function DashboardGardenClient({
   const openSelector = useCallback(() => {
     setActionError(null);
     setIsSelectorOpen(true);
+  }, []);
+
+  const openMusicPlayer = useCallback(() => {
+    setIsMusicPlayerOpen(true);
+  }, []);
+
+  const closeMusicPlayer = useCallback(() => {
+    setIsMusicPlayerOpen(false);
   }, []);
 
   const closeSelector = useCallback(() => {
@@ -162,6 +175,15 @@ export default function DashboardGardenClient({
         }}
         fruits={fruits}
         onFruitBasketClick={() => { setActionError(null); setIsFruitBasketOpen(true); }}
+        isMusicPlaying={isMusicPlaying}
+        onGramophoneClick={openMusicPlayer}
+      />
+
+      <DashboardMusicPlayer
+        isOpen={isMusicPlayerOpen}
+        onClose={closeMusicPlayer}
+        onPlaybackChange={setIsMusicPlaying}
+        preferenceOwnerId={preferenceOwnerId}
       />
 
       {isFruitBasketOpen ? <div className="dashboard-table-flower-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !isPending) setIsFruitBasketOpen(false); }}><section className="dashboard-table-flower-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboard-fruit-title"><div className="dashboard-table-flower-heading"><p>{t("fruitBasket")}</p><h2 id="dashboard-fruit-title">{t("yourHarvest")}</h2></div>{fruits.length ? <div className="dashboard-fruit-grid">{fruits.map((fruit) => { const fruitName = formatFruitName(fruit.fruitKind); return <div className="dashboard-fruit-item" key={fruit.id}><FruitArt kind={fruit.fruitKind as FruitArtKind} label={fruitName} /><strong>{fruitName}</strong><button disabled={isPending} onClick={() => removeFruit(fruit.id)} type="button">{t("throwAway")}</button></div>; })}</div> : <div className="dashboard-table-flower-empty"><BasketArt className="dashboard-empty-basket" label={t("emptyBasket")} /><strong>{t("basketEmpty")}</strong><p>{t("fillBasketHint")}</p><Link className="dashboard-game-button" href="/games/pluckfruit">{t("pluckFruit")}</Link></div>}{actionError ? <p className="dashboard-table-flower-error">{actionError}</p> : null}<div className="dashboard-table-flower-actions"><button className="dashboard-table-flower-secondary" disabled={isPending} type="button" onClick={() => setIsFruitBasketOpen(false)}>{t("close")}</button></div></section></div> : null}

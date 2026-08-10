@@ -246,7 +246,23 @@
     "snapshotNumber": "Snapshot {number}",
     "onWall": "On the wall",
     "deleteSnapshot": "Delete snapshot {number}",
-    "confirmDeleteSnapshot": "Delete this snapshot permanently?"
+    "confirmDeleteSnapshot": "Delete this snapshot permanently?",
+    "gramophone": "Gramophone",
+    "openMusicPlayer": "Open music player",
+    "chooseMusic": "Choose music",
+    "musicKeepsPlaying": "Music keeps playing after you close this panel.",
+    "musicTracks": "Music tracks",
+    "musicTrackCalmLoop": "Calm Loop",
+    "musicTrackChill": "Chill",
+    "musicTrackDream": "Dream",
+    "playTrack": "Play",
+    "playing": "Playing",
+    "playMusic": "Play music",
+    "pauseMusic": "Pause music",
+    "loadingMusic": "Loading music",
+    "volume": "Volume",
+    "volumePercent": "Volume {volume}%",
+    "musicPlaybackFailed": "This track could not be played. Please try again."
   },
   "Games": {
     "watering": {

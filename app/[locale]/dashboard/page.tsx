@@ -40,6 +40,7 @@ export default async function DashboardPage() {
     <DesktopOnly>
       <main className="dashboard-shell font-sans text-[#1d2b22]">
         <DashboardGardenClient
+          preferenceOwnerId={account.userid}
           ownedFlowerAssets={ownedFlowerAssets}
           tableFlowerAsset={tableFlowerAsset}
           caughtBugs={caughtBugs}

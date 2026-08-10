@@ -246,7 +246,23 @@
     "snapshotNumber": "快照 {number}",
     "onWall": "正在墙上展示",
     "deleteSnapshot": "删除快照 {number}",
-    "confirmDeleteSnapshot": "要永久删除这张快照吗？"
+    "confirmDeleteSnapshot": "要永久删除这张快照吗？",
+    "gramophone": "唱片机",
+    "openMusicPlayer": "打开音乐播放器",
+    "chooseMusic": "选择音乐",
+    "musicKeepsPlaying": "关闭面板后，音乐仍会继续播放。",
+    "musicTracks": "音乐曲目",
+    "musicTrackCalmLoop": "静谧花园",
+    "musicTrackChill": "悠然时光",
+    "musicTrackDream": "柔和梦境",
+    "playTrack": "播放",
+    "playing": "播放中",
+    "playMusic": "播放音乐",
+    "pauseMusic": "暂停音乐",
+    "loadingMusic": "正在加载音乐",
+    "volume": "音量",
+    "volumePercent": "音量 {volume}%",
+    "musicPlaybackFailed": "无法播放这首音乐，请重试。"
   },
   "Games": {
     "watering": {
