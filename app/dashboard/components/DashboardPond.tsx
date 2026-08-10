@@ -3,15 +3,11 @@
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
+import FishModel from "@/app/components/FishModel";
 import type { FishKind } from "@/database/fish";
+import { getFishAssetPath } from "@/lib/fish-assets";
 import { releaseUserFish } from "../actions";
-
-const fishEmoji: Record<FishKind, string> = {
-  goldfish: "🐠",
-  bluefish: "🐟",
-  koi: "🐡",
-  angelfish: "🐠",
-};
+import FishPondStage from "./FishPondStage";
 
 export default function DashboardPond({ fish }: { fish: { id: string; fishKind: FishKind }[] }) {
   const router = useRouter();
@@ -44,12 +40,9 @@ export default function DashboardPond({ fish }: { fish: { id: string; fishKind: 
       >
         <span className="dashboard-pond-label"><strong>{t("myPond")}</strong><small>{fish.length === 0 ? t("pondEmpty") : t("fishCaught", { count: fish.length })}</small></span>
         <span className="dashboard-pond-water" aria-hidden="true">
-          {visibleFish.map((entry, index) => (
-            <span className={`dashboard-pond-fish dashboard-pond-fish-${index % 4}`} key={entry.id}>{fishEmoji[entry.fishKind]}</span>
-          ))}
+          {visibleFish.length > 0 ? <FishPondStage fishKinds={visibleFish.map((entry) => entry.fishKind)} /> : null}
           {visibleFish.length === 0 ? <span className="dashboard-pond-empty">∿</span> : null}
         </span>
-        <span className="dashboard-pond-reeds" aria-hidden="true" />
       </button>
 
       {isOpen ? (
@@ -62,8 +55,8 @@ export default function DashboardPond({ fish }: { fish: { id: string; fishKind: 
               <div className="dashboard-table-flower-grid">
                 {fish.map((entry) => (
                   <article className="dashboard-fish-option" key={entry.id}>
-                    <span aria-hidden="true">{fishEmoji[entry.fishKind]}</span>
-                    <strong>{t(`fish.${entry.fishKind}`)}</strong>
+                    <span className="dashboard-fish-option-model" aria-hidden="true"><FishModel assetPath={getFishAssetPath(entry.fishKind)} /></span>
+                    <strong>{entry.fishKind}</strong>
                     <button disabled={isPending} onClick={() => releaseFish(entry.id)} type="button">{t("releaseFish")}</button>
                   </article>
                 ))}

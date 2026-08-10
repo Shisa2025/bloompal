@@ -9,7 +9,7 @@ import type { MotionSide, MotionTracker } from "@/mediapipe/types";
 import { completeFruitPlucking } from "./actions";
 import { getClawSignals, type ClawSignals } from "./pluckRules";
 
-const fruits: FruitArtKind[] = ["apple", "pear", "orange", "plum", "peach"];
+const fruits: FruitArtKind[] = ["apple", "cherry", "lemon", "pear", "strawberry"];
 type Fruit = FruitArtKind;
 type Phase = "choosing" | "playing" | "saving" | "reward";
 const sides: MotionSide[] = ["left", "right"];
@@ -180,6 +180,6 @@ function Playfield({ fruit, counts, pluckedTargets, signals, videoRef, saving, e
 
 function Reward({ fruit }: { fruit: Fruit }) {
   const t = useTranslations("Games.pluckFruit");
-  const fruitLabel = t(`fruit.${fruit}`);
+  const fruitLabel = fruit.charAt(0).toUpperCase() + fruit.slice(1);
   return <section className="watering-layout watering-layout-single"><div className="watering-main-panel watering-reward-main-panel"><div className="fruit-reward-panel"><div className="fruit-reward-stage"><div className="fruit-reward-ground" aria-hidden="true" /><FruitArt kind={fruit} label={t("rewardLabel", { fruit: fruitLabel })} /></div><div className="watering-reward-copy fruit-reward-copy"><p>{t("fruitReward")}</p><h2>{fruitLabel}</h2><Link className="watering-primary-link" href="/dashboard">{t("seeBasket")}</Link></div></div></div></section>;
 }

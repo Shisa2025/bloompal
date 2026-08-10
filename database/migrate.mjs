@@ -213,10 +213,13 @@ try {
       fish_kind VARCHAR(32) NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CONSTRAINT user_fish_kind_check CHECK (
-        fish_kind IN ('goldfish', 'bluefish', 'koi', 'angelfish')
+        fish_kind IN ('fish1', 'fish2', 'fish3', 'fish4', 'fish5', 'fish6')
       )
     )
   `);
+  await client.query("ALTER TABLE user_fish DROP CONSTRAINT IF EXISTS user_fish_kind_check");
+  await client.query("UPDATE user_fish SET fish_kind = CASE fish_kind WHEN 'goldfish' THEN 'fish1' WHEN 'bluefish' THEN 'fish2' WHEN 'koi' THEN 'fish3' WHEN 'angelfish' THEN 'fish4' ELSE fish_kind END WHERE fish_kind IN ('goldfish', 'bluefish', 'koi', 'angelfish')");
+  await client.query("ALTER TABLE user_fish ADD CONSTRAINT user_fish_kind_check CHECK (fish_kind IN ('fish1', 'fish2', 'fish3', 'fish4', 'fish5', 'fish6'))");
   await client.query("CREATE INDEX IF NOT EXISTS user_fish_userid_created_idx ON user_fish(userid, created_at ASC)");
   await client.query(`
     CREATE TABLE IF NOT EXISTS user_fruits (
@@ -225,10 +228,14 @@ try {
       fruit_kind VARCHAR(24) NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CONSTRAINT user_fruits_kind_check CHECK (
-        fruit_kind IN ('apple', 'pear', 'orange', 'plum', 'peach')
+        fruit_kind IN ('apple', 'cherry', 'lemon', 'pear', 'strawberry')
       )
     )
   `);
+  await client.query("ALTER TABLE user_fruits DROP CONSTRAINT IF EXISTS user_fruits_kind_check");
+  await client.query("ALTER TABLE user_fruits DROP CONSTRAINT IF EXISTS user_fruits_fruit_kind_check");
+  await client.query("UPDATE user_fruits SET fruit_kind = CASE fruit_kind WHEN 'orange' THEN 'lemon' WHEN 'plum' THEN 'cherry' WHEN 'peach' THEN 'strawberry' ELSE fruit_kind END WHERE fruit_kind IN ('orange', 'plum', 'peach')");
+  await client.query("ALTER TABLE user_fruits ADD CONSTRAINT user_fruits_kind_check CHECK (fruit_kind IN ('apple', 'cherry', 'lemon', 'pear', 'strawberry'))");
   await client.query("CREATE INDEX IF NOT EXISTS user_fruits_userid_created_idx ON user_fruits(userid, created_at ASC)");
 
   await client.query(`

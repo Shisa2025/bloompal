@@ -5,7 +5,7 @@ import { sql, withTransaction } from "./connection";
 import { insertCompletedSession, isCompletedSessionReplay } from "./game-sessions";
 import type { GameCompletionMetrics } from "@/lib/game-metrics";
 
-export const fruitKinds = ["apple", "pear", "orange", "plum", "peach"] as const;
+export const fruitKinds = ["apple", "cherry", "lemon", "pear", "strawberry"] as const;
 export type FruitKind = (typeof fruitKinds)[number];
 export type UserFruit = { id: string; fruitKind: FruitKind; createdAt: string };
 let tableReady: Promise<void> | null = null;
@@ -60,7 +60,7 @@ function ensureFruitTable() {
     tableReady = sql.query(`CREATE TABLE IF NOT EXISTS user_fruits (
       id TEXT PRIMARY KEY,
       userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
-      fruit_kind VARCHAR(24) NOT NULL CHECK (fruit_kind IN ('apple', 'pear', 'orange', 'plum', 'peach')),
+      fruit_kind VARCHAR(24) NOT NULL CHECK (fruit_kind IN ('apple', 'cherry', 'lemon', 'pear', 'strawberry')),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`).then(async () => {
       await sql.query("CREATE INDEX IF NOT EXISTS user_fruits_userid_created_idx ON user_fruits(userid, created_at ASC)");
@@ -69,6 +69,10 @@ function ensureFruitTable() {
         // Serialize this schema upgrade so two processes cannot recreate the
         // named constraint at the same time.
         await client.query("SELECT pg_advisory_xact_lock(42420002)");
+        await client.query("ALTER TABLE user_fruits DROP CONSTRAINT IF EXISTS user_fruits_kind_check");
+        await client.query("ALTER TABLE user_fruits DROP CONSTRAINT IF EXISTS user_fruits_fruit_kind_check");
+        await client.query("UPDATE user_fruits SET fruit_kind = CASE fruit_kind WHEN 'orange' THEN 'lemon' WHEN 'plum' THEN 'cherry' WHEN 'peach' THEN 'strawberry' ELSE fruit_kind END WHERE fruit_kind IN ('orange', 'plum', 'peach')");
+        await client.query("ALTER TABLE user_fruits ADD CONSTRAINT user_fruits_kind_check CHECK (fruit_kind IN ('apple', 'cherry', 'lemon', 'pear', 'strawberry'))");
         await client.query("ALTER TABLE game_sessions DROP CONSTRAINT IF EXISTS game_sessions_activity_check");
         await client.query("ALTER TABLE game_sessions ADD CONSTRAINT game_sessions_activity_check CHECK (activity_type IN ('watering', 'collect_bugs', 'snapshot', 'catch_fish', 'pluck_fruit'))");
       });

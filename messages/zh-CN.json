@@ -200,10 +200,12 @@
     "yourPondEmpty": "你的池塘是空的",
     "pondEmptyHint": "从游戏面板进入捕鱼游戏。",
     "fish": {
-      "goldfish": "金鱼",
-      "bluefish": "蓝鱼",
-      "koi": "锦鲤",
-      "angelfish": "神仙鱼"
+      "fish1": "鱼 1",
+      "fish2": "鱼 2",
+      "fish3": "鱼 3",
+      "fish4": "鱼 4",
+      "fish5": "鱼 5",
+      "fish6": "鱼 6"
     },
     "fruitBasket": "果篮",
     "yourHarvest": "你的收获",
@@ -213,10 +215,10 @@
     "fillBasketHint": "玩采摘水果游戏来装满它。",
     "fruit": {
       "apple": "苹果",
+      "cherry": "樱桃",
+      "lemon": "柠檬",
       "pear": "梨",
-      "orange": "橙子",
-      "plum": "李子",
-      "peach": "桃子"
+      "strawberry": "草莓"
     },
     "confirmThrowFruit": "要丢弃这个水果吗？",
     "tablePlanter": "桌上花盆",
@@ -462,10 +464,10 @@
       "seeBasket": "查看我的果篮",
       "fruit": {
         "apple": "苹果",
+        "cherry": "樱桃",
+        "lemon": "柠檬",
         "pear": "梨",
-        "orange": "橙子",
-        "plum": "李子",
-        "peach": "桃子"
+        "strawberry": "草莓"
       }
     }
   },
