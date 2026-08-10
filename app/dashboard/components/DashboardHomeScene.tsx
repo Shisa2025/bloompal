@@ -12,6 +12,10 @@ import {
   type ThreeStageResize,
 } from "@/app/components/threejs";
 import { prepareFlowerModelForDisplay } from "@/app/components/threejs/flowerModels";
+import {
+  dashboardBedroomDoorOpenAngle,
+  dashboardBedroomDoorStyle,
+} from "./dashboardBedroomDoor";
 import { loadDashboardCharacter } from "./dashboardCharacter";
 
 const bugModelBaseUrl = "/meshes/bugs/";
@@ -36,6 +40,13 @@ export const dashboardTableDisplayPositions = {
 } as const;
 export const dashboardRabbitMerchantPosition = [4.8, 0, -4.15] as const;
 export const dashboardRoomDoorPosition = [7.02, 0, -3.65] as const;
+export const dashboardBedroomDoorPosition = [-7.02, 0, -3.65] as const;
+export const dashboardBedroomExitPath = {
+  control: [-4.4, 0, -2.7],
+  end: [-7.62, 0, -3.65],
+  doorOpenStart: 0.32,
+  doorOpenDuration: 0.34,
+} as const;
 const tablePotPosition = new THREE.Vector3(...dashboardTableDisplayPositions.flowerPot);
 
 type DashboardHomeSceneProps = {
@@ -50,8 +61,9 @@ type DashboardHomeSceneProps = {
   onFruitBasketClick?: () => void;
   isMusicPlaying?: boolean;
   onGramophoneClick?: () => void;
-  onDoorTransitionStart?: () => void;
+  onDoorTransitionStart?: (destination: "courtyard" | "bedroom") => void;
   onEnterCourtyard?: () => void;
+  onEnterBedroom?: () => void;
   onSceneReady?: () => void;
 };
 
@@ -192,15 +204,42 @@ function addFurniture(parent: THREE.Group, materials: Record<string, THREE.Mater
 export function addRoomDoor(
   parent: THREE.Group,
   materials: Record<string, THREE.Material>,
+  destination: "courtyard" | "bedroom" = "courtyard",
 ) {
   const door = new THREE.Group();
-  door.name = "dashboard-room-door";
-  door.position.set(...dashboardRoomDoorPosition);
-  door.rotation.y = -Math.PI / 2;
+  const isBedroomDoor = destination === "bedroom";
+  const objectName = isBedroomDoor
+    ? "dashboard-room-bedroom-door"
+    : "dashboard-room-door";
+  door.name = objectName;
+  const doorPosition = isBedroomDoor
+    ? dashboardBedroomDoorPosition
+    : dashboardRoomDoorPosition;
+  door.position.set(doorPosition[0], doorPosition[1], doorPosition[2]);
+  door.rotation.y = isBedroomDoor ? Math.PI / 2 : -Math.PI / 2;
 
   const portalMaterial = new THREE.ShaderMaterial({
     depthWrite: true,
-    fragmentShader: `
+    fragmentShader: isBedroomDoor
+      ? `
+      varying vec2 vUv;
+      void main() {
+        vec3 wall = mix(vec3(0.84, 0.86, 0.73), vec3(0.98, 0.88, 0.68), vUv.y);
+        float floorLine = smoothstep(0.27, 0.38, vUv.y);
+        vec3 floorColour = vec3(0.56, 0.39, 0.27);
+        vec3 colour = mix(floorColour, wall, floorLine);
+        float bed = smoothstep(0.16, 0.22, vUv.y) * (1.0 - smoothstep(0.49, 0.56, vUv.y));
+        bed *= smoothstep(0.04, 0.12, vUv.x) * (1.0 - smoothstep(0.79, 0.88, vUv.x));
+        colour = mix(colour, vec3(0.48, 0.61, 0.47), bed * 0.82);
+        float windowGlow = smoothstep(0.38, 0.45, vUv.x) * (1.0 - smoothstep(0.72, 0.79, vUv.x));
+        windowGlow *= smoothstep(0.58, 0.64, vUv.y) * (1.0 - smoothstep(0.89, 0.94, vUv.y));
+        colour = mix(colour, vec3(1.0, 0.86, 0.58), windowGlow * 0.74);
+        float lampGlow = exp(-dot(vUv - vec2(0.82, 0.57), vUv - vec2(0.82, 0.57)) * 42.0);
+        colour += vec3(0.22, 0.13, 0.04) * lampGlow;
+        gl_FragColor = vec4(colour, 1.0);
+      }
+    `
+      : `
       varying vec2 vUv;
       void main() {
         vec3 sky = mix(vec3(0.83, 0.91, 0.88), vec3(0.98, 0.90, 0.70), 1.0 - vUv.y);
@@ -226,61 +265,89 @@ export function addRoomDoor(
     `,
   });
   const doorMaterial = new THREE.MeshStandardMaterial({
-    color: "#7b5137",
+    color: isBedroomDoor ? dashboardBedroomDoorStyle.leaf : "#7b5137",
     roughness: 0.72,
   });
   const insetMaterial = new THREE.MeshStandardMaterial({
-    color: "#986848",
+    color: isBedroomDoor ? dashboardBedroomDoorStyle.inset : "#986848",
     roughness: 0.78,
   });
   const handleMaterial = new THREE.MeshStandardMaterial({
-    color: "#c79a43",
+    color: isBedroomDoor ? dashboardBedroomDoorStyle.brass : "#c79a43",
     metalness: 0.46,
     roughness: 0.38,
   });
+  const frameMaterial = isBedroomDoor
+    ? new THREE.MeshStandardMaterial({
+        color: dashboardBedroomDoorStyle.frame,
+        roughness: 0.78,
+      })
+    : materials.wood;
 
   const portal = createMesh(
     new THREE.PlaneGeometry(1.34, 2.58),
     portalMaterial,
     { position: [0, 1.29, 0.055] },
   );
-  portal.name = "dashboard-room-door-outdoor-preview";
+  portal.name = isBedroomDoor
+    ? "dashboard-room-bedroom-preview"
+    : "dashboard-room-door-outdoor-preview";
 
   const leafPivot = new THREE.Group();
-  leafPivot.name = "dashboard-room-door-leaf";
-  leafPivot.position.set(-0.67, 0, 0.08);
+  leafPivot.name = `${objectName}-leaf`;
+  const hingeX = isBedroomDoor ? 0.67 : -0.67;
+  const leafOffsetX = isBedroomDoor ? -0.67 : 0.67;
+  const handleOffsetX = isBedroomDoor ? -1.11 : 1.11;
+  leafPivot.position.set(hingeX, 0, 0.08);
 
   const leaf = createBox([1.34, 2.58, 0.12], doorMaterial, {
-    position: [0.67, 1.29, 0],
+    position: [leafOffsetX, 1.29, 0],
     castShadow: true,
   });
+  leaf.name = `${objectName}-panel`;
   const upperInset = createBox([0.88, 0.78, 0.04], insetMaterial, {
-    position: [0.67, 1.84, 0.075],
+    position: [leafOffsetX, 1.84, 0.075],
     castShadow: true,
   });
   const lowerInset = createBox([0.88, 0.82, 0.04], insetMaterial, {
-    position: [0.67, 0.7, 0.075],
+    position: [leafOffsetX, 0.7, 0.075],
     castShadow: true,
   });
   const handle = createMesh(
     new THREE.SphereGeometry(0.075, 18, 14),
     handleMaterial,
-    { position: [1.11, 1.25, 0.12], castShadow: true },
+    { position: [handleOffsetX, 1.25, 0.12], castShadow: true },
   );
+  handle.name = `${objectName}-handle`;
   leafPivot.add(leaf, upperInset, lowerInset, handle);
+  if (isBedroomDoor) {
+    const moonEmblem = createMesh(
+      new THREE.CircleGeometry(0.12, 28),
+      handleMaterial,
+      {
+        position: [leafOffsetX, 2.18, 0.101],
+        castShadow: true,
+      },
+    );
+    moonEmblem.name = `${objectName}-moon-emblem`;
+    leafPivot.add(moonEmblem);
+  }
 
-  const frameTop = createBox([1.64, 0.17, 0.2], materials.wood, {
+  const frameTop = createBox([1.64, 0.17, 0.2], frameMaterial, {
     position: [0, 2.65, 0.12],
     castShadow: true,
   });
-  const frameLeft = createBox([0.17, 2.72, 0.2], materials.wood, {
+  frameTop.name = `${objectName}-frame-top`;
+  const frameLeft = createBox([0.17, 2.72, 0.2], frameMaterial, {
     position: [-0.75, 1.31, 0.12],
     castShadow: true,
   });
-  const frameRight = createBox([0.17, 2.72, 0.2], materials.wood, {
+  frameLeft.name = `${objectName}-frame-left`;
+  const frameRight = createBox([0.17, 2.72, 0.2], frameMaterial, {
     position: [0.75, 1.31, 0.12],
     castShadow: true,
   });
+  frameRight.name = `${objectName}-frame-right`;
 
   door.add(portal, leafPivot, frameTop, frameLeft, frameRight);
   parent.add(door);
@@ -289,7 +356,10 @@ export function addRoomDoor(
     object: door,
     update: (openAmount: number) => {
       const eased = THREE.MathUtils.smoothstep(openAmount, 0, 1);
-      leafPivot.rotation.y = -eased * 1.18;
+      const openAngle = isBedroomDoor
+        ? -dashboardBedroomDoorOpenAngle
+        : -1.18;
+      leafPivot.rotation.y = eased * openAngle;
     },
   };
 }
@@ -1192,12 +1262,15 @@ export default function DashboardHomeScene({
   onGramophoneClick,
   onDoorTransitionStart,
   onEnterCourtyard,
+  onEnterBedroom,
   onSceneReady,
 }: DashboardHomeSceneProps) {
   const t = useTranslations("Dashboard");
   const gramophoneHotspotRef = useRef<HTMLButtonElement>(null);
-  const doorHotspotRef = useRef<HTMLButtonElement>(null);
-  const doorActionRef = useRef<(() => void) | null>(null);
+  const courtyardDoorHotspotRef = useRef<HTMLButtonElement>(null);
+  const bedroomDoorHotspotRef = useRef<HTMLButtonElement>(null);
+  const courtyardDoorActionRef = useRef<(() => void) | null>(null);
+  const bedroomDoorActionRef = useRef<(() => void) | null>(null);
   const isMusicPlayingRef = useRef(isMusicPlaying);
 
   useEffect(() => {
@@ -1215,10 +1288,17 @@ export default function DashboardHomeScene({
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const gramophoneAnchor = new THREE.Vector3();
-    const doorAnchor = new THREE.Vector3();
+    const courtyardDoorAnchor = new THREE.Vector3();
+    const bedroomDoorAnchor = new THREE.Vector3();
     const exitStart = characterPosition.clone();
-    const exitControl = new THREE.Vector3(3.8, 0, -0.55);
-    const exitEnd = new THREE.Vector3(6.72, 0, -3.65);
+    const courtyardExitControl = new THREE.Vector3(3.8, 0, -0.55);
+    const courtyardExitEnd = new THREE.Vector3(6.72, 0, -3.65);
+    const bedroomExitControl = new THREE.Vector3(
+      ...dashboardBedroomExitPath.control,
+    );
+    const bedroomExitEnd = new THREE.Vector3(
+      ...dashboardBedroomExitPath.end,
+    );
     const targetQuaternion = new THREE.Quaternion();
 
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1253,7 +1333,8 @@ export default function DashboardHomeScene({
     scene.add(hemisphereLight, windowLight);
     addRoom(root, materials);
     addFurniture(root, materials);
-    const roomDoor = addRoomDoor(root, materials);
+    const courtyardDoor = addRoomDoor(root, materials);
+    const bedroomDoor = addRoomDoor(root, materials, "bedroom");
     let characterReady = false;
     let fruitModelsReady = fruits.length === 0;
     const reportSceneReady = () => {
@@ -1278,6 +1359,7 @@ export default function DashboardHomeScene({
     const gramophone = addGramophone(root);
 
     let exitState: {
+      destination: "courtyard" | "bedroom";
       elapsed: number;
       startQuaternion: THREE.Quaternion;
       started: boolean;
@@ -1285,28 +1367,35 @@ export default function DashboardHomeScene({
     } | null = null;
     let exitCompleted = false;
 
-    const beginDoorTransition = () => {
-      if (!onEnterCourtyard || exitState || exitCompleted) return;
+    const beginDoorTransition = (destination: "courtyard" | "bedroom") => {
+      const complete =
+        destination === "courtyard" ? onEnterCourtyard : onEnterBedroom;
+      if (!complete || exitState || exitCompleted) return;
 
-      onDoorTransitionStart?.();
-      doorHotspotRef.current?.setAttribute("disabled", "");
+      onDoorTransitionStart?.(destination);
+      courtyardDoorHotspotRef.current?.setAttribute("disabled", "");
+      bedroomDoorHotspotRef.current?.setAttribute("disabled", "");
       gramophoneHotspotRef.current?.setAttribute("disabled", "");
 
       if (reducedMotion || !maleCharacter.isReady()) {
         exitCompleted = true;
-        roomDoor.update(1);
-        onEnterCourtyard();
+        (destination === "courtyard" ? courtyardDoor : bedroomDoor).update(1);
+        complete();
         return;
       }
 
       exitState = {
+        destination,
         elapsed: 0,
         startQuaternion: new THREE.Quaternion(),
         started: false,
         walking: false,
       };
     };
-    doorActionRef.current = beginDoorTransition;
+    const beginCourtyardTransition = () => beginDoorTransition("courtyard");
+    const beginBedroomTransition = () => beginDoorTransition("bedroom");
+    courtyardDoorActionRef.current = beginCourtyardTransition;
+    bedroomDoorActionRef.current = beginBedroomTransition;
 
     const readPointer = (event: PointerEvent) => {
       const bounds = renderer.domElement.getBoundingClientRect();
@@ -1320,7 +1409,10 @@ export default function DashboardHomeScene({
     const isSnapshotHit = () => raycaster.intersectObject(mountedWallSnapshot, true).length > 0;
     const isFruitBasketHit = () => raycaster.intersectObject(fruitBasket.object, true).length > 0;
     const isGramophoneHit = () => raycaster.intersectObject(gramophone.object, true).length > 0;
-    const isDoorHit = () => raycaster.intersectObject(roomDoor.object, true).length > 0;
+    const isCourtyardDoorHit = () =>
+      raycaster.intersectObject(courtyardDoor.object, true).length > 0;
+    const isBedroomDoorHit = () =>
+      raycaster.intersectObject(bedroomDoor.object, true).length > 0;
 
     const getBugHit = () => {
       const intersections = raycaster.intersectObjects(orbitingBugs.objects, true);
@@ -1344,26 +1436,32 @@ export default function DashboardHomeScene({
         return;
       }
 
-      if (!onTablePotClick && !onBugClick && !onSnapshotClick && !onFruitBasketClick && !onGramophoneClick && !onEnterCourtyard) {
+      if (!onTablePotClick && !onBugClick && !onSnapshotClick && !onFruitBasketClick && !onGramophoneClick && !onEnterCourtyard && !onEnterBedroom) {
         return;
       }
 
       readPointer(event);
-      renderer.domElement.style.cursor = getBugHit() || (onTablePotClick && isTablePotHit()) || (onSnapshotClick && isSnapshotHit()) || (onFruitBasketClick && isFruitBasketHit()) || (onGramophoneClick && isGramophoneHit()) || (onEnterCourtyard && isDoorHit()) ? "pointer" : "";
+      renderer.domElement.style.cursor = getBugHit() || (onTablePotClick && isTablePotHit()) || (onSnapshotClick && isSnapshotHit()) || (onFruitBasketClick && isFruitBasketHit()) || (onGramophoneClick && isGramophoneHit()) || (onEnterCourtyard && isCourtyardDoorHit()) || (onEnterBedroom && isBedroomDoorHit()) ? "pointer" : "";
     };
 
     const onPointerDown = (event: PointerEvent) => {
       if (exitState || exitCompleted) return;
 
-      if (!onTablePotClick && !onBugClick && !onSnapshotClick && !onFruitBasketClick && !onGramophoneClick && !onEnterCourtyard) {
+      if (!onTablePotClick && !onBugClick && !onSnapshotClick && !onFruitBasketClick && !onGramophoneClick && !onEnterCourtyard && !onEnterBedroom) {
         return;
       }
 
       readPointer(event);
 
-      if (onEnterCourtyard && isDoorHit()) {
+      if (onEnterCourtyard && isCourtyardDoorHit()) {
         event.preventDefault();
-        beginDoorTransition();
+        beginCourtyardTransition();
+        return;
+      }
+
+      if (onEnterBedroom && isBedroomDoorHit()) {
+        event.preventDefault();
+        beginBedroomTransition();
         return;
       }
 
@@ -1435,9 +1533,15 @@ export default function DashboardHomeScene({
         new THREE.Vector3(0, 0.55, 0),
       );
       positionHotspot(
-        doorHotspotRef.current,
-        roomDoor.object,
-        doorAnchor,
+        courtyardDoorHotspotRef.current,
+        courtyardDoor.object,
+        courtyardDoorAnchor,
+        new THREE.Vector3(0, 1.35, 0.2),
+      );
+      positionHotspot(
+        bedroomDoorHotspotRef.current,
+        bedroomDoor.object,
+        bedroomDoorAnchor,
         new THREE.Vector3(0, 1.35, 0.2),
       );
     };
@@ -1467,6 +1571,16 @@ export default function DashboardHomeScene({
 
       const character = maleCharacter.getObject();
       if (exitState && character && maleCharacter.isReady()) {
+        const exitControl =
+          exitState.destination === "courtyard"
+            ? courtyardExitControl
+            : bedroomExitControl;
+        const exitEnd =
+          exitState.destination === "courtyard"
+            ? courtyardExitEnd
+            : bedroomExitEnd;
+        const activeDoor =
+          exitState.destination === "courtyard" ? courtyardDoor : bedroomDoor;
         if (!exitState.started) {
           exitState.started = true;
           exitState.startQuaternion.copy(character.quaternion);
@@ -1509,13 +1623,26 @@ export default function DashboardHomeScene({
             2 * inverse * walkProgress * exitControl.z +
             walkProgress * walkProgress * exitEnd.z,
         );
-        roomDoor.update(
-          THREE.MathUtils.clamp((walkProgress - 0.58) / 0.32, 0, 1),
+        const doorOpenStart =
+          exitState.destination === "bedroom"
+            ? dashboardBedroomExitPath.doorOpenStart
+            : 0.58;
+        const doorOpenDuration =
+          exitState.destination === "bedroom"
+            ? dashboardBedroomExitPath.doorOpenDuration
+            : 0.32;
+        activeDoor.update(
+          THREE.MathUtils.clamp(
+            (walkProgress - doorOpenStart) / doorOpenDuration,
+            0,
+            1,
+          ),
         );
 
         if (walkProgress >= 1 && !exitCompleted) {
           exitCompleted = true;
-          onEnterCourtyard?.();
+          if (exitState.destination === "courtyard") onEnterCourtyard?.();
+          else onEnterBedroom?.();
         }
       } else if (!exitState && !exitCompleted) {
         maleCharacter.faceCamera(camera);
@@ -1536,21 +1663,20 @@ export default function DashboardHomeScene({
         fruitBasket.dispose();
         renderer.domElement.removeEventListener("pointermove", onPointerMove);
         renderer.domElement.removeEventListener("pointerdown", onPointerDown);
-        if (doorActionRef.current === beginDoorTransition) {
-          doorActionRef.current = null;
-        }
+        if (courtyardDoorActionRef.current === beginCourtyardTransition) courtyardDoorActionRef.current = null;
+        if (bedroomDoorActionRef.current === beginBedroomTransition) bedroomDoorActionRef.current = null;
         scene.remove(root, hemisphereLight, windowLight);
         disposeObject3D(root);
       },
     };
-  }, [caughtBugs, embedded, fruits, onBugClick, onDoorTransitionStart, onEnterCourtyard, onFruitBasketClick, onGramophoneClick, onSceneReady, onSnapshotClick, onTablePotClick, tableFlowerAsset, wallSnapshot]);
+  }, [caughtBugs, embedded, fruits, onBugClick, onDoorTransitionStart, onEnterBedroom, onEnterCourtyard, onFruitBasketClick, onGramophoneClick, onSceneReady, onSnapshotClick, onTablePotClick, tableFlowerAsset, wallSnapshot]);
 
   return (
     <div
       className={[
         "dashboard-three-layer",
         embedded ? "dashboard-three-layer-embedded" : "",
-        onTablePotClick || onBugClick || onSnapshotClick || onFruitBasketClick || onGramophoneClick || onEnterCourtyard ? "dashboard-three-layer-interactive" : "",
+        onTablePotClick || onBugClick || onSnapshotClick || onFruitBasketClick || onGramophoneClick || onEnterCourtyard || onEnterBedroom ? "dashboard-three-layer-interactive" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -1577,12 +1703,24 @@ export default function DashboardHomeScene({
         <button
           aria-label={t("openCourtyard")}
           className="dashboard-scene-hotspot dashboard-door-hotspot"
-          id="dashboard-room-door-trigger"
-          onClick={() => doorActionRef.current?.()}
-          ref={doorHotspotRef}
+          id="dashboard-room-courtyard-door-trigger"
+          onClick={() => courtyardDoorActionRef.current?.()}
+          ref={courtyardDoorHotspotRef}
           type="button"
         >
           <span>{t("openCourtyard")}</span>
+        </button>
+      ) : null}
+      {onEnterBedroom && !embedded ? (
+        <button
+          aria-label={t("openBedroom")}
+          className="dashboard-scene-hotspot dashboard-bedroom-door-hotspot"
+          id="dashboard-room-bedroom-door-trigger"
+          onClick={() => bedroomDoorActionRef.current?.()}
+          ref={bedroomDoorHotspotRef}
+          type="button"
+        >
+          <span>{t("openBedroom")}</span>
         </button>
       ) : null}
     </div>

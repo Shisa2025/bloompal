@@ -17,9 +17,12 @@ vi.mock("@/app/components/threejs/flowerModels", () => ({
 import {
   addGramophone,
   addRoomDoor,
+  dashboardBedroomDoorPosition,
+  dashboardBedroomExitPath,
   dashboardRoomDoorPosition,
   dashboardTableDisplayPositions,
 } from "./DashboardHomeScene";
+import { dashboardBedroomDoorStyle } from "./dashboardBedroomDoor";
 
 describe("dashboard gramophone", () => {
   it("mounts at the left side of the rear table and spins both record layers", () => {
@@ -76,5 +79,133 @@ describe("dashboard room door", () => {
 
     door.update(1);
     expect(leaf?.rotation.y).toBeCloseTo(-1.18);
+  });
+
+  it("mounts a mirrored bedroom door on the left wall with a warm preview", () => {
+    const parent = new THREE.Group();
+    const door = addRoomDoor(
+      parent,
+      { wood: new THREE.MeshStandardMaterial() },
+      "bedroom",
+    );
+
+    expect(door.object.position.toArray()).toEqual(dashboardBedroomDoorPosition);
+    expect(dashboardBedroomDoorPosition[0]).toBeLessThan(-6.5);
+    expect(door.object.rotation.y).toBeCloseTo(Math.PI / 2);
+    expect(
+      door.object.getObjectByName("dashboard-room-bedroom-door-leaf"),
+    ).toBeTruthy();
+    expect(
+      door.object.getObjectByName("dashboard-room-bedroom-preview"),
+    ).toBeTruthy();
+
+    const leaf = door.object.getObjectByName(
+      "dashboard-room-bedroom-door-leaf",
+    );
+    const panel = door.object.getObjectByName(
+      "dashboard-room-bedroom-door-panel",
+    );
+    const handle = door.object.getObjectByName(
+      "dashboard-room-bedroom-door-handle",
+    );
+    const courtyardParent = new THREE.Group();
+    const courtyardDoor = addRoomDoor(courtyardParent, {
+      wood: new THREE.MeshStandardMaterial(),
+    });
+    const courtyardPanel = courtyardDoor.object.getObjectByName(
+      "dashboard-room-door-panel",
+    ) as THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>;
+    const bedroomPanel = panel as THREE.Mesh<
+      THREE.BoxGeometry,
+      THREE.MeshStandardMaterial
+    >;
+    expect(leaf?.position.x).toBeCloseTo(0.67);
+    expect(panel?.position.x).toBeCloseTo(-0.67);
+    expect(handle?.position.x).toBeCloseTo(-1.11);
+    expect(
+      door.object.getObjectByName(
+        "dashboard-room-bedroom-door-moon-emblem",
+      ),
+    ).toBeTruthy();
+    expect(`#${bedroomPanel.material.color.getHexString()}`).toBe(
+      dashboardBedroomDoorStyle.leaf,
+    );
+    expect(bedroomPanel.material.color.equals(courtyardPanel.material.color)).toBe(
+      false,
+    );
+    door.update(1);
+    expect(leaf?.rotation.y).toBeCloseTo(-THREE.MathUtils.degToRad(81));
+  });
+
+  it("opens the bedroom door before the centered path crosses the left wall", () => {
+    const parent = new THREE.Group();
+    const door = addRoomDoor(
+      parent,
+      { wood: new THREE.MeshStandardMaterial() },
+      "bedroom",
+    );
+    door.update(1);
+    parent.updateMatrixWorld(true);
+
+    const obstructions = [
+      "dashboard-room-bedroom-door-panel",
+      "dashboard-room-bedroom-door-frame-left",
+      "dashboard-room-bedroom-door-frame-right",
+    ].map(
+      (name) =>
+        new THREE.Box3().setFromObject(door.object.getObjectByName(name)!),
+    );
+    const start = new THREE.Vector3(0.2, 0, 1.25);
+    const control = new THREE.Vector3(...dashboardBedroomExitPath.control);
+    const end = new THREE.Vector3(...dashboardBedroomExitPath.end);
+
+    for (const progress of [0.9, 0.92, 0.94, 0.96, 0.98, 1]) {
+      const inverse = 1 - progress;
+      const center = new THREE.Vector3(
+        inverse * inverse * start.x +
+          2 * inverse * progress * control.x +
+          progress * progress * end.x,
+        0,
+        inverse * inverse * start.z +
+          2 * inverse * progress * control.z +
+          progress * progress * end.z,
+      );
+      const characterBox = new THREE.Box3(
+        new THREE.Vector3(center.x - 0.24, 0.02, center.z - 0.26),
+        new THREE.Vector3(center.x + 0.24, 1.9, center.z + 0.26),
+      );
+
+      for (const obstruction of obstructions) {
+        expect(characterBox.intersectsBox(obstruction)).toBe(false);
+      }
+    }
+
+    expect(
+      dashboardBedroomExitPath.doorOpenStart +
+        dashboardBedroomExitPath.doorOpenDuration,
+    ).toBeLessThan(0.9);
+    expect(end.x).toBeLessThan(-7.1);
+    expect(end.z).toBeCloseTo(dashboardBedroomDoorPosition[2]);
+  });
+
+  it("overlaps the door leaf and frame edges so no wall gap is visible", () => {
+    const parent = new THREE.Group();
+    const door = addRoomDoor(
+      parent,
+      { wood: new THREE.MeshStandardMaterial() },
+      "bedroom",
+    );
+    const leafPivot = door.object.getObjectByName(
+      "dashboard-room-bedroom-door-leaf",
+    );
+    const leaf = leafPivot?.children[0] as THREE.Mesh;
+    const frameSides = door.object.children.filter(
+      (child) => Math.abs(child.position.x) > 0.7,
+    ) as THREE.Mesh[];
+    const leafWidth = (leaf.geometry as THREE.BoxGeometry).parameters.width;
+    const frameWidth = (frameSides[0].geometry as THREE.BoxGeometry).parameters.width;
+    const innerFrameEdge = Math.abs(frameSides[0].position.x) - frameWidth / 2;
+
+    expect(innerFrameEdge).toBeLessThanOrEqual(leafWidth / 2);
   });
 });

@@ -1243,6 +1243,30 @@ body {
   border-radius: 48%;
 }
 
+.dashboard-bedroom-bed-hotspot {
+  width: 6rem;
+  height: 4.5rem;
+  border-radius: 42%;
+}
+
+.dashboard-bedroom-bed-hotspot::before {
+  width: 5rem;
+  height: 3.25rem;
+  border-radius: 42%;
+}
+
+.dashboard-bedroom-wardrobe-hotspot {
+  width: 4.8rem;
+  height: 5.6rem;
+  border-radius: 1rem;
+}
+
+.dashboard-bedroom-wardrobe-hotspot::before {
+  width: 3.8rem;
+  height: 4.7rem;
+  border-radius: 0.9rem;
+}
+
 .dashboard-scene-curtain {
   position: fixed;
   inset: 0;
@@ -1264,6 +1288,61 @@ body {
   background:
     radial-gradient(circle at 77% 34%, rgb(255 244 199 / 66%), transparent 18rem),
     linear-gradient(180deg, #dce9dd 0 45%, #a8c58d 45% 100%);
+}
+
+.dashboard-bedroom-fallback {
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 24% 35%, rgb(255 221 166 / 58%), transparent 15rem),
+    linear-gradient(180deg, #dfe2cf 0 48%, #c5a57f 48% 100%);
+}
+
+.dashboard-wardrobe-overlay {
+  z-index: 6;
+}
+
+.dashboard-wardrobe-dialog {
+  width: min(92vw, 27rem);
+  text-align: center;
+}
+
+.dashboard-wardrobe-icon {
+  position: relative;
+  width: 5.2rem;
+  height: 6.4rem;
+  margin: 0 auto 0.9rem;
+  border: 0.35rem solid #674832;
+  border-radius: 0.75rem 0.75rem 0.45rem 0.45rem;
+  background: linear-gradient(90deg, #936548 0 49%, #765039 49% 51%, #936548 51%);
+  box-shadow: 0 0.7rem 1.2rem rgb(73 51 36 / 20%);
+}
+
+.dashboard-wardrobe-icon::before {
+  content: "";
+  position: absolute;
+  inset: -0.6rem -0.55rem auto;
+  height: 0.45rem;
+  border-radius: 0.45rem;
+  background: #674832;
+}
+
+.dashboard-wardrobe-icon span {
+  position: absolute;
+  top: 48%;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: #c79a43;
+  box-shadow: 0 0.12rem 0.18rem rgb(73 51 36 / 32%);
+}
+
+.dashboard-wardrobe-icon span:first-child {
+  left: calc(50% - 0.58rem);
+}
+
+.dashboard-wardrobe-icon span:last-child {
+  right: calc(50% - 0.58rem);
 }
 
 .sr-only {
