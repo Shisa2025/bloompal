@@ -3,8 +3,10 @@
 import { Link, useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, useTransition, type RefObject } from "react";
+import FishModel from "@/app/components/FishModel";
 import { createMotionTracker } from "@/mediapipe/motion";
 import type { MotionSide, MotionTracker } from "@/mediapipe/types";
+import { getFishAssetPath, type FishKind } from "@/lib/fish-assets";
 import { getFishingSignals, type FishingHandSignal, type FishingSignals } from "./fishingRules";
 import { saveCaughtFish } from "./actions";
 
@@ -22,14 +24,14 @@ const emptySignals: FishingSignals = {
   left: { detected: false, fist: false, x: 0.35, y: 0.5, confidence: 0 },
   right: { detected: false, fist: false, x: 0.65, y: 0.5, confidence: 0 },
 };
-const fishEmoji = ["🐠", "🐟", "🐡", "🐠"];
-
-export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly string[] }) {
+export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly FishKind[] }) {
   const router = useRouter();
   const t = useTranslations("Games.catchFish");
   const tErrors = useTranslations("Errors");
-  const [rewardFishIndex] = useState(() => randomIndex(fishKinds.length));
-  const [fishDesignIndex, setFishDesignIndex] = useState(() => randomIndex(fishEmoji.length));
+  const [fishRun] = useState(() => {
+    const sequence = Array.from({ length: totalFish }, () => fishKinds[randomIndex(fishKinds.length)]);
+    return { sequence, reward: sequence[randomIndex(sequence.length)] };
+  });
   const [counts, setCounts] = useState<Counts>(emptyCounts);
   const [signals, setSignals] = useState<FishingSignals>(emptySignals);
   const [activeSide, setActiveSide] = useState<MotionSide | null>(null);
@@ -44,7 +46,7 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
   const trackerRef = useRef<MotionTracker | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const frameRef = useRef(0);
-  const fishElementRef = useRef<HTMLSpanElement>(null);
+  const fishElementRef = useRef<HTMLDivElement>(null);
   const countsRef = useRef<Counts>(emptyCounts);
   const fishRef = useRef<Point>({ x: 0.24, y: 0.58 });
   const fishVelocityRef = useRef<Point>({ x: 0, y: 0 });
@@ -73,7 +75,6 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
     fishVelocityRef.current = { x: 0, y: 0 };
     fishTargetRef.current = randomPondPoint();
     fishUpdatedAtRef.current = 0;
-    setFishDesignIndex(randomIndex(fishEmoji.length));
     requestAnimationFrame((now) => drawFish(point, now));
   }, [drawFish]);
 
@@ -207,7 +208,7 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
     if (!completion) return;
     setSaveError(null);
     startTransition(async () => {
-      const result = await saveCaughtFish(fishKinds[rewardFishIndex], { sessionId: completion.sessionId, durationSeconds: (Date.now() - completion.startedAtMs) / 1000, leftRepetitions: requiredSets, rightRepetitions: requiredSets, successfulActions: totalFish, totalAttempts: Math.max(completion.attempts, totalFish) });
+      const result = await saveCaughtFish(fishRun.reward, { sessionId: completion.sessionId, durationSeconds: (Date.now() - completion.startedAtMs) / 1000, leftRepetitions: requiredSets, rightRepetitions: requiredSets, successfulActions: totalFish, totalAttempts: Math.max(completion.attempts, totalFish) });
       if (!result.ok) return setSaveError(tErrors(result.errorCode));
       router.push("/dashboard");
       router.refresh();
@@ -216,17 +217,17 @@ export default function CatchFishGameClient({ fishKinds }: { fishKinds: readonly
 
   return <div className="watering-game">
     <header className="watering-header"><div><p>{t("gameLabel")}</p><h1>{t("title")}</h1></div><Link className="watering-secondary-link" href="/dashboard">{t("dashboard")}</Link></header>
-    {completion ? <section className="watering-layout watering-layout-single"><div className="watering-main-panel"><div className="fishing-reward"><div className="fishing-reward-fish">{fishEmoji[rewardFishIndex]}</div><h2>{t("allCaught", { count: totalFish })}</h2><p>{t("rewardDescription")}</p><button className="watering-primary-link" disabled={isPending} onClick={saveAndReturn} type="button">{isPending ? t("savingFish") : t("addToPond")}</button>{saveError ? <p className="collectbugs-reward-error">{saveError}</p> : null}</div></div></section> :
-      <FishingPlayfield activeSide={activeSide} cameraError={cameraError} cameraStatus={cameraStatus} counts={counts} fishElementRef={fishElementRef} fishIcon={fishEmoji[fishDesignIndex]} hint={hint} onRetry={() => setCameraRunId((value) => value + 1)} signals={signals} videoRef={videoRef} />}
+    {completion ? <section className="watering-layout watering-layout-single"><div className="watering-main-panel"><div className="fishing-reward"><div className="fishing-reward-fish"><FishModel assetPath={getFishAssetPath(fishRun.reward)} ariaLabel={t("rewardDescription")} /></div><h2>{t("allCaught", { count: totalFish })}</h2><p>{t("rewardDescription")}</p><button className="watering-primary-link" disabled={isPending} onClick={saveAndReturn} type="button">{isPending ? t("savingFish") : t("addToPond")}</button>{saveError ? <p className="collectbugs-reward-error">{saveError}</p> : null}</div></div></section> :
+      <FishingPlayfield activeSide={activeSide} cameraError={cameraError} cameraStatus={cameraStatus} counts={counts} fishAssetPath={getFishAssetPath(fishRun.sequence[Math.min(counts.left + counts.right, totalFish - 1)])} fishElementRef={fishElementRef} hint={hint} onRetry={() => setCameraRunId((value) => value + 1)} signals={signals} videoRef={videoRef} />}
   </div>;
 }
 
-function FishingPlayfield({ activeSide, cameraError, cameraStatus, counts, fishElementRef, fishIcon, hint, onRetry, signals, videoRef }: { activeSide: MotionSide | null; cameraError: string | null; cameraStatus: string; counts: Counts; fishElementRef: RefObject<HTMLSpanElement | null>; fishIcon: string; hint: string; onRetry: () => void; signals: FishingSignals; videoRef: RefObject<HTMLVideoElement | null> }) {
+function FishingPlayfield({ activeSide, cameraError, cameraStatus, counts, fishAssetPath, fishElementRef, hint, onRetry, signals, videoRef }: { activeSide: MotionSide | null; cameraError: string | null; cameraStatus: string; counts: Counts; fishAssetPath: string; fishElementRef: RefObject<HTMLDivElement | null>; hint: string; onRetry: () => void; signals: FishingSignals; videoRef: RefObject<HTMLVideoElement | null> }) {
   const t = useTranslations("Games.catchFish");
   const caught = counts.left + counts.right;
   return <section className="watering-playfield">
     <div className="watering-camera-column"><section className="watering-camera-panel"><div className="watering-panel-heading"><p>{t("webcam")}</p><h2>{t("showHands")}</h2></div><div className="watering-video-wrap"><video ref={videoRef} className="watering-video" muted playsInline aria-label={t("webcamLabel")} /></div><div className="watering-camera-footer"><span>{cameraStatus}</span>{cameraError ? <button className="watering-text-button" onClick={onRetry} type="button">{t("retryCamera")}</button> : null}</div>{cameraError ? <p className="watering-error">{cameraError}</p> : null}</section></div>
-    <section className="watering-sprout-panel"><div className="watering-sprout-heading"><p>{t("pondProgress", { caught, total: totalFish })}</p><h2>{activeSide ? t("dragToNet") : t("catchTheFish")}</h2></div><div className="watering-sprout-stage-shell fishing-game-pond"><FishingNet /><span ref={fishElementRef} className={`fishing-game-fish${activeSide ? " is-grabbed" : ""}`}>{fishIcon}</span>{sides.map((side) => signals[side].detected && counts[side] < requiredSets ? <Aim key={side} signal={signals[side]} side={side} /> : null)}<span className="fishing-pond-reeds" aria-hidden="true" /></div><p className="fishing-stage-hint">{hint}</p></section>
+    <section className="watering-sprout-panel"><div className="watering-sprout-heading"><p>{t("pondProgress", { caught, total: totalFish })}</p><h2>{activeSide ? t("dragToNet") : t("catchTheFish")}</h2></div><div className="watering-sprout-stage-shell fishing-game-pond"><FishingNet /><div ref={fishElementRef} className={`fishing-game-fish${activeSide ? " is-grabbed" : ""}`}><FishModel assetPath={fishAssetPath} /></div>{sides.map((side) => signals[side].detected && counts[side] < requiredSets ? <Aim key={side} signal={signals[side]} side={side} /> : null)}<span className="fishing-pond-reeds" aria-hidden="true" /></div><p className="fishing-stage-hint">{hint}</p></section>
     <div className="watering-side-column"><aside className="watering-progress-panel"><div><p className="watering-panel-kicker">{t("exercise")}</p><h2>{t("fishPlaced")}</h2></div><div className="watering-progress-list">{sides.map((side) => <div className="watering-progress-row" key={side}><div><span>{t(side)}</span><strong>{counts[side]}/{requiredSets}</strong></div><div className="watering-progress-track" aria-hidden="true"><span style={{ width: `${(counts[side] / requiredSets) * 100}%` }} /></div><p>{counts[side] >= requiredSets ? t("complete") : activeSide === side ? t("draggingFish") : signals[side].fist ? t("fistRecognised") : t("readyToGrab")}</p></div>)}</div></aside><aside className="watering-guide-panel"><div><p className="watering-panel-kicker">{t("howToPlay")}</p><h2>{t("dragFishToNet")}</h2></div><ol className="watering-guide-steps"><li><span className="collectbugs-guide-icon">1</span><div><strong>{t("closeOverFish")}</strong><p>{t("closeOverFishDescription")}</p></div></li><li><span className="collectbugs-guide-icon">2</span><div><strong>{t("dragToNet")}</strong><p>{t("dragDescription")}</p></div></li><li><span className="collectbugs-guide-icon">3</span><div><strong>{t("openPalm")}</strong><p>{t("openPalmDescription", { count: requiredSets })}</p></div></li></ol><div className="watering-live-hint"><strong>{t("now")}</strong><p>{hint}</p></div></aside></div>
   </section>;
 }

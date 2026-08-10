@@ -1,9 +1,11 @@
-export type FruitArtKind = "apple" | "pear" | "orange" | "plum" | "peach";
+export type FruitArtKind = "apple" | "cherry" | "lemon" | "pear" | "strawberry";
 
 export function FruitArt({ kind, className = "", label }: { kind: FruitArtKind; className?: string; label?: string }) {
   return (
     <span className={`fruit-art fruit-art-${kind} ${className}`.trim()} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
       <span className="fruit-art-body" />
+      {kind === "cherry" ? <span className="fruit-art-body fruit-art-body-second" /> : null}
+      {kind === "strawberry" ? <span className="fruit-art-seeds" /> : null}
       <span className="fruit-art-stem" />
       <span className="fruit-art-leaf" />
     </span>

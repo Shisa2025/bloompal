@@ -15,6 +15,7 @@ import { prepareFlowerModelForDisplay } from "@/app/components/threejs/flowerMod
 const maleModelUrl = "/meshes/characters/male.glb";
 const bugModelBaseUrl = "/meshes/bugs/";
 const flowerModelBaseUrl = "/meshes/flowers/";
+const fruitModelBaseUrl = "/meshes/fruits/";
 const characterFacingOffset = 0;
 
 type Transform = {
@@ -531,7 +532,7 @@ function createMaterials() {
   };
 }
 
-function addFruitBasket(parent: THREE.Group, fruits: { id: string; fruitKind: string }[]) {
+function addFruitBasket(parent: THREE.Group, fruits: { id: string; fruitKind: string }[], onReady?: () => void) {
   const group = new THREE.Group();
   group.name = "dashboard-fruit-basket";
   group.position.set(-1.75, 1.25, -3.36);
@@ -549,17 +550,58 @@ function addFruitBasket(parent: THREE.Group, fruits: { id: string; fruitKind: st
   });
   group.add(basket, rim, handle);
 
-  const colors: Record<string, string> = { apple: "#d9473f", pear: "#d7b83d", orange: "#ef8b23", plum: "#76508d", peach: "#ef9b6a" };
-  fruits.slice(-5).forEach((fruit, index) => {
-    const fruitMesh = createMesh(
-      new THREE.SphereGeometry(0.115, 18, 14),
-      new THREE.MeshStandardMaterial({ color: colors[fruit.fruitKind] ?? "#d9473f", roughness: 0.58 }),
-      { position: [-0.22 + (index % 3) * 0.22, 0.22 + Math.floor(index / 3) * 0.15, 0], castShadow: true },
+  const loader = new GLTFLoader();
+  let disposed = false;
+  const visibleFruits = fruits.slice(-5);
+  let remainingModels = visibleFruits.length;
+  const settleModel = () => {
+    remainingModels -= 1;
+    if (remainingModels === 0 && !disposed) onReady?.();
+  };
+  visibleFruits.forEach((fruit, index) => {
+    const slot = new THREE.Group();
+    slot.position.set(
+      -0.22 + (index % 3) * 0.22,
+      0.14 + Math.floor(index / 3) * 0.15,
+      -0.08 + (index % 2) * 0.025,
     );
-    group.add(fruitMesh);
+    group.add(slot);
+    loader.load(
+      `${fruitModelBaseUrl}${fruit.fruitKind}.glb`,
+      (gltf) => {
+        if (disposed) {
+          disposeObject3D(gltf.scene);
+          return;
+        }
+        const model = gltf.scene;
+        const bounds = new THREE.Box3().setFromObject(model);
+        const size = bounds.getSize(new THREE.Vector3());
+        const scale = 0.27 / Math.max(size.x, size.y, size.z, 0.001);
+        model.scale.setScalar(scale);
+        model.updateMatrixWorld(true);
+        const scaledBounds = new THREE.Box3().setFromObject(model);
+        const scaledCenter = scaledBounds.getCenter(new THREE.Vector3());
+        model.position.sub(
+          new THREE.Vector3(scaledCenter.x, scaledBounds.min.y, scaledCenter.z),
+        );
+        model.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        slot.add(model);
+        settleModel();
+      },
+      undefined,
+      (error) => {
+        console.error(`Failed to load dashboard ${fruit.fruitKind} fruit.`, error);
+        settleModel();
+      },
+    );
   });
   parent.add(group);
-  return group;
+  return { object: group, dispose: () => { disposed = true; } };
 }
 
 export default function DashboardHomeScene({
@@ -618,11 +660,16 @@ export default function DashboardHomeScene({
     scene.add(hemisphereLight, windowLight);
     addRoom(root, materials);
     addFurniture(root, materials);
+    let characterReady = false;
+    let fruitModelsReady = fruits.length === 0;
+    const reportSceneReady = () => {
+      if (characterReady && fruitModelsReady) onSceneReady?.();
+    };
     const tablePot = addTablePot({ parent: root, materials, tableFlowerAsset });
     const mountedWallSnapshot = addWallSnapshot({ parent: root, imageData: wallSnapshot?.imageData });
-    const maleCharacter = loadMaleCharacter({ camera, root, mixers, onReady: onSceneReady });
+    const maleCharacter = loadMaleCharacter({ camera, root, mixers, onReady: () => { characterReady = true; reportSceneReady(); } });
     const orbitingBugs = loadOrbitingBugs({ parent: root, caughtBugs });
-    const fruitBasket = addFruitBasket(root, fruits);
+    const fruitBasket = addFruitBasket(root, fruits, () => { fruitModelsReady = true; reportSceneReady(); });
 
     const readPointer = (event: PointerEvent) => {
       const bounds = renderer.domElement.getBoundingClientRect();
@@ -637,7 +684,7 @@ export default function DashboardHomeScene({
       return raycaster.intersectObject(tablePot.object, true).length > 0;
     };
     const isSnapshotHit = () => raycaster.intersectObject(mountedWallSnapshot, true).length > 0;
-    const isFruitBasketHit = () => raycaster.intersectObject(fruitBasket, true).length > 0;
+    const isFruitBasketHit = () => raycaster.intersectObject(fruitBasket.object, true).length > 0;
 
     const getBugHit = () => {
       const intersections = raycaster.intersectObjects(orbitingBugs.objects, true);
@@ -733,6 +780,7 @@ export default function DashboardHomeScene({
         maleCharacter.dispose();
         orbitingBugs.dispose();
         tablePot.dispose();
+        fruitBasket.dispose();
         renderer.domElement.removeEventListener("pointermove", onPointerMove);
         renderer.domElement.removeEventListener("pointerdown", onPointerDown);
         scene.remove(root, hemisphereLight, windowLight);

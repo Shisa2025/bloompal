@@ -205,10 +205,12 @@
     "yourPondEmpty": "Your pond is empty",
     "pondEmptyHint": "Use the gaming board to play Catching fish.",
     "fish": {
-      "goldfish": "Goldfish",
-      "bluefish": "Bluefish",
-      "koi": "Koi",
-      "angelfish": "Angelfish"
+      "fish1": "Fish 1",
+      "fish2": "Fish 2",
+      "fish3": "Fish 3",
+      "fish4": "Fish 4",
+      "fish5": "Fish 5",
+      "fish6": "Fish 6"
     },
     "fruitBasket": "Fruit basket",
     "yourHarvest": "Your harvest",
@@ -218,10 +220,10 @@
     "fillBasketHint": "Play Fruit Plucking to fill it.",
     "fruit": {
       "apple": "Apple",
+      "cherry": "Cherries",
+      "lemon": "Lemon",
       "pear": "Pear",
-      "orange": "Orange",
-      "plum": "Plum",
-      "peach": "Peach"
+      "strawberry": "Strawberry"
     },
     "confirmThrowFruit": "Throw this fruit away?",
     "tablePlanter": "Table planter",
@@ -467,10 +469,10 @@
       "seeBasket": "See my basket",
       "fruit": {
         "apple": "Apple",
+        "cherry": "Cherries",
+        "lemon": "Lemon",
         "pear": "Pear",
-        "orange": "Orange",
-        "plum": "Plum",
-        "peach": "Peach"
+        "strawberry": "Strawberry"
       }
     }
   },

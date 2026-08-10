@@ -4,9 +4,10 @@ import { randomUUID } from "crypto";
 import { sql, withTransaction } from "./connection";
 import { insertCompletedSession, isCompletedSessionReplay } from "./game-sessions";
 import type { GameCompletionMetrics } from "@/lib/game-metrics";
+import { meshFishKinds, type FishKind } from "@/lib/fish-assets";
 
-export const fishKinds = ["goldfish", "bluefish", "koi", "angelfish"] as const;
-export type FishKind = (typeof fishKinds)[number];
+export const fishKinds = meshFishKinds;
+export type { FishKind };
 
 export type UserFish = {
   id: string;
@@ -23,7 +24,7 @@ type UserFishRow = {
 let tableReady: Promise<void> | null = null;
 
 export function isFishKind(value: string): value is FishKind {
-  return fishKinds.includes(value as FishKind);
+  return meshFishKinds.includes(value as FishKind);
 }
 
 export async function getUserFish(userid: string): Promise<UserFish[]> {
@@ -82,18 +83,23 @@ export async function deleteUserFish({ userid, fishId }: { userid: string; fishI
 
 function ensureFishTable() {
   if (!tableReady) {
-    tableReady = sql.query(`
-      CREATE TABLE IF NOT EXISTS user_fish (
-        id TEXT PRIMARY KEY,
-        userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
-        fish_kind VARCHAR(32) NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        CONSTRAINT user_fish_kind_check CHECK (
-          fish_kind IN ('goldfish', 'bluefish', 'koi', 'angelfish')
+    tableReady = withTransaction(async (client) => {
+      await client.query("SELECT pg_advisory_xact_lock(42420003)");
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS user_fish (
+          id TEXT PRIMARY KEY,
+          userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
+          fish_kind VARCHAR(32) NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          CONSTRAINT user_fish_kind_check CHECK (
+            fish_kind IN ('fish1', 'fish2', 'fish3', 'fish4', 'fish5', 'fish6')
+          )
         )
-      )
-    `).then(async () => {
-      await sql.query("CREATE INDEX IF NOT EXISTS user_fish_userid_created_idx ON user_fish(userid, created_at ASC)");
+      `);
+      await client.query("ALTER TABLE user_fish DROP CONSTRAINT IF EXISTS user_fish_kind_check");
+      await client.query("UPDATE user_fish SET fish_kind = CASE fish_kind WHEN 'goldfish' THEN 'fish1' WHEN 'bluefish' THEN 'fish2' WHEN 'koi' THEN 'fish3' WHEN 'angelfish' THEN 'fish4' ELSE fish_kind END WHERE fish_kind IN ('goldfish', 'bluefish', 'koi', 'angelfish')");
+      await client.query("ALTER TABLE user_fish ADD CONSTRAINT user_fish_kind_check CHECK (fish_kind IN ('fish1', 'fish2', 'fish3', 'fish4', 'fish5', 'fish6'))");
+      await client.query("CREATE INDEX IF NOT EXISTS user_fish_userid_created_idx ON user_fish(userid, created_at ASC)");
     });
   }
   return tableReady;
