@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import FishModel from "@/app/components/FishModel";
-import { getFishAssetPath, type FishKind } from "@/lib/fish-assets";
+import type { FishKind } from "@/lib/fish-assets";
 import { getCatalogAssetBySource } from "@/lib/asset-catalog";
 import { releaseUserFish } from "../actions";
 
@@ -105,7 +105,7 @@ export default function DashboardPond({
             {fish.map((entry) => (
               <article className="dashboard-fish-option" key={entry.id}>
                 <span className="dashboard-fish-option-model" aria-hidden="true">
-                  <FishModel assetPath={getFishAssetPath(entry.fishKind)} />
+                  <FishModel fishKind={entry.fishKind} />
                 </span>
                 <strong>
                   {tAssets(

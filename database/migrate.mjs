@@ -181,13 +181,21 @@ try {
       expires_at TIMESTAMPTZ NOT NULL,
       PRIMARY KEY (room_id, userid),
       CONSTRAINT online_room_presence_outfit_check CHECK (
-        outfit_id IN ('base', 'moss-cardigan', 'honey-raincoat')
+        outfit_id IN ('base', 'moss-cardigan', 'honey-raincoat', 'leafback-dinosaur')
       ),
       CONSTRAINT online_room_presence_movement_check CHECK (
         movement_state IN ('idle', 'walk')
       ),
       CONSTRAINT online_room_presence_sequence_check CHECK (sequence >= 0)
     )
+  `);
+  await client.query(
+    "ALTER TABLE online_room_presence DROP CONSTRAINT IF EXISTS online_room_presence_outfit_check",
+  );
+  await client.query(`
+    ALTER TABLE online_room_presence
+    ADD CONSTRAINT online_room_presence_outfit_check
+    CHECK (outfit_id IN ('base', 'moss-cardigan', 'honey-raincoat', 'leafback-dinosaur'))
   `);
   await client.query(`
     CREATE INDEX IF NOT EXISTS online_room_presence_expiry_idx
@@ -228,7 +236,7 @@ try {
     ADD CONSTRAINT user_dashboard_settings_equipped_outfit_check
     CHECK (
       equipped_outfit_id IS NULL OR
-      equipped_outfit_id IN ('base', 'moss-cardigan', 'honey-raincoat')
+      equipped_outfit_id IN ('base', 'moss-cardigan', 'honey-raincoat', 'leafback-dinosaur')
     )
   `);
   await client.query(`

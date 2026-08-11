@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "shop:thumbnails": "node scripts/generate-shop-thumbnails.mjs",
     "db:migrate": "node database/migrate.mjs",
     "db:seed": "node database/insertData.mjs",
     "db:reset": "node database/initializeDB.mjs",
@@ -34,6 +35,8 @@
     "@types/three": "^0.184.1",
     "eslint": "^9",
     "eslint-config-next": "^16.3.0",
+    "puppeteer-core": "^25.6.0",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

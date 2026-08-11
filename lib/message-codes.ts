@@ -49,6 +49,7 @@ export const errorCodes = [
   "insufficientCoins",
   "assetUnavailable",
   "assetNotOwned",
+  "shopInventoryChanged",
   "shopTransactionFailed",
 ] as const;
 

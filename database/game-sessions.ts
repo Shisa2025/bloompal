@@ -5,6 +5,14 @@ import { sql, type DatabaseClient } from "./connection";
 import { normalizeDurationSeconds } from "@/lib/validation";
 import type { GameCompletionMetrics } from "@/lib/game-metrics";
 
+export type StoredGameSessionMetrics = Omit<
+  GameCompletionMetrics,
+  "leftRepetitions" | "rightRepetitions"
+> & {
+  leftRepetitions: number | null;
+  rightRepetitions: number | null;
+};
+
 export async function isCompletedSessionReplay(
   client: DatabaseClient,
   userid: string,
@@ -31,7 +39,7 @@ export async function insertCompletedSession({
   client: DatabaseClient;
   userid: string;
   activityType: ActivityType;
-  metrics: GameCompletionMetrics;
+  metrics: StoredGameSessionMetrics;
   sourceRecordId: string;
   metadata: Record<string, unknown>;
 }) {

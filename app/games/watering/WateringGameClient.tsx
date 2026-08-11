@@ -16,6 +16,14 @@ import { completeWateringRun, selectMysterySeed } from "./actions";
 import FlowerRewardStage from "./FlowerRewardStage";
 import SproutFeedbackStage from "./SproutFeedbackStage";
 import { getWateringSignals, type WateringSignals } from "./wateringRules";
+import {
+  createWateringMomentumState,
+  getCombinedWateringPercent,
+  getDisplayedWateringPercent,
+  shouldRunWateringInference,
+  updateWateringMomentum,
+  type WateringMomentumState,
+} from "./wateringMomentum";
 import { getCatalogAssetBySource } from "@/lib/asset-catalog";
 
 type WateringPlant = {
@@ -37,12 +45,7 @@ type GamePhase =
   | "complete-error"
   | "reward";
 
-type WaterCounts = Record<MotionSide, number>;
-type HandCycle = {
-  baseline: number | null;
-  phase: "searching" | "ready" | "rotated" | "cooldown";
-  lastCountAt: number;
-};
+type WateringPercentages = Record<MotionSide, number>;
 type WaterBurst = {
   id: number;
   side: MotionSide;
@@ -50,7 +53,7 @@ type WaterBurst = {
 
 const seedKeys = ["mystery-a", "mystery-b", "mystery-c"] as const;
 const sides: MotionSide[] = ["left", "right"];
-const emptyCounts: WaterCounts = { left: 0, right: 0 };
+const emptyPercentages: WateringPercentages = { left: 0, right: 0 };
 const emptySignals: WateringSignals = {
   left: { detected: false, fist: false, angleDegrees: 0, confidence: 0 },
   right: { detected: false, fist: false, angleDegrees: 0, confidence: 0 },
@@ -65,7 +68,7 @@ export default function WateringGameClient({
   const [phase, setPhase] = useState<GamePhase>(
     initialPlant ? "watering" : "choosing",
   );
-  const [counts, setCounts] = useState<WaterCounts>(emptyCounts);
+  const [momentumPercent, setMomentumPercent] = useState<WateringPercentages>(emptyPercentages);
   const [signals, setSignals] = useState<WateringSignals>(emptySignals);
   const [cameraStatus, setCameraStatus] = useState(t("cameraIdle"));
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -76,16 +79,17 @@ export default function WateringGameClient({
   const trackerRef = useRef<MotionTracker | null>(null);
   const animationFrameRef = useRef(0);
   const streamRef = useRef<MediaStream | null>(null);
-  const countsRef = useRef<WaterCounts>(emptyCounts);
+  const momentumStateRef = useRef<Record<MotionSide, WateringMomentumState>>({
+    left: createWateringMomentumState(),
+    right: createWateringMomentumState(),
+  });
+  const displayedMomentumRef = useRef<WateringPercentages>(emptyPercentages);
+  const nextBurstAtRef = useRef<WateringPercentages>({ left: 10, right: 10 });
+  const uiSignalsRef = useRef<WateringSignals>(emptySignals);
   const burstIdRef = useRef(0);
   const completingRef = useRef(false);
   const sessionIdRef = useRef("");
   const runStartedAtRef = useRef(0);
-  const lastSignalUiAtRef = useRef(0);
-  const cyclesRef = useRef<Record<MotionSide, HandCycle>>({
-    left: createHandCycle(),
-    right: createHandCycle(),
-  });
   const seedOrder = useMemo(() => shuffleSeeds([...seedKeys]), []);
 
   useEffect(() => {
@@ -95,17 +99,15 @@ export default function WateringGameClient({
     }
   }, []);
 
-  useEffect(() => {
-    countsRef.current = counts;
-  }, [counts]);
-
   const resetRunProgress = useCallback(() => {
-    setCounts(emptyCounts);
-    countsRef.current = emptyCounts;
-    cyclesRef.current = {
-      left: createHandCycle(),
-      right: createHandCycle(),
+    setMomentumPercent(emptyPercentages);
+    displayedMomentumRef.current = emptyPercentages;
+    momentumStateRef.current = {
+      left: createWateringMomentumState(),
+      right: createWateringMomentumState(),
     };
+    nextBurstAtRef.current = { left: 10, right: 10 };
+    uiSignalsRef.current = emptySignals;
     completingRef.current = false;
     setSignals(emptySignals);
     setBursts([]);
@@ -123,81 +125,51 @@ export default function WateringGameClient({
     }, 680);
   }, []);
 
-  const registerWater = useCallback(
-    (side: MotionSide) => {
-      setCounts((current) => {
-        if (current[side] >= 5) {
-          return current;
-        }
-
-        const next = {
-          ...current,
-          [side]: current[side] + 1,
-        };
-
-        countsRef.current = next;
-        return next;
-      });
-      addWaterBurst(side);
-    },
-    [addWaterBurst],
-  );
-
   const processSignals = useCallback(
     (nextSignals: WateringSignals, timestampMs: number) => {
+      const nextDisplayed = { ...displayedMomentumRef.current };
+      let displayChanged = false;
+
       sides.forEach((side) => {
         const signal = nextSignals[side];
-        const cycle = cyclesRef.current[side];
+        if (momentumStateRef.current[side].progress < 100) {
+          const result = updateWateringMomentum(
+            momentumStateRef.current[side],
+            signal,
+            timestampMs,
+          );
+          momentumStateRef.current[side] = result.state;
+          const displayed = getDisplayedWateringPercent(result.state.progress);
+          if (displayed !== nextDisplayed[side]) {
+            nextDisplayed[side] = displayed;
+            displayChanged = true;
+          }
 
-        if (countsRef.current[side] >= 5) {
-          return;
-        }
-
-        if (!signal.detected || !signal.fist) {
-          cyclesRef.current[side] = createHandCycle();
-          return;
-        }
-
-        if (cycle.baseline === null) {
-          cycle.baseline = signal.angleDegrees;
-          cycle.phase = "ready";
-          return;
-        }
-
-        const delta = getAngleDelta(signal.angleDegrees, cycle.baseline);
-
-        if (cycle.phase === "ready" && delta >= 30) {
-          cycle.phase = "rotated";
-          return;
-        }
-
-        if (
-          cycle.phase === "rotated" &&
-          delta <= 12 &&
-          timestampMs - cycle.lastCountAt > 450
-        ) {
-          cycle.phase = "cooldown";
-          cycle.lastCountAt = timestampMs;
-          registerWater(side);
-          return;
-        }
-
-        if (
-          cycle.phase === "cooldown" &&
-          delta <= 12 &&
-          timestampMs - cycle.lastCountAt > 700
-        ) {
-          cycle.phase = "ready";
-          cycle.baseline = signal.angleDegrees;
+          while (
+            result.state.progress >= nextBurstAtRef.current[side] &&
+            nextBurstAtRef.current[side] <= 100
+          ) {
+            addWaterBurst(side);
+            nextBurstAtRef.current[side] += 10;
+          }
         }
       });
 
-      if (timestampMs - lastSignalUiAtRef.current > 150) {
-        lastSignalUiAtRef.current = timestampMs;
+      if (displayChanged) {
+        displayedMomentumRef.current = nextDisplayed;
+        setMomentumPercent(nextDisplayed);
+      }
+
+      const signalStateChanged = sides.some((side) =>
+        uiSignalsRef.current[side].detected !== nextSignals[side].detected ||
+        uiSignalsRef.current[side].fist !== nextSignals[side].fist
+      );
+      if (signalStateChanged) {
+        uiSignalsRef.current = nextSignals;
         setSignals(nextSignals);
       }
     },
-    [registerWater],
+    [addWaterBurst],
   );
 
   const finishWatering = useCallback(async () => {
@@ -216,8 +188,8 @@ export default function WateringGameClient({
     const result = await completeWateringRun(plant.id, {
       sessionId: sessionIdRef.current,
       durationSeconds: (Date.now() - runStartedAtRef.current) / 1000,
-      leftRepetitions: countsRef.current.left,
-      rightRepetitions: countsRef.current.right,
+      leftMomentumPercent: displayedMomentumRef.current.left,
+      rightMomentumPercent: displayedMomentumRef.current.right,
     });
 
     if (!result.ok) {
@@ -232,14 +204,18 @@ export default function WateringGameClient({
   }, [plant, tErrors]);
 
   useEffect(() => {
-    if (phase === "watering" && counts.left >= 5 && counts.right >= 5) {
+    if (
+      phase === "watering" &&
+      momentumPercent.left >= 100 &&
+      momentumPercent.right >= 100
+    ) {
       const timer = window.setTimeout(() => {
         void finishWatering();
       }, 0);
 
       return () => window.clearTimeout(timer);
     }
-  }, [counts, finishWatering, phase]);
+  }, [finishWatering, momentumPercent, phase]);
 
   useEffect(() => {
     if (phase !== "watering" || !plant) {
@@ -248,6 +224,8 @@ export default function WateringGameClient({
 
     let disposed = false;
     let videoElement: HTMLVideoElement | null = null;
+    let lastVideoTime = -1;
+    let lastInferenceAtMs = Number.NEGATIVE_INFINITY;
 
     async function startCamera() {
       const video = videoRef.current;
@@ -264,8 +242,8 @@ export default function WateringGameClient({
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
-            width: { ideal: 960 },
-            height: { ideal: 540 },
+            width: { ideal: 640 },
+            height: { ideal: 360 },
             facingMode: "user",
           },
         });
@@ -291,13 +269,22 @@ export default function WateringGameClient({
         trackerRef.current = tracker;
         setCameraStatus(t("trackingHands"));
 
-        const detectFrame = () => {
+        const detectFrame = (timestampMs: number) => {
           if (disposed || !trackerRef.current || !videoRef.current) {
             return;
           }
 
-          if (videoRef.current.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-            const timestampMs = performance.now();
+          if (
+            videoRef.current.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+            shouldRunWateringInference({
+              videoTime: videoRef.current.currentTime,
+              lastVideoTime,
+              timestampMs,
+              lastInferenceAtMs,
+            })
+          ) {
+            lastVideoTime = videoRef.current.currentTime;
+            lastInferenceAtMs = timestampMs;
             const result = trackerRef.current.detectMotion(videoRef.current, timestampMs);
 
             processSignals(getWateringSignals(result), timestampMs);
@@ -306,7 +293,7 @@ export default function WateringGameClient({
           animationFrameRef.current = window.requestAnimationFrame(detectFrame);
         };
 
-        detectFrame();
+        animationFrameRef.current = window.requestAnimationFrame(detectFrame);
       } catch (error) {
         console.error("Watering camera setup failed.", error);
         setCameraStatus(t("cameraUnavailable"));
@@ -388,7 +375,7 @@ export default function WateringGameClient({
             bursts={bursts}
             cameraError={cameraError}
             cameraStatus={cameraStatus}
-            counts={counts}
+            momentumPercent={momentumPercent}
             phase={phase}
             signals={signals}
             onRetryCamera={() => setCameraRunId((current) => current + 1)}
@@ -406,7 +393,7 @@ function WateringPlayfield({
   bursts,
   cameraError,
   cameraStatus,
-  counts,
+  momentumPercent,
   phase,
   signals,
   onRetryCamera,
@@ -417,7 +404,7 @@ function WateringPlayfield({
   bursts: WaterBurst[];
   cameraError: string | null;
   cameraStatus: string;
-  counts: WaterCounts;
+  momentumPercent: WateringPercentages;
   phase: GamePhase;
   signals: WateringSignals;
   onRetryCamera: () => void;
@@ -425,7 +412,10 @@ function WateringPlayfield({
   videoRef: RefObject<HTMLVideoElement | null>;
 }) {
   const t = useTranslations("Games.watering");
-  const progress = counts.left + counts.right;
+  const growthPercent = getCombinedWateringPercent(
+    momentumPercent.left,
+    momentumPercent.right,
+  );
 
   return (
     <>
@@ -444,14 +434,14 @@ function WateringPlayfield({
       <div className="watering-sprout-panel">
         <div className="watering-sprout-heading">
           <p>{t("liveGrowth")}</p>
-          <h2>{progress >= 10 ? t("readyToBloom") : t("keepWatering")}</h2>
+          <h2>{growthPercent >= 100 ? t("readyToBloom") : t("keepWatering")}</h2>
         </div>
-        <SproutFeedbackStage progress={progress} waterBursts={bursts} />
+        <SproutFeedbackStage progress={growthPercent} waterBursts={bursts} />
       </div>
 
       <div className="watering-side-column">
-        <ProgressPanel counts={counts} phase={phase} signals={signals} />
-        <GestureGuidePanel counts={counts} signals={signals} />
+        <ProgressPanel momentumPercent={momentumPercent} phase={phase} signals={signals} />
+        <GestureGuidePanel momentumPercent={momentumPercent} signals={signals} />
       </div>
     </>
   );
@@ -554,11 +544,11 @@ function CameraPanel({
 }
 
 function ProgressPanel({
-  counts,
+  momentumPercent,
   phase,
   signals,
 }: {
-  counts: WaterCounts;
+  momentumPercent: WateringPercentages;
   phase: GamePhase;
   signals: WateringSignals;
 }) {
@@ -575,12 +565,19 @@ function ProgressPanel({
           <div className="watering-progress-row" key={side}>
             <div>
               <span>{side === "left" ? t("left") : t("right")}</span>
-              <strong>{counts[side]}/5</strong>
+              <strong>{momentumPercent[side]}%</strong>
             </div>
-            <div className="watering-progress-track" aria-hidden="true">
-              <span style={{ width: `${Math.min(counts[side], 5) * 20}%` }} />
+            <div
+              aria-label={t("momentumProgressLabel", { side: t(side) })}
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={momentumPercent[side]}
+              className="watering-progress-track"
+              role="progressbar"
+            >
+              <span style={{ width: `${momentumPercent[side]}%` }} />
             </div>
-            <p>{getSignalCopy(signals[side], counts[side], t)}</p>
+            <p>{getSignalCopy(signals[side], momentumPercent[side], t)}</p>
           </div>
         ))}
       </div>
@@ -589,10 +586,10 @@ function ProgressPanel({
 }
 
 function GestureGuidePanel({
-  counts,
+  momentumPercent,
   signals,
 }: {
-  counts: WaterCounts;
+  momentumPercent: WateringPercentages;
   signals: WateringSignals;
 }) {
   const t = useTranslations("Games.watering");
@@ -627,15 +624,15 @@ function GestureGuidePanel({
             <span />
           </span>
           <div>
-            <strong>{t("returnCenter")}</strong>
-            <p>{t("returnCenterDescription")}</p>
+            <strong>{t("keepMoving")}</strong>
+            <p>{t("keepMovingDescription")}</p>
           </div>
         </li>
       </ol>
 
       <div className="watering-live-hint">
         <strong>{t("now")}</strong>
-        <p>{getGuideHint(counts, signals, t)}</p>
+        <p>{getGuideHint(momentumPercent, signals, t)}</p>
       </div>
     </aside>
   );
@@ -678,24 +675,10 @@ async function createHandsTracker() {
   }
 }
 
-function createHandCycle(): HandCycle {
-  return {
-    baseline: null,
-    phase: "searching",
-    lastCountAt: 0,
-  };
-}
-
-function getAngleDelta(first: number, second: number) {
-  const diff = Math.abs(first - second) % 360;
-
-  return diff > 180 ? 360 - diff : diff;
-}
-
 type WateringTranslator = ReturnType<typeof useTranslations<"Games.watering">>;
 
-function getSignalCopy(signal: WateringSignals[MotionSide], count: number, t: WateringTranslator) {
-  if (count >= 5) {
+function getSignalCopy(signal: WateringSignals[MotionSide], percent: number, t: WateringTranslator) {
+  if (percent >= 100) {
     return t("complete");
   }
 
@@ -706,20 +689,14 @@ function getSignalCopy(signal: WateringSignals[MotionSide], count: number, t: Wa
   return signal.fist ? t("ready") : t("openHand");
 }
 
-function getGuideHint(counts: WaterCounts, signals: WateringSignals, t: WateringTranslator) {
-  if (counts.left >= 5 && counts.right >= 5) {
+function getGuideHint(momentumPercent: WateringPercentages, signals: WateringSignals, t: WateringTranslator) {
+  if (momentumPercent.left >= 100 && momentumPercent.right >= 100) {
     return t("bothHandsComplete");
   }
 
-  const activeSide = counts.left <= counts.right ? "left" : "right";
+  const activeSide = momentumPercent.left <= momentumPercent.right ? "left" : "right";
   const signal = signals[activeSide];
   const label = activeSide === "left" ? "left" : "right";
-
-  if (counts[activeSide] >= 5) {
-    const otherSide = activeSide === "left" ? "right" : "left";
-
-    return t("handComplete", { side: t(label), otherSide: t(otherSide) });
-  }
 
   if (!signal.detected) {
     return t("showFist", { side: t(label) });
@@ -729,7 +706,10 @@ function getGuideHint(counts: WaterCounts, signals: WateringSignals, t: Watering
     return t("closeHand", { side: t(label) });
   }
 
-  return t("twistHint", { side: t(label) });
+  return t("twistHint", {
+    side: t(label),
+    percent: momentumPercent[activeSide],
+  });
 }
 
 function shuffleSeeds(values: (typeof seedKeys)[number][]) {

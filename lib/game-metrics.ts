@@ -1,18 +1,30 @@
-export type GameCompletionMetrics = {
+export type CompletionTimingMetrics = {
   sessionId: string;
   durationSeconds: number;
+};
+
+export type GameCompletionMetrics = CompletionTimingMetrics & {
   leftRepetitions: number;
   rightRepetitions: number;
   successfulActions?: number | null;
   totalAttempts?: number | null;
 };
 
+export type WateringCompletionMetrics = CompletionTimingMetrics & {
+  leftMomentumPercent: number;
+  rightMomentumPercent: number;
+};
+
 export function isSessionId(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
-export function validWateringMetrics(metrics: GameCompletionMetrics) {
-  return validCommon(metrics) && metrics.leftRepetitions === 5 && metrics.rightRepetitions === 5;
+export function validWateringMetrics(metrics: WateringCompletionMetrics) {
+  return (
+    validCommon(metrics) &&
+    metrics.leftMomentumPercent === 100 &&
+    metrics.rightMomentumPercent === 100
+  );
 }
 
 export function validBugMetrics(metrics: GameCompletionMetrics) {
@@ -55,7 +67,7 @@ export function validFruitMetrics(metrics: GameCompletionMetrics) {
   );
 }
 
-function validCommon(metrics: GameCompletionMetrics) {
+function validCommon(metrics: CompletionTimingMetrics) {
   return Boolean(
     metrics &&
       isSessionId(metrics.sessionId) &&

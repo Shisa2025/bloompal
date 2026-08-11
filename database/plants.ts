@@ -3,9 +3,10 @@ import "server-only";
 import { randomUUID } from "crypto";
 import { sql, withTransaction } from "./connection";
 import { insertCompletedSession, isCompletedSessionReplay } from "./game-sessions";
-import type { GameCompletionMetrics } from "@/lib/game-metrics";
+import type { WateringCompletionMetrics } from "@/lib/game-metrics";
 import { flowerCatalog } from "@/lib/asset-catalog";
 import { ensureShopTables } from "./shop";
+import { getStoredWateringSession } from "./watering-session";
 
 export const mysterySeedKeys = ["mystery-a", "mystery-b", "mystery-c"] as const;
 export const flowerAssets = flowerCatalog.map((asset) => asset.sourceValue);
@@ -228,7 +229,7 @@ export async function completeUserPlantWithSession({
 }: {
   userid: string;
   plantId: string;
-  metrics: GameCompletionMetrics;
+  metrics: WateringCompletionMetrics;
 }): Promise<UserPlant | null> {
   return withTransaction(async (client) => {
     const currentRows = await client.query<UserPlantRow>(
@@ -262,13 +263,18 @@ export async function completeUserPlantWithSession({
       if (!plant) return null;
     }
 
+    const storedSession = getStoredWateringSession(metrics);
     await insertCompletedSession({
       client,
       userid,
       activityType: "watering",
-      metrics,
+      metrics: storedSession.metrics,
       sourceRecordId: plant.id,
-      metadata: { plantId: plant.id, flowerAsset: plant.flowerAsset },
+      metadata: {
+        plantId: plant.id,
+        flowerAsset: plant.flowerAsset,
+        ...storedSession.metadata,
+      },
     });
     return plant;
   });

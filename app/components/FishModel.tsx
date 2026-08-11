@@ -4,17 +4,25 @@ import { useCallback } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { ThreeStage, disposeObject3D, type ThreeStageContext, type ThreeStageFrame } from "@/app/components/threejs";
+import {
+  getFishAssetPath,
+  getFishHorizontalYaw,
+  type FishKind,
+} from "@/lib/fish-assets";
 
-export default function FishModel({ assetPath, ariaLabel, className = "" }: { assetPath: string; ariaLabel?: string; className?: string }) {
-  const setup = useCallback(({ scene, camera, renderer }: ThreeStageContext) => {
+export default function FishModel({ fishKind, animated = true, ariaLabel, className = "" }: { fishKind: FishKind; animated?: boolean; ariaLabel?: string; className?: string }) {
+  const setup = useCallback(({ scene, camera, renderer, requestRender }: ThreeStageContext) => {
     const root = new THREE.Group();
     const loader = new GLTFLoader();
+    const assetPath = getFishAssetPath(fishKind);
+    const horizontalYaw = getFishHorizontalYaw(fishKind);
     let disposed = false;
 
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
     camera.position.set(0, 0.05, 3.25);
     camera.lookAt(0, 0, 0);
+    root.rotation.set(0, horizontalYaw, 0);
     scene.add(root);
 
     const ambient = new THREE.HemisphereLight("#fff8df", "#56909a", 2.4);
@@ -39,11 +47,16 @@ export default function FishModel({ assetPath, ariaLabel, className = "" }: { as
         if (child instanceof THREE.Mesh) child.castShadow = true;
       });
       root.add(model);
+      requestRender();
     }, undefined, (error) => console.error(`Failed to load fish model ${assetPath}.`, error));
 
     const onFrame = ({ elapsed }: ThreeStageFrame) => {
       root.position.y = Math.sin(elapsed * 2.4) * 0.035;
-      root.rotation.y = Math.sin(elapsed * 1.8) * 0.08;
+      root.rotation.set(
+        0,
+        horizontalYaw + Math.sin(elapsed * 1.8) * 0.08,
+        0,
+      );
     };
 
     return {
@@ -54,7 +67,7 @@ export default function FishModel({ assetPath, ariaLabel, className = "" }: { as
         disposeObject3D(root);
       },
     };
-  }, [assetPath]);
+  }, [fishKind]);
 
-  return <ThreeStage className={`fish-model-stage ${className}`.trim()} setup={setup} ariaLabel={ariaLabel} fallback={<span className="fish-model-fallback" aria-hidden="true" />} />;
+  return <ThreeStage className={`fish-model-stage ${className}`.trim()} setup={setup} continuous={animated} ariaLabel={ariaLabel} fallback={<span className="fish-model-fallback" aria-hidden="true" />} />;
 }

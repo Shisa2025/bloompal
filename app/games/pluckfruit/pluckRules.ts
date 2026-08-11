@@ -8,6 +8,7 @@ const fingerJoints = [
   { mcp: 13, pip: 14, dip: 15, tip: 16 },
   { mcp: 17, pip: 18, dip: 19, tip: 20 },
 ] as const;
+const aimLandmarkIndexes = fingerJoints.map(({ mcp }) => mcp);
 
 export function getClawSignals(result: MotionResult): ClawSignals {
   const signals: ClawSignals = {
@@ -29,29 +30,23 @@ export function getClawSignals(result: MotionResult): ClawSignals {
 
       return largeKnuckleAngle >= 145 && middleJointAngle <= 150 && endJointAngle <= 160;
     }).length;
-    const handBounds = hand.reduce(
-      (bounds, point) => ({
-        minX: Math.min(bounds.minX, point.x),
-        maxX: Math.max(bounds.maxX, point.x),
-        minY: Math.min(bounds.minY, point.y),
-        maxY: Math.max(bounds.maxY, point.y),
+    const knuckleCenter = aimLandmarkIndexes.reduce(
+      (center, landmarkIndex) => ({
+        x: center.x + hand[landmarkIndex].x / aimLandmarkIndexes.length,
+        y: center.y + hand[landmarkIndex].y / aimLandmarkIndexes.length,
       }),
-      { minX: 1, maxX: 0, minY: 1, maxY: 0 },
+      { x: 0, y: 0 },
     );
-    const handCenter = {
-      x: (handBounds.minX + handBounds.maxX) / 2,
-      y: (handBounds.minY + handBounds.maxY) / 2,
-    };
     signals[side] = {
       detected: true,
       // A hook claw keeps the large MCP knuckles extended while flexing the
       // PIP and DIP joints. The thumb is intentionally unconstrained.
       claw: palm > 0.025 && hookFingers >= 3,
       confidence,
-      // Match the mirrored webcam using the visual center of the complete
-      // hand. This stays intuitive as the fingers open and curl.
-      x: clampAim(1 - handCenter.x),
-      y: clampAim(handCenter.y),
+      // Match the mirrored webcam using the four large knuckles. Fingertip
+      // movement must not pull the aim point while the claw closes.
+      x: clampAim(1 - knuckleCenter.x),
+      y: clampAim(knuckleCenter.y),
     };
   });
   return signals;

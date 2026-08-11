@@ -6,10 +6,14 @@ import {
   getMusicAsset,
   getSellableAsset,
   isMusicTrackId,
+  sellableAssetCatalog,
   type AssetCategory,
   type MusicTrackId,
   type SellableAssetId,
+  type SellableCatalogAsset,
   type ShopInventoryItem,
+  type ShopSaleRequestLine,
+  type ShopSaleResultItem,
   type ShopState,
 } from "../lib/asset-catalog";
 import {
@@ -72,7 +76,7 @@ export function ensureShopTables() {
         ADD CONSTRAINT user_dashboard_settings_equipped_outfit_check
         CHECK (
           equipped_outfit_id IS NULL OR
-          equipped_outfit_id IN ('base', 'moss-cardigan', 'honey-raincoat')
+          equipped_outfit_id IN ('base', 'moss-cardigan', 'honey-raincoat', 'leafback-dinosaur')
         )
       `);
       await client.query(`
@@ -373,20 +377,24 @@ export async function purchaseMusic({
   });
 }
 
-export async function sellResource({
+export async function sellResources({
   userid,
-  assetId,
+  lines,
 }: {
   userid: string;
-  assetId: string;
+  lines: readonly ShopSaleRequestLine[];
 }): Promise<
-  | { ok: true; coinBalance: number; remainingQuantity: number; assetId: SellableAssetId }
-  | { ok: false; reason: "invalid" | "not_owned" }
+  | {
+      ok: true;
+      coinBalance: number;
+      earnedCoins: number;
+      soldQuantity: number;
+      items: ShopSaleResultItem[];
+    }
+  | { ok: false; reason: "invalid" | "inventory_changed" }
 > {
-  const asset = getSellableAsset(assetId);
-  if (!asset || !isSellableCategory(asset.category) || !asset.sourceValue) {
-    return { ok: false, reason: "invalid" };
-  }
+  const validatedLines = validateSaleLines(lines);
+  if (!validatedLines) return { ok: false, reason: "invalid" };
 
   await ensureShopTables();
   return withTransaction(async (client) => {
@@ -396,53 +404,142 @@ export async function sellResource({
       [userid],
     );
 
-    const sourceRows = await selectOldestOwnedResource({
-      client,
-      userid,
-      category: asset.category,
-      sourceValue: asset.sourceValue!,
-    });
-    const source = sourceRows[0];
-    if (!source) return { ok: false as const, reason: "not_owned" as const };
+    const lockedLines: Array<
+      ValidatedSaleLine & { sources: OwnedSourceRow[] }
+    > = [];
 
-    const saleId = randomUUID();
-    await client.query(
-      `INSERT INTO asset_sales (id, userid, asset_id, source_type, source_record_id, coin_value)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [saleId, userid, asset.id, asset.category, source.id, asset.sellPrice],
+    for (const line of validatedLines) {
+      const sources = await selectOldestOwnedResources({
+        client,
+        userid,
+        category: line.asset.category,
+        sourceValue: line.asset.sourceValue,
+        quantity: line.quantity,
+      });
+      if (sources.length !== line.quantity) {
+        return {
+          ok: false as const,
+          reason: "inventory_changed" as const,
+        };
+      }
+      lockedLines.push({ ...line, sources });
+    }
+
+    const batchId = randomUUID();
+    const earnedCoins = lockedLines.reduce(
+      (total, line) => total + line.quantity * line.asset.sellPrice,
+      0,
     );
-    await reconcileDisplayedResource({
-      client,
-      userid,
-      category: asset.category,
-      sourceValue: asset.sourceValue!,
-      source,
-    });
+    const soldQuantity = lockedLines.reduce(
+      (total, line) => total + line.quantity,
+      0,
+    );
+
+    for (const line of lockedLines) {
+      for (const source of line.sources) {
+        await client.query(
+          `INSERT INTO asset_sales (id, userid, asset_id, source_type, source_record_id, coin_value)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            randomUUID(),
+            userid,
+            line.asset.id,
+            line.asset.category,
+            source.id,
+            line.asset.sellPrice,
+          ],
+        );
+      }
+    }
+
+    for (const line of lockedLines) {
+      await reconcileDisplayedResources({
+        client,
+        userid,
+        category: line.asset.category,
+        sourceValue: line.asset.sourceValue,
+        sources: line.sources,
+      });
+    }
 
     const balanceRows = await client.query<{ balance: number }>(
       "UPDATE user_wallets SET balance = balance + $2, updated_at = NOW() WHERE userid = $1 RETURNING balance",
-      [userid, asset.sellPrice],
+      [userid, earnedCoins],
     );
     const coinBalance = Number(balanceRows[0].balance);
     await client.query(
       `INSERT INTO coin_transactions (id, userid, amount, balance_after, reason, reference_id)
        VALUES ($1, $2, $3, $4, 'sell_asset', $5)`,
-      [randomUUID(), userid, asset.sellPrice, coinBalance, saleId],
+      [randomUUID(), userid, earnedCoins, coinBalance, batchId],
     );
-    const countRows = await countOwnedResource({
-      client,
-      userid,
-      category: asset.category,
-      sourceValue: asset.sourceValue!,
-    });
+
+    const items: ShopSaleResultItem[] = [];
+    for (const line of lockedLines) {
+      const countRows = await countOwnedResource({
+        client,
+        userid,
+        category: line.asset.category,
+        sourceValue: line.asset.sourceValue,
+      });
+      items.push({
+        assetId: line.asset.id as SellableAssetId,
+        soldQuantity: line.quantity,
+        remainingQuantity: Number(countRows[0]?.quantity ?? 0),
+      });
+    }
 
     return {
       ok: true as const,
-      assetId: asset.id as SellableAssetId,
       coinBalance,
-      remainingQuantity: Number(countRows[0]?.quantity ?? 0),
+      earnedCoins,
+      soldQuantity,
+      items,
     };
   });
+}
+
+type ValidatedSaleLine = {
+  asset: SellableCatalogAsset;
+  quantity: number;
+};
+
+function validateSaleLines(
+  lines: readonly ShopSaleRequestLine[],
+): ValidatedSaleLine[] | null {
+  if (
+    !Array.isArray(lines) ||
+    lines.length === 0 ||
+    lines.length > sellableAssetCatalog.length
+  ) {
+    return null;
+  }
+
+  const seen = new Set<string>();
+  const validated: ValidatedSaleLine[] = [];
+
+  for (const line of lines) {
+    if (
+      !line ||
+      typeof line.assetId !== "string" ||
+      !Number.isSafeInteger(line.quantity) ||
+      line.quantity <= 0 ||
+      seen.has(line.assetId)
+    ) {
+      return null;
+    }
+
+    const asset = getSellableAsset(line.assetId);
+    if (!asset || !isSellableCategory(asset.category) || !asset.sourceValue) {
+      return null;
+    }
+
+    seen.add(line.assetId);
+    validated.push({ asset, quantity: line.quantity });
+  }
+
+  return validated.sort((left, right) =>
+    left.asset.id.localeCompare(right.asset.id),
+  );
 }
 
 async function ensureWalletRow(client: DatabaseClient, userid: string) {
@@ -458,16 +555,18 @@ function isSellableCategory(category: AssetCategory): category is SellableCatego
 
 type OwnedSourceRow = { id: string; is_active?: boolean };
 
-function selectOldestOwnedResource({
+function selectOldestOwnedResources({
   client,
   userid,
   category,
   sourceValue,
+  quantity,
 }: {
   client: DatabaseClient;
   userid: string;
   category: SellableCategory;
   sourceValue: string;
+  quantity: number;
 }) {
   const definitions = {
     flower: { table: "user_plants", value: "flower_asset", extra: "AND source.status = 'completed'", columns: "source.id" },
@@ -480,8 +579,8 @@ function selectOldestOwnedResource({
     `SELECT ${definition.columns} FROM ${definition.table} source
      WHERE source.userid = $1 AND source.${definition.value} = $2 ${definition.extra}
        AND NOT EXISTS (SELECT 1 FROM asset_sales sales WHERE sales.source_type = $3 AND sales.source_record_id = source.id)
-     ORDER BY source.created_at ASC LIMIT 1 FOR UPDATE`,
-    [userid, sourceValue, category],
+     ORDER BY source.created_at ASC LIMIT $4 FOR UPDATE`,
+    [userid, sourceValue, category, quantity],
   );
 }
 
@@ -511,18 +610,18 @@ function countOwnedResource({
   );
 }
 
-async function reconcileDisplayedResource({
+async function reconcileDisplayedResources({
   client,
   userid,
   category,
   sourceValue,
-  source,
+  sources,
 }: {
   client: DatabaseClient;
   userid: string;
   category: SellableCategory;
   sourceValue: string;
-  source: OwnedSourceRow;
+  sources: OwnedSourceRow[];
 }) {
   if (category === "flower") {
     const remaining = await countOwnedResource({
@@ -539,10 +638,15 @@ async function reconcileDisplayedResource({
     }
   }
 
-  if (category === "bug" && source.is_active) {
-    await client.query("UPDATE user_bugs SET is_active = FALSE WHERE id = $1", [
-      source.id,
-    ]);
+  const activeBugIds = sources
+    .filter((source) => source.is_active)
+    .map((source) => source.id);
+
+  if (category === "bug" && activeBugIds.length > 0) {
+    await client.query(
+      "UPDATE user_bugs SET is_active = FALSE WHERE id = ANY($1::TEXT[])",
+      [activeBugIds],
+    );
     await client.query(
       `UPDATE user_bugs SET is_active = TRUE WHERE id = (
          SELECT bugs.id FROM user_bugs bugs

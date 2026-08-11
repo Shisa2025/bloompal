@@ -11,6 +11,7 @@ export type ThreeStageContext = {
   container: HTMLDivElement;
   clock: THREE.Clock;
   reducedMotion: boolean;
+  requestRender: () => void;
 };
 
 export type ThreeStageFrame = ThreeStageContext & {
@@ -33,6 +34,7 @@ export type ThreeStageLifecycle = {
 export type ThreeStageProps = {
   setup: (context: ThreeStageContext) => ThreeStageLifecycle | void;
   animateWhenReducedMotion?: boolean;
+  continuous?: boolean;
   className?: string;
   fallback?: ReactNode;
   ariaLabel?: string;
@@ -101,6 +103,7 @@ export function disposeObject3D(object: THREE.Object3D) {
 
 export default function ThreeStage({
   animateWhenReducedMotion = false,
+  continuous = true,
   setup,
   className,
   fallback,
@@ -162,6 +165,10 @@ export default function ThreeStage({
       "(prefers-reduced-motion: reduce)",
     ).matches;
 
+    const renderOnce = () => {
+      if (!disposed) renderer.render(scene, camera);
+    };
+
     const context: ThreeStageContext = {
       scene,
       camera,
@@ -169,10 +176,7 @@ export default function ThreeStage({
       container,
       clock,
       reducedMotion,
-    };
-
-    const renderOnce = () => {
-      renderer.render(scene, camera);
+      requestRender: renderOnce,
     };
 
     const resize = () => {
@@ -202,7 +206,7 @@ export default function ThreeStage({
       resize();
       setStageStatus("ready", "");
 
-      if (reducedMotion && !animateWhenReducedMotion) {
+      if (!continuous || (reducedMotion && !animateWhenReducedMotion)) {
         lifecycle?.onFrame?.({
           ...context,
           delta: 0,
@@ -250,7 +254,7 @@ export default function ThreeStage({
         renderer.domElement.remove();
       }
     };
-  }, [animateWhenReducedMotion, preserveDrawingBuffer, setup, t]);
+  }, [animateWhenReducedMotion, continuous, preserveDrawingBuffer, setup, t]);
 
   return (
     <div

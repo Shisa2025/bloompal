@@ -3,13 +3,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import messages from "../../../messages/en-SG.json";
 
-vi.mock("@/i18n/navigation", () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
-}));
 vi.mock("../actions", () => ({
   buyDashboardOutfit: vi.fn(),
   buyMusicTrack: vi.fn(),
-  sellShopResource: vi.fn(),
+  sellShopResources: vi.fn(),
 }));
 
 import DashboardShopPreview, {
@@ -19,7 +16,11 @@ import DashboardShopPreview, {
 describe("DashboardShopPreview", () => {
   it("renders the registered music catalog, prices, ownership, and tabs", () => {
     const markup = renderToStaticMarkup(
-      <NextIntlClientProvider locale="en-SG" messages={messages}>
+      <NextIntlClientProvider
+        locale="en-SG"
+        messages={messages}
+        timeZone="Asia/Singapore"
+      >
         <DashboardShopPreview
           isOpen
           onClose={vi.fn()}
@@ -45,7 +46,7 @@ describe("DashboardShopPreview", () => {
     );
 
     expect(markup).toContain('role="dialog"');
-    expect(markup.match(/dashboard-shop-music-card/g)).toHaveLength(3);
+    expect(markup.match(/<article/g)).toHaveLength(3);
     expect(markup).toContain("Calm Loop");
     expect(markup).toContain("Chill");
     expect(markup).toContain("Dream");
@@ -56,11 +57,16 @@ describe("DashboardShopPreview", () => {
     expect(markup).toContain('aria-controls="dashboard-shop-outfits-panel"');
     expect(markup).toContain("Buy outfits");
     expect(markup).toContain("10 coins");
+    expect(markup).toContain("/assets/shop-thumbnails/character-rabbit_merchant.webp");
   });
 
   it("does not mount a dialog while closed", () => {
     const markup = renderToStaticMarkup(
-      <NextIntlClientProvider locale="en-SG" messages={messages}>
+      <NextIntlClientProvider
+        locale="en-SG"
+        messages={messages}
+        timeZone="Asia/Singapore"
+      >
         <DashboardShopPreview
           isOpen={false}
           onClose={vi.fn()}
@@ -84,7 +90,11 @@ describe("DashboardShopPreview", () => {
 
   it("renders purchasable outfits with ownership, price, and equip state", () => {
     const markup = renderToStaticMarkup(
-      <NextIntlClientProvider locale="en-SG" messages={messages}>
+      <NextIntlClientProvider
+        locale="en-SG"
+        messages={messages}
+        timeZone="Asia/Singapore"
+      >
         <DashboardShopOutfitList
           coinBalance={10}
           isPending={false}
@@ -95,10 +105,12 @@ describe("DashboardShopPreview", () => {
       </NextIntlClientProvider>,
     );
 
-    expect(markup.match(/dashboard-shop-outfit-card/g)).toHaveLength(2);
+    expect(markup.match(/<article/g)).toHaveLength(3);
     expect(markup).toContain("Sage green cardigan");
     expect(markup).toContain("Honey yellow raincoat");
+    expect(markup).toContain("Leafback Dinosaur Onesie");
     expect(markup).toContain("Wearing now");
     expect(markup).toContain("Buy for 10 coins");
+    expect(markup).toContain("Not enough coins");
   });
 });

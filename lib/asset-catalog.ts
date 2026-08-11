@@ -101,22 +101,22 @@ export const musicCatalog = [
   { id: "dream", category: "music", assetPath: "/audio/dream.mp3", nameKey: "names.musicDream", ownable: true, stackable: false, buyPrice: 10, artist: "jkjkke", license: "CC0 1.0", sourceUrl: "https://opengameart.org/content/mainmenu-music", previewSeconds: 15 },
 ] as const satisfies readonly CatalogAsset[];
 
-export const assetCatalog = [
+export const sellableAssetCatalog = [
   ...flowerCatalog,
   ...bugCatalog,
   ...fishCatalog,
   ...fruitCatalog,
+] as const;
+
+export const assetCatalog = [
+  ...sellableAssetCatalog,
   ...characterCatalog,
   ...musicCatalog,
 ] as const;
 
 export type AssetId = (typeof assetCatalog)[number]["id"];
 export type MusicTrackId = (typeof musicCatalog)[number]["id"];
-export type SellableAssetId =
-  | (typeof flowerCatalog)[number]["id"]
-  | (typeof bugCatalog)[number]["id"]
-  | (typeof fishCatalog)[number]["id"]
-  | (typeof fruitCatalog)[number]["id"];
+export type SellableAssetId = (typeof sellableAssetCatalog)[number]["id"];
 
 export type SellableCatalogAsset = CatalogAsset & {
   category: "flower" | "bug" | "fish" | "fruit";
@@ -128,6 +128,17 @@ export type ShopInventoryItem = {
   assetId: SellableAssetId;
   category: "flower" | "bug" | "fish" | "fruit";
   quantity: number;
+};
+
+export type ShopSaleRequestLine = {
+  assetId: string;
+  quantity: number;
+};
+
+export type ShopSaleResultItem = {
+  assetId: SellableAssetId;
+  soldQuantity: number;
+  remainingQuantity: number;
 };
 
 export type ShopState = {
@@ -157,12 +168,26 @@ export function getCatalogAssetBySource(
 export function getSellableAsset(
   assetId: string,
 ): SellableCatalogAsset | undefined {
-  const asset = getCatalogAsset(assetId);
+  const asset = sellableAssetCatalog.find((candidate) => candidate.id === assetId);
   return asset?.sellPrice === 1 &&
     asset.sourceValue &&
     ["flower", "bug", "fish", "fruit"].includes(asset.category)
     ? (asset as SellableCatalogAsset)
     : undefined;
+}
+
+export function getShopThumbnailPath(
+  asset: Pick<CatalogAsset, "assetPath" | "category">,
+): string | null {
+  if (!asset.assetPath.toLowerCase().endsWith(".glb")) return null;
+
+  const filename = asset.assetPath
+    .split("/")
+    .at(-1)!
+    .replace(/\.glb$/i, "")
+    .toLowerCase();
+
+  return `/assets/shop-thumbnails/${asset.category}-${filename}.webp`;
 }
 
 export function getMusicAsset(trackId: string) {

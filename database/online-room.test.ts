@@ -6,7 +6,11 @@ type FakePresence = {
   session_id: string;
   session_issued_at: number;
   display_name: string;
-  outfit_id: "base" | "moss-cardigan" | "honey-raincoat";
+  outfit_id:
+    | "base"
+    | "moss-cardigan"
+    | "honey-raincoat"
+    | "leafback-dinosaur";
   position_x: number;
   position_z: number;
   heading: number;
@@ -27,7 +31,8 @@ async function executeQuery(
   const normalized = text.replace(/\s+/g, " ").trim();
   if (
     normalized.startsWith("CREATE TABLE") ||
-    normalized.startsWith("CREATE INDEX")
+    normalized.startsWith("CREATE INDEX") ||
+    normalized.startsWith("ALTER TABLE")
   ) {
     return [];
   }
@@ -238,6 +243,15 @@ describe("Vercel online room presence", () => {
         String(text).trim().startsWith("WITH room_lock AS MATERIALIZED"),
       ),
     ).toHaveLength(3);
+  });
+
+  it("persists the leafback dinosaur outfit for remote players", async () => {
+    const joined = await syncOnlineRoomPresence({
+      identity: identity(1),
+      input: { ...input(), outfitId: "leafback-dinosaur" },
+    });
+
+    expect(joined.self.outfitId).toBe("leafback-dinosaur");
   });
 
   it("caps the room at eight and releases expired capacity", async () => {

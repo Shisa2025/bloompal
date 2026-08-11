@@ -18,9 +18,10 @@ import type { ErrorCode } from "@/lib/message-codes";
 import {
   purchaseOutfit as purchaseOutfitRecord,
   purchaseMusic as purchaseMusicRecord,
-  sellResource as sellResourceRecord,
+  sellResources as sellResourcesRecord,
   setEquippedDashboardOutfit as saveEquippedDashboardOutfit,
 } from "@/database/shop";
+import type { ShopSaleRequestLine } from "@/lib/asset-catalog";
 import {
   isDashboardOutfitId,
   type DashboardOutfitId,
@@ -206,28 +207,43 @@ export async function setEquippedDashboardOutfit(
   }
 }
 
-export async function sellShopResource(
-  assetId: string,
+export async function sellShopResources(
+  lines: readonly ShopSaleRequestLine[],
 ): Promise<
-  | { ok: true; assetId: string; coinBalance: number; remainingQuantity: number }
+  | {
+      ok: true;
+      coinBalance: number;
+      earnedCoins: number;
+      soldQuantity: number;
+      items: Array<{
+        assetId: string;
+        soldQuantity: number;
+        remainingQuantity: number;
+      }>;
+    }
   | { ok: false; errorCode: ErrorCode }
 > {
   const { userid } = await requireUser();
 
   try {
-    const result = await sellResourceRecord({ userid, assetId });
+    const result = await sellResourcesRecord({ userid, lines });
     if (!result.ok) {
+      if (result.reason === "inventory_changed") {
+        revalidatePath(await getLocalizedPath("/dashboard"));
+      }
       return {
         ok: false,
         errorCode:
-          result.reason === "not_owned" ? "assetNotOwned" : "assetUnavailable",
+          result.reason === "inventory_changed"
+            ? "shopInventoryChanged"
+            : "assetUnavailable",
       };
     }
 
     revalidatePath(await getLocalizedPath("/dashboard"));
     return result;
   } catch (error) {
-    console.error("Failed to sell dashboard resource.", error);
+    console.error("Failed to sell dashboard resources.", error);
     return { ok: false, errorCode: "shopTransactionFailed" };
   }
 }

@@ -48,11 +48,9 @@ or pass custom model URLs to `createMotionTracker`.
 
 ## Files
 
-- `types.ts` defines normalized motion result, tracker, and rule types.
+- `types.ts` defines normalized motion result and tracker types.
 - `motion.ts` initializes PoseLandmarker and HandLandmarker, runs video-frame
   detection, normalizes results, and releases resources.
-- `rules.ts` provides a rule layer for game logic, such as raised hands,
-  extended arms, and two-hand spacing.
 
 ## Basic Usage
 
@@ -61,16 +59,15 @@ ready `HTMLVideoElement`.
 
 ```ts
 import { createMotionTracker } from "@/mediapipe/motion";
-import { createHandRaisedRule, evaluateMotionRules } from "@/mediapipe/rules";
 
 const tracker = await createMotionTracker({
-  enablePose: true,
   enableHands: true,
+  enablePose: false,
   maxHands: 2,
 });
 
 const result = tracker.detectMotion(videoElement, performance.now());
-const checks = evaluateMotionRules(result, [createHandRaisedRule("right")]);
+const visibleHands = result.handLandmarks;
 
 tracker.disposeMotionTracker();
 ```
@@ -79,7 +76,6 @@ tracker.disposeMotionTracker();
 
 - Keep camera setup and animation loops in `"use client"` components.
 - Pass each video frame into `detectMotion(video, timestampMs)`.
-- Keep game-specific checks in `rules.ts` or a separate rule module that accepts
-  `MotionResult`.
+- Keep game-specific checks in a separate rule module that accepts `MotionResult`.
 - Call `disposeMotionTracker()` when leaving the page to release MediaPipe
   resources.

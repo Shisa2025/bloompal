@@ -22,6 +22,7 @@ describe("online room protocol", () => {
 
   it("recognises only contract outfits", () => {
     expect(isOnlineRoomOutfitId("base")).toBe(true);
+    expect(isOnlineRoomOutfitId("leafback-dinosaur")).toBe(true);
     expect(isOnlineRoomOutfitId("made-up-outfit")).toBe(false);
   });
 

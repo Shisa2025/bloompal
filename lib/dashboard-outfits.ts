@@ -20,6 +20,13 @@ export const dashboardOutfits = [
     ownable: true,
     buyPrice: 10,
   },
+  {
+    id: "leafback-dinosaur",
+    nameKey: "outfitLeafbackDinosaur",
+    descriptionKey: "outfitLeafbackDinosaurDescription",
+    ownable: true,
+    buyPrice: 20,
+  },
 ] as const;
 
 export type DashboardOutfitId = (typeof dashboardOutfits)[number]["id"];

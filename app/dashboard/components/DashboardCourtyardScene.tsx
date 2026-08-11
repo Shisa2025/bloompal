@@ -11,7 +11,11 @@ import {
   type ThreeStageFrame,
   type ThreeStageResize,
 } from "@/app/components/threejs";
-import { getFishAssetPath, type FishKind } from "@/lib/fish-assets";
+import {
+  getFishAssetPath,
+  getFishHorizontalYaw,
+  type FishKind,
+} from "@/lib/fish-assets";
 import { loadDashboardCharacter } from "./dashboardCharacter";
 import {
   defaultDashboardOutfitId,
@@ -31,7 +35,22 @@ export const courtyardPondWaterSurfaceY = 0.1575;
 export const courtyardFishSwimDepth = {
   baseY: 0.045,
   bobAmount: 0.01,
+  surfaceClearance: 0.015,
 } as const;
+export const courtyardFishTargetLength = 0.38;
+const courtyardFishDepthResetRenderOrder = 1;
+const courtyardFishRenderOrder = 2;
+
+const courtyardFishOrigins = [
+  [-1.2, -0.48],
+  [-0.4, -0.5],
+  [0.4, -0.48],
+  [1.2, -0.5],
+  [-1.15, 0.42],
+  [-0.38, 0.45],
+  [0.38, 0.43],
+  [1.15, 0.42],
+] as const;
 
 const characterEntryPosition = new THREE.Vector3(-4.2, 0, -5.05);
 const characterRestPosition = new THREE.Vector3(...courtyardPositions.characterRest);
@@ -332,10 +351,11 @@ export function addCourtyardPond(parent: THREE.Group, fish: CourtyardFish[]) {
   const bank = new THREE.MeshStandardMaterial({ color: "#9a8063", roughness: 0.98 });
   const water = new THREE.MeshStandardMaterial({
     color: "#66a9ad",
+    depthWrite: false,
     emissive: "#75b8ba",
     emissiveIntensity: 0.08,
     metalness: 0.04,
-    opacity: 0.82,
+    opacity: 0.64,
     roughness: 0.26,
     transparent: true,
   });
@@ -377,35 +397,66 @@ export function addCourtyardPond(parent: THREE.Group, fish: CourtyardFish[]) {
     }
   });
 
+  const fishDepthReset = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.001, 0.001),
+    new THREE.MeshBasicMaterial({
+      colorWrite: false,
+      depthTest: false,
+      depthWrite: false,
+    }),
+  );
+  fishDepthReset.name = "dashboard-courtyard-pond-depth-reset";
+  fishDepthReset.frustumCulled = false;
+  fishDepthReset.renderOrder = courtyardFishDepthResetRenderOrder;
+  fishDepthReset.visible = false;
+  fishDepthReset.onBeforeRender = (renderer) => renderer.clearDepth();
+  pond.add(fishDepthReset);
+
   const loader = new GLTFLoader();
-  const fishGroups: THREE.Group[] = [];
+  const fishGroups: {
+    group: THREE.Group;
+    fishKind: FishKind;
+    originX: number;
+    originZ: number;
+    swimY: number;
+  }[] = [];
   let disposed = false;
   let loadVersion = 0;
   let currentFishSignature = "";
   const setFish = (nextFish: CourtyardFish[]) => {
-    const nextFishSignature = nextFish
-      .slice(-8)
+    const visibleFish = nextFish.slice(-8);
+    const nextFishSignature = visibleFish
       .map((entry) => `${entry.id}:${entry.fishKind}`)
       .join("|");
+    fishDepthReset.visible = visibleFish.length > 0;
     if (nextFishSignature === currentFishSignature) return;
     currentFishSignature = nextFishSignature;
     loadVersion += 1;
     const version = loadVersion;
-    fishGroups.splice(0).forEach((group) => {
+    fishGroups.splice(0).forEach(({ group }) => {
       pond.remove(group);
       disposeObject3D(group);
     });
 
-    nextFish.slice(-8).forEach((entry, index) => {
+    visibleFish.forEach((entry, index) => {
       const fishGroup = new THREE.Group();
+      const [originX, originZ] = courtyardFishOrigins[index];
       fishGroup.name = `dashboard-courtyard-fish-${entry.id}`;
       fishGroup.userData.index = index;
       fishGroup.position.set(
-        -1.25 + (index % 4) * 0.78,
+        originX,
         courtyardFishSwimDepth.baseY,
-        -0.52 + Math.floor(index / 4) * 0.72,
+        originZ,
       );
-      fishGroups.push(fishGroup);
+      fishGroup.rotation.set(0, getFishHorizontalYaw(entry.fishKind), 0);
+      const fishState: (typeof fishGroups)[number] = {
+        group: fishGroup,
+        fishKind: entry.fishKind,
+        originX,
+        originZ,
+        swimY: courtyardFishSwimDepth.baseY,
+      };
+      fishGroups.push(fishState);
       pond.add(fishGroup);
 
       loader.load(
@@ -415,13 +466,9 @@ export function addCourtyardPond(parent: THREE.Group, fish: CourtyardFish[]) {
             disposeObject3D(gltf.scene);
             return;
           }
-          const bounds = new THREE.Box3().setFromObject(gltf.scene);
-          const size = bounds.getSize(new THREE.Vector3());
-          const centre = bounds.getCenter(new THREE.Vector3());
-          gltf.scene.position.sub(centre);
-          gltf.scene.scale.setScalar(
-            0.48 / Math.max(size.x, size.y, size.z, 0.001),
-          );
+          const scaledHeight = fitCourtyardFishModel(gltf.scene);
+          fishState.swimY = getCourtyardFishSwimY(scaledHeight);
+          fishGroup.position.y = fishState.swimY;
           fishGroup.add(gltf.scene);
         },
         undefined,
@@ -442,19 +489,58 @@ export function addCourtyardPond(parent: THREE.Group, fish: CourtyardFish[]) {
     object: pond,
     setFish,
     update: (elapsed: number) => {
-      fishGroups.forEach((group, index) => {
+      fishGroups.forEach(({ group, fishKind, originX, originZ, swimY }, index) => {
         const phase = elapsed * (0.72 + (index % 3) * 0.07) + index * 0.9;
-        const baseX = -1.25 + (index % 4) * 0.78;
-        const baseZ = -0.52 + Math.floor(index / 4) * 0.72;
-        group.position.x = baseX + Math.sin(phase) * 0.28;
-        group.position.z = baseZ + Math.cos(phase * 0.8) * 0.2;
+        const xAmplitude = 0.1 + (index % 2) * 0.02;
+        const zAmplitude = 0.045 + (index % 3) * 0.01;
+        const zPhase = phase * 0.78 + index * 0.55;
+        group.position.x = originX + Math.sin(phase) * xAmplitude;
+        group.position.z = originZ + Math.sin(zPhase) * zAmplitude;
         group.position.y =
-          courtyardFishSwimDepth.baseY +
+          swimY +
           Math.sin(phase * 1.4) * courtyardFishSwimDepth.bobAmount;
-        group.rotation.y = Math.cos(phase) > 0 ? Math.PI / 2 : -Math.PI / 2;
+        group.rotation.set(
+          0,
+          getFishHorizontalYaw(
+            fishKind,
+            Math.cos(phase) > 0 ? "right" : "left",
+          ),
+          0,
+        );
       });
     },
   };
+}
+
+export function fitCourtyardFishModel(model: THREE.Object3D) {
+  const bounds = new THREE.Box3().setFromObject(model);
+  const size = bounds.getSize(new THREE.Vector3());
+  const centre = bounds.getCenter(new THREE.Vector3());
+  const scale =
+    courtyardFishTargetLength / Math.max(size.x, size.y, size.z, 0.001);
+  model.scale.setScalar(scale);
+  model.position.copy(centre).multiplyScalar(-scale);
+  model.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    child.renderOrder = courtyardFishRenderOrder;
+    const materials = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
+    materials.forEach((material) => {
+      material.depthTest = true;
+      material.depthWrite = true;
+    });
+  });
+  return size.y * scale;
+}
+
+export function getCourtyardFishSwimY(scaledHeight: number) {
+  return (
+    courtyardPondWaterSurfaceY -
+    courtyardFishSwimDepth.surfaceClearance -
+    courtyardFishSwimDepth.bobAmount -
+    scaledHeight / 2
+  );
 }
 
 export function playRabbitMerchantIdle(

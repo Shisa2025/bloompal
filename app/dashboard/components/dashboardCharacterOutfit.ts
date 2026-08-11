@@ -14,6 +14,14 @@ export const mossCardiganSourceMeshNames = [
 
 export const honeyRaincoatSourceMeshNames = mossCardiganSourceMeshNames;
 
+export const leafbackDinosaurSourceMeshNames = [
+  "Character001",
+  "Character002",
+  "Character003",
+  "Character004",
+  ...mossCardiganSourceMeshNames,
+] as const;
+
 const mossCardiganPartDefinitions = [
   {
     sourceName: "Character005",
@@ -80,6 +88,63 @@ const honeyRaincoatPartDefinitions = [
   },
 ] as const;
 
+const leafbackDinosaurPartDefinitions = [
+  {
+    sourceName: "Character001",
+    slot: "left-lower-leg",
+    tone: "limb",
+    expansion: [1.045, 1.035, 1.06],
+  },
+  {
+    sourceName: "Character002",
+    slot: "left-upper-leg",
+    tone: "body",
+    expansion: [1.055, 1.035, 1.07],
+  },
+  {
+    sourceName: "Character003",
+    slot: "right-upper-leg",
+    tone: "body",
+    expansion: [1.055, 1.035, 1.07],
+  },
+  {
+    sourceName: "Character004",
+    slot: "right-lower-leg",
+    tone: "limb",
+    expansion: [1.045, 1.035, 1.06],
+  },
+  {
+    sourceName: "Character005",
+    slot: "torso",
+    tone: "body",
+    expansion: [1.1, 1.055, 1.1],
+  },
+  {
+    sourceName: "Character006",
+    slot: "left-lower-sleeve",
+    tone: "limb",
+    expansion: [1.04, 1.07, 1.075],
+  },
+  {
+    sourceName: "Character007",
+    slot: "left-upper-sleeve",
+    tone: "body",
+    expansion: [1.04, 1.07, 1.075],
+  },
+  {
+    sourceName: "Character009",
+    slot: "right-lower-sleeve",
+    tone: "limb",
+    expansion: [1.04, 1.07, 1.075],
+  },
+  {
+    sourceName: "Character010",
+    slot: "right-upper-sleeve",
+    tone: "body",
+    expansion: [1.04, 1.07, 1.075],
+  },
+] as const;
+
 export type DashboardCharacterOutfitController = {
   dispose: () => void;
   setOutfit: (outfitId: DashboardOutfitId) => void;
@@ -89,27 +154,31 @@ export function createDashboardCharacterOutfit(
   model: THREE.Object3D,
   initialOutfitId: DashboardOutfitId = defaultDashboardOutfitId,
 ): DashboardCharacterOutfitController | null {
-  const sourceMeshes = mossCardiganPartDefinitions.map((definition) => {
-    const object = model.getObjectByName(definition.sourceName);
-    return object instanceof THREE.SkinnedMesh ? object : null;
-  });
-  if (sourceMeshes.some((mesh) => !mesh)) return null;
+  const sourceMeshesByName = new Map<string, THREE.SkinnedMesh>();
+  for (const sourceName of leafbackDinosaurSourceMeshNames) {
+    const object = model.getObjectByName(sourceName);
+    if (!(object instanceof THREE.SkinnedMesh)) return null;
+    sourceMeshesByName.set(sourceName, object);
+  }
 
-  const typedSourceMeshes = sourceMeshes as THREE.SkinnedMesh[];
-  const referenceMesh = typedSourceMeshes[0];
+  const sourceMeshes = [...sourceMeshesByName.values()];
+  const referenceMesh = sourceMeshesByName.get("Character005")!;
   const parent = referenceMesh.parent;
   if (!parent) return null;
   if (
-    typedSourceMeshes.some(
+    sourceMeshes.some(
       (mesh) => mesh.parent !== parent || mesh.skeleton !== referenceMesh.skeleton,
     )
   ) {
     return null;
   }
 
-  const originalVisibility = typedSourceMeshes.map((mesh) => mesh.visible);
+  const originalVisibility = new Map(
+    sourceMeshes.map((mesh) => [mesh.name, mesh.visible] as const),
+  );
   const cardiganMeshes: THREE.SkinnedMesh[] = [];
   const raincoatMeshes: THREE.SkinnedMesh[] = [];
+  const dinosaurMeshes: THREE.SkinnedMesh[] = [];
   const garmentMeshes: THREE.SkinnedMesh[] = [];
   const materials = new Set<THREE.Material>();
   const registerGarment = (
@@ -122,8 +191,8 @@ export function createDashboardCharacterOutfit(
   };
 
   try {
-    mossCardiganPartDefinitions.forEach((definition, index) => {
-      const source = typedSourceMeshes[index];
+    mossCardiganPartDefinitions.forEach((definition) => {
+      const source = sourceMeshesByName.get(definition.sourceName)!;
       const material = new THREE.MeshStandardMaterial({
         color: definition.colour,
         metalness: 0.02,
@@ -195,8 +264,8 @@ export function createDashboardCharacterOutfit(
       registerGarment(cardiganMeshes, cuff);
     });
 
-    honeyRaincoatPartDefinitions.forEach((definition, index) => {
-      const source = typedSourceMeshes[index];
+    honeyRaincoatPartDefinitions.forEach((definition) => {
+      const source = sourceMeshesByName.get(definition.sourceName)!;
       const material = new THREE.MeshStandardMaterial({
         color: definition.colour,
         metalness: 0.015,
@@ -327,6 +396,111 @@ export function createDashboardCharacterOutfit(
         }),
       );
     });
+
+    const dinosaurBody = new THREE.MeshStandardMaterial({
+      color: "#6d9c62",
+      metalness: 0.01,
+      roughness: 0.96,
+      side: THREE.DoubleSide,
+    });
+    const dinosaurLimbs = new THREE.MeshStandardMaterial({
+      color: "#7baa6d",
+      metalness: 0.01,
+      roughness: 0.96,
+    });
+    const dinosaurBelly = new THREE.MeshStandardMaterial({
+      color: "#f1e2b8",
+      metalness: 0,
+      roughness: 0.98,
+    });
+    const dinosaurSpikes = new THREE.MeshStandardMaterial({
+      color: "#e0b34c",
+      metalness: 0.01,
+      roughness: 0.92,
+      side: THREE.DoubleSide,
+    });
+    [
+      dinosaurBody,
+      dinosaurLimbs,
+      dinosaurBelly,
+      dinosaurSpikes,
+    ].forEach((material) => materials.add(material));
+
+    leafbackDinosaurPartDefinitions.forEach((definition) => {
+      const source = sourceMeshesByName.get(definition.sourceName)!;
+      const geometry = source.geometry.clone();
+      expandGeometry(geometry, definition.expansion);
+      registerGarment(
+        dinosaurMeshes,
+        createBoundMesh({
+          geometry,
+          material:
+            definition.tone === "body" ? dinosaurBody : dinosaurLimbs,
+          name: `dashboard-outfit-leafback-dinosaur-${definition.slot}`,
+          source,
+        }),
+      );
+    });
+
+    const registerDinosaurAccessory = ({
+      boneName,
+      geometry,
+      material,
+      name,
+    }: {
+      boneName: string;
+      geometry: THREE.BufferGeometry;
+      material: THREE.Material;
+      name: string;
+    }) => {
+      registerGarment(
+        dinosaurMeshes,
+        createRigidGarmentMesh({
+          boneName,
+          geometry,
+          material,
+          name: `dashboard-outfit-leafback-dinosaur-${name}`,
+          source: referenceMesh,
+        }),
+      );
+    };
+
+    const bellyGeometry = new THREE.SphereGeometry(0.4, 18, 12);
+    bellyGeometry.scale(0.82, 1.08, 0.14);
+    bellyGeometry.translate(0, 1.12, 0.37);
+    registerDinosaurAccessory({
+      boneName: "Torso",
+      geometry: bellyGeometry,
+      material: dinosaurBelly,
+      name: "belly",
+    });
+
+    [
+      { y: 1.4, size: 0.15 },
+      { y: 1.15, size: 0.14 },
+      { y: 0.92, size: 0.12 },
+    ].forEach(({ size, y }, index) => {
+      const spikeGeometry = new THREE.ConeGeometry(size, size * 2.4, 3);
+      spikeGeometry.rotateX(-Math.PI / 2);
+      spikeGeometry.translate(0, y, -0.57);
+      registerDinosaurAccessory({
+        boneName: "Torso",
+        geometry: spikeGeometry,
+        material: dinosaurSpikes,
+        name: `back-spike-${index + 1}`,
+      });
+    });
+
+    const tailGeometry = new THREE.ConeGeometry(0.27, 1.1, 8);
+    tailGeometry.rotateZ(0.18);
+    tailGeometry.rotateX(-1.28);
+    tailGeometry.translate(0, 0.82, -0.82);
+    registerDinosaurAccessory({
+      boneName: "Hips",
+      geometry: tailGeometry,
+      material: dinosaurBody,
+      name: "tail",
+    });
   } catch {
     garmentMeshes.forEach(disposeGarmentMesh);
     materials.forEach((material) => material.dispose());
@@ -334,9 +508,17 @@ export function createDashboardCharacterOutfit(
   }
 
   const setOutfit = (outfitId: DashboardOutfitId) => {
-    const showCustomOutfit = outfitId !== defaultDashboardOutfitId;
-    typedSourceMeshes.forEach((mesh, index) => {
-      mesh.visible = showCustomOutfit ? false : originalVisibility[index];
+    const hiddenSourceNames = new Set<string>(
+      outfitId === "leafback-dinosaur"
+        ? leafbackDinosaurSourceMeshNames
+        : outfitId === defaultDashboardOutfitId
+          ? []
+          : mossCardiganSourceMeshNames,
+    );
+    sourceMeshesByName.forEach((mesh, sourceName) => {
+      mesh.visible = hiddenSourceNames.has(sourceName)
+        ? false
+          : (originalVisibility.get(sourceName) ?? true);
     });
     cardiganMeshes.forEach((mesh) => {
       mesh.visible = outfitId === "moss-cardigan";
@@ -344,13 +526,16 @@ export function createDashboardCharacterOutfit(
     raincoatMeshes.forEach((mesh) => {
       mesh.visible = outfitId === "honey-raincoat";
     });
+    dinosaurMeshes.forEach((mesh) => {
+      mesh.visible = outfitId === "leafback-dinosaur";
+    });
   };
   setOutfit(initialOutfitId);
 
   return {
     dispose: () => {
-      typedSourceMeshes.forEach((mesh, index) => {
-        mesh.visible = originalVisibility[index];
+      sourceMeshesByName.forEach((mesh, sourceName) => {
+        mesh.visible = originalVisibility.get(sourceName) ?? true;
       });
       garmentMeshes.forEach(disposeGarmentMesh);
       materials.forEach((material) => material.dispose());

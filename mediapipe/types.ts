@@ -57,16 +57,3 @@ export type MotionTracker = {
   detectMotion(video: HTMLVideoElement, timestampMs?: number): MotionResult;
   disposeMotionTracker(): void;
 };
-
-export type MotionRuleEvaluation = {
-  passed: boolean;
-  score?: number;
-  details?: Record<string, unknown>;
-};
-
-export type MotionRule = {
-  id: string;
-  evaluate(result: MotionResult): MotionRuleEvaluation;
-};
-
-export type MotionRuleResults = Record<string, MotionRuleEvaluation>;

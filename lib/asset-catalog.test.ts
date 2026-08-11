@@ -1,11 +1,15 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
+import sharp from "sharp";
 import enMessages from "../messages/en-SG.json";
 import zhMessages from "../messages/zh-CN.json";
 import {
   assetCatalog,
+  getCatalogAsset,
+  getShopThumbnailPath,
   musicCatalog,
+  sellableAssetCatalog,
   type CatalogAsset,
 } from "./asset-catalog";
 
@@ -56,6 +60,30 @@ describe("asset catalog", () => {
       );
     expect(assetCatalog).toHaveLength(27);
     expect(assetCatalog.filter((asset) => asset.assetPath.endsWith(".glb"))).toHaveLength(24);
+  });
+
+  it("provides a unique 512px WebP thumbnail for every shop resource and merchant", async () => {
+    const merchant = getCatalogAsset("character-mooncap-merchant");
+    if (!merchant) throw new Error("Rabbit merchant is missing from the catalog.");
+    const thumbnailPaths = [...sellableAssetCatalog, merchant].map((asset) =>
+      getShopThumbnailPath(asset),
+    );
+
+    expect(thumbnailPaths).toHaveLength(23);
+    expect(new Set(thumbnailPaths).size).toBe(thumbnailPaths.length);
+
+    await Promise.all(
+      thumbnailPaths.map(async (thumbnailPath) => {
+        expect(thumbnailPath).toMatch(/^\/assets\/shop-thumbnails\/.+\.webp$/);
+        const diskPath = join(process.cwd(), "public", thumbnailPath!);
+        expect(existsSync(diskPath)).toBe(true);
+        const metadata = await sharp(diskPath).metadata();
+        expect(metadata.format).toBe("webp");
+        expect(metadata.width).toBe(512);
+        expect(metadata.height).toBe(512);
+        expect(metadata.hasAlpha).toBe(true);
+      }),
+    );
   });
 });
 

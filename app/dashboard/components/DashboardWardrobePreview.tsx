@@ -92,14 +92,25 @@ export default function DashboardWardrobePreview({
         ref={dialogRef}
         role="dialog"
       >
-        <div className="dashboard-wardrobe-icon" aria-hidden="true">
-          <span />
-          <span />
-        </div>
-        <div className="dashboard-table-flower-heading">
-          <p>{t("bedroomWardrobe")}</p>
-          <h2 id="dashboard-wardrobe-title">{t("wardrobeChooseOutfit")}</h2>
-          <span>{t("wardrobeChooseOutfitHint")}</span>
+        <div className="dashboard-wardrobe-header">
+          <div className="dashboard-wardrobe-icon" aria-hidden="true">
+            <span />
+            <span />
+          </div>
+          <div className="dashboard-table-flower-heading dashboard-wardrobe-heading">
+            <p>{t("bedroomWardrobe")}</p>
+            <h2 id="dashboard-wardrobe-title">{t("wardrobeChooseOutfit")}</h2>
+            <span>{t("wardrobeChooseOutfitHint")}</span>
+          </div>
+          <button
+            aria-label={t("close")}
+            className="dashboard-wardrobe-close"
+            disabled={isPending}
+            onClick={onClose}
+            type="button"
+          >
+            <span aria-hidden="true">×</span>
+          </button>
         </div>
         <div className="dashboard-wardrobe-grid">
           {dashboardOutfits
@@ -123,13 +134,15 @@ export default function DashboardWardrobePreview({
                 onClick={() => onSelectOutfit(outfit.id)}
                 type="button"
               >
-                <span
-                  aria-hidden="true"
-                  className={`dashboard-wardrobe-swatch is-${outfit.id}`}
-                >
-                  <span className="dashboard-wardrobe-swatch-body" />
-                  <span className="dashboard-wardrobe-swatch-sleeve is-left" />
-                  <span className="dashboard-wardrobe-swatch-sleeve is-right" />
+                <span className="dashboard-wardrobe-swatch-frame">
+                  <span
+                    aria-hidden="true"
+                    className={`dashboard-wardrobe-swatch is-${outfit.id}`}
+                  >
+                    <span className="dashboard-wardrobe-swatch-body" />
+                    <span className="dashboard-wardrobe-swatch-sleeve is-left" />
+                    <span className="dashboard-wardrobe-swatch-sleeve is-right" />
+                  </span>
                 </span>
                 <span className="dashboard-wardrobe-option-copy">
                   <strong>{t(outfit.nameKey)}</strong>
@@ -147,16 +160,6 @@ export default function DashboardWardrobePreview({
             {error}
           </p>
         ) : null}
-        <div className="dashboard-table-flower-actions">
-          <button
-            className="dashboard-table-flower-secondary"
-            disabled={isPending}
-            onClick={onClose}
-            type="button"
-          >
-            {t("close")}
-          </button>
-        </div>
       </section>
     </div>
   );

@@ -23,11 +23,16 @@ describe("DashboardWardrobePreview", () => {
     expect(markup).toContain('aria-modal="true"');
     expect(markup).toContain("bedroomWardrobe");
     expect(markup).toContain("wardrobeChooseOutfit");
+    expect(markup).toContain("dashboard-wardrobe-header");
+    expect(markup).toContain('aria-label="close"');
     expect(markup).toContain("outfitOriginal");
     expect(markup).toContain("outfitMossCardigan");
     expect(markup).not.toContain("outfitHoneyRaincoat");
     expect(markup).toContain('aria-pressed="true"');
     expect(markup).toContain('aria-pressed="false"');
+    expect(
+      markup.match(/dashboard-wardrobe-swatch-frame/g),
+    ).toHaveLength(2);
   });
 
   it("does not mount while closed", () => {
@@ -56,6 +61,22 @@ describe("DashboardWardrobePreview", () => {
     );
 
     expect(markup).toContain("outfitHoneyRaincoat");
+    expect(markup).not.toContain("outfitMossCardigan");
+  });
+
+  it("shows the leafback dinosaur only after it is owned", () => {
+    const markup = renderToStaticMarkup(
+      <DashboardWardrobePreview
+        isOpen
+        onClose={vi.fn()}
+        onSelectOutfit={vi.fn()}
+        ownedOutfitIds={["leafback-dinosaur"]}
+        selectedOutfitId="leafback-dinosaur"
+      />,
+    );
+
+    expect(markup).toContain("outfitLeafbackDinosaur");
+    expect(markup).toContain("is-leafback-dinosaur");
     expect(markup).not.toContain("outfitMossCardigan");
   });
 

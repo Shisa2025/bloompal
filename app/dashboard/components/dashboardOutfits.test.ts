@@ -7,11 +7,12 @@ import {
 } from "./dashboardOutfits";
 
 describe("dashboard outfits", () => {
-  it("registers the base outfit and both purchasable outfits exactly once", () => {
+  it("registers the base outfit and all purchasable outfits exactly once", () => {
     expect(dashboardOutfits.map((outfit) => outfit.id)).toEqual([
       "base",
       "moss-cardigan",
       "honey-raincoat",
+      "leafback-dinosaur",
     ]);
     expect(new Set(dashboardOutfits.map((outfit) => outfit.id)).size).toBe(
       dashboardOutfits.length,
@@ -21,6 +22,7 @@ describe("dashboard outfits", () => {
     ).toEqual([
       { buyPrice: 10, id: "moss-cardigan" },
       { buyPrice: 10, id: "honey-raincoat" },
+      { buyPrice: 20, id: "leafback-dinosaur" },
     ]);
     dashboardOutfits.forEach((outfit) => {
       expect(outfit).not.toHaveProperty("assetPath");
@@ -36,6 +38,12 @@ describe("dashboard outfits", () => {
     expect(
       parseDashboardOutfitPreferences('{"outfitId":"honey-raincoat"}', []),
     ).toEqual({ outfitId: "base" });
+    expect(
+      parseDashboardOutfitPreferences(
+        '{"outfitId":"leafback-dinosaur"}',
+        ["leafback-dinosaur"],
+      ),
+    ).toEqual({ outfitId: "leafback-dinosaur" });
     expect(parseDashboardOutfitPreferences('{"outfitId":"retired"}')).toEqual(
       { outfitId: "base" },
     );

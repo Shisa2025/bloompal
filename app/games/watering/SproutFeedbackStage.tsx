@@ -196,12 +196,12 @@ function createLeaf(material: THREE.Material) {
 }
 
 function updateSprout(parts: SproutParts, progress: number, elapsed: number) {
-  const normalized = THREE.MathUtils.clamp(progress / 10, 0, 1);
+  const normalized = THREE.MathUtils.clamp(progress / 100, 0, 1);
   const stemHeight = 0.18 + normalized * 1.35;
   const topY = 0.92 + stemHeight;
   const sway = Math.sin(elapsed * 1.45) * 0.035 * normalized;
 
-  parts.stem.visible = progress > 0.2;
+  parts.stem.visible = progress > 2;
   parts.stem.scale.set(1, Math.max(stemHeight, 0.001), 1);
   parts.stem.position.set(sway * 0.25, 0.92 + stemHeight / 2, 0);
   parts.stem.rotation.z = sway;

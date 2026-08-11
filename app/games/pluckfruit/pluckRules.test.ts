@@ -14,6 +14,27 @@ describe("getClawSignals", () => {
   it("does not recognize a full fist with bent MCP knuckles", () => {
     expect(getClawSignals(resultWithHand(makeHand("fist"))).left.claw).toBe(false);
   });
+
+  it("keeps the aim fixed while fingertips move from open to claw", () => {
+    const open = getClawSignals(resultWithHand(makeHand("open"))).left;
+    const hook = getClawSignals(resultWithHand(makeHand("hook"))).left;
+
+    expect(open.x).toBeCloseTo(hook.x);
+    expect(open.y).toBeCloseTo(hook.y);
+    expect(open.x).toBeCloseTo(0.5);
+    expect(open.y).toBeCloseTo(0.65);
+  });
+
+  it("mirrors and clamps the knuckle-centred aim", () => {
+    const hand = makeHand("open");
+    [5, 9, 13, 17].forEach((index) => {
+      hand[index] = { ...hand[index], x: 0.99, y: 0.01 };
+    });
+
+    const signal = getClawSignals(resultWithHand(hand)).left;
+    expect(signal.x).toBe(0.04);
+    expect(signal.y).toBe(0.04);
+  });
 });
 
 function makeHand(shape: "hook" | "open" | "fist") {

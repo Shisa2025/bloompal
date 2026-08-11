@@ -13,7 +13,7 @@
     "minZ": -3,
     "maxZ": 3.5
   },
-  "outfitIds": ["base", "moss-cardigan", "honey-raincoat"],
+  "outfitIds": ["base", "moss-cardigan", "honey-raincoat", "leafback-dinosaur"],
   "spawnPositions": [
     { "x": -3.6, "z": 2.4 },
     { "x": -1.2, "z": 2.7 },

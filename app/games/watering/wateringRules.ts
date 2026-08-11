@@ -71,7 +71,7 @@ function analyzeHand(
     const tipDistance = getDistance(wrist, landmarks[tip]);
     const mcpDistance = getDistance(wrist, landmarks[mcp]);
 
-    return tipDistance < mcpDistance + palmSize * 0.58;
+    return tipDistance < mcpDistance + palmSize * 0.7;
   }).length;
   const angleDegrees = normalizeDegrees(
     (Math.atan2(middleMcp.y - wrist.y, middleMcp.x - wrist.x) * 180) / Math.PI,
