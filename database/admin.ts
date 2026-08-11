@@ -31,9 +31,32 @@ export type ManagedUser = {
   lastLoginAt: string | null;
   lastActivityAt: string | null;
   sessionCount: number;
+  averageDurationSeconds: number | null;
   flowerCount: number;
+  fruitCount: number;
+  fishCount: number;
   bugCount: number;
   snapshotCount: number;
+};
+
+export type ActivitySummary = {
+  activityType: ActivityType;
+  value: number;
+  averageDurationSeconds: number | null;
+};
+
+export type UserActivitySummary = {
+  userid: string;
+  userName: string;
+  value: number;
+  lastActivityAt: string | null;
+};
+
+export type SuccessRateSummary = {
+  activityType: "collect_bugs" | "catch_fish";
+  successfulActions: number;
+  totalAttempts: number;
+  rate: number;
 };
 
 type OverviewRow = {
@@ -43,6 +66,8 @@ type OverviewRow = {
   average_duration: string | number | null;
   inactive_users: string | number;
   flower_count: string | number;
+  fruit_count: string | number;
+  fish_count: string | number;
   bug_count: string | number;
   snapshot_count: string | number;
 };
@@ -57,7 +82,10 @@ type ManagedUserRow = {
   last_login_at: Date | string | null;
   last_activity_at: Date | string | null;
   session_count: string | number;
+  average_duration: string | number | null;
   flower_count: string | number;
+  fruit_count: string | number;
+  fish_count: string | number;
   bug_count: string | number;
   snapshot_count: string | number;
 };
@@ -89,7 +117,10 @@ const userAggregateSelect = `
   users.must_change_password, users.created_at, users.last_login_at,
   MAX(game_sessions.completed_at) AS last_activity_at,
   COUNT(DISTINCT game_sessions.id) AS session_count,
+  AVG(game_sessions.duration_seconds) FILTER (WHERE game_sessions.duration_seconds IS NOT NULL) AS average_duration,
   COUNT(DISTINCT user_plants.id) FILTER (WHERE user_plants.status = 'completed') AS flower_count,
+  COUNT(DISTINCT user_fruits.id) AS fruit_count,
+  COUNT(DISTINCT user_fish.id) AS fish_count,
   COUNT(DISTINCT user_bugs.id) AS bug_count,
   COUNT(DISTINCT user_snapshots.id) AS snapshot_count
 `;
@@ -97,6 +128,8 @@ const userAggregateSelect = `
 const userAggregateJoins = `
   LEFT JOIN game_sessions ON game_sessions.userid = users.userid
   LEFT JOIN user_plants ON user_plants.userid = users.userid
+  LEFT JOIN user_fruits ON user_fruits.userid = users.userid
+  LEFT JOIN user_fish ON user_fish.userid = users.userid
   LEFT JOIN user_bugs ON user_bugs.userid = users.userid
   LEFT JOIN user_snapshots ON user_snapshots.userid = users.userid
 `;
@@ -147,6 +180,10 @@ export async function getAdminOverview(adminUserid: string) {
         (SELECT COUNT(*) FROM user_plants plants
           JOIN managed_users ON managed_users.userid = plants.userid
           WHERE plants.status = 'completed') AS flower_count,
+        (SELECT COUNT(*) FROM user_fruits fruits
+          JOIN managed_users ON managed_users.userid = fruits.userid) AS fruit_count,
+        (SELECT COUNT(*) FROM user_fish fish
+          JOIN managed_users ON managed_users.userid = fish.userid) AS fish_count,
         (SELECT COUNT(*) FROM user_bugs bugs
           JOIN managed_users ON managed_users.userid = bugs.userid) AS bug_count,
         (SELECT COUNT(*) FROM user_snapshots snapshots
@@ -159,6 +196,8 @@ export async function getAdminOverview(adminUserid: string) {
       session_stats.average_duration,
       user_stats.inactive_users,
       asset_stats.flower_count,
+      asset_stats.fruit_count,
+      asset_stats.fish_count,
       asset_stats.bug_count,
       asset_stats.snapshot_count
     FROM user_stats CROSS JOIN session_stats CROSS JOIN asset_stats
@@ -178,6 +217,8 @@ export async function getAdminOverview(adminUserid: string) {
     averageDurationSeconds: nullableRoundedNumber(row?.average_duration),
     inactiveUsers: number(row?.inactive_users),
     flowerCount: number(row?.flower_count),
+    fruitCount: number(row?.fruit_count),
+    fishCount: number(row?.fish_count),
     bugCount: number(row?.bug_count),
     snapshotCount: number(row?.snapshot_count),
     recentSessions: recentSessions.items,
@@ -261,8 +302,29 @@ export async function getManagedUser(adminUserid: string, userid: string) {
   );
 
   if (!rows[0]) return null;
-  const sessions = await listAdminSessions(adminUserid, { userid, pageSize: 20 });
-  return { user: toManagedUser(rows[0]), sessions: sessions.items };
+  const [sessions, activityRows] = await Promise.all([
+    listAdminSessions(adminUserid, { userid, pageSize: 20 }),
+    sql.query<{ activity_type: ActivityType; count: string | number; average_duration: string | number | null }>(
+      `
+      SELECT sessions.activity_type, COUNT(*) AS count, AVG(sessions.duration_seconds) AS average_duration
+      FROM game_sessions sessions
+      JOIN users ON users.userid = sessions.userid
+      WHERE users.admin_userid = $1 AND users.userid = $2 AND users.role = 'user'
+      GROUP BY sessions.activity_type
+      ORDER BY count DESC, sessions.activity_type ASC
+      `,
+      [adminUserid, userid],
+    ),
+  ]);
+  return {
+    user: toManagedUser(rows[0]),
+    sessions: sessions.items,
+    activityBreakdown: activityRows.map((row) => ({
+      activityType: row.activity_type,
+      value: number(row.count),
+      averageDurationSeconds: nullableRoundedNumber(row.average_duration),
+    })),
+  };
 }
 
 export async function listAdminSessions(
@@ -334,13 +396,14 @@ export async function listAdminSessions(
 export async function getAdminAnalytics(adminUserid: string, requestedDays: number) {
   const days = [7, 30, 42, 90].includes(requestedDays) ? requestedDays : 42;
   const bucket = days === 7 ? "day" : "week";
-  const [trendRows, activityRows, summaryRows] = await Promise.all([
+  const [trendRows, activityRows, summaryRows, durationRows, userRows, successRows] = await Promise.all([
     sql.query<{ bucket: Date | string; session_count: string | number; average_duration: string | number | null }>(
       `
       SELECT date_trunc('${bucket}', sessions.completed_at AT TIME ZONE 'Asia/Singapore') AS bucket,
         COUNT(*) AS session_count, AVG(sessions.duration_seconds) AS average_duration
       FROM game_sessions sessions JOIN users ON users.userid = sessions.userid
       WHERE users.admin_userid = $1
+        AND users.role = 'user'
         AND sessions.completed_at >= NOW() - ($2::text || ' days')::interval
       GROUP BY 1 ORDER BY 1
       `,
@@ -351,6 +414,7 @@ export async function getAdminAnalytics(adminUserid: string, requestedDays: numb
       SELECT sessions.activity_type, COUNT(*) AS count
       FROM game_sessions sessions JOIN users ON users.userid = sessions.userid
       WHERE users.admin_userid = $1
+        AND users.role = 'user'
         AND sessions.completed_at >= NOW() - ($2::text || ' days')::interval
       GROUP BY sessions.activity_type ORDER BY count DESC
       `,
@@ -362,7 +426,50 @@ export async function getAdminAnalytics(adminUserid: string, requestedDays: numb
         COUNT(*) AS total_sessions, AVG(sessions.duration_seconds) AS average_duration
       FROM game_sessions sessions JOIN users ON users.userid = sessions.userid
       WHERE users.admin_userid = $1
+        AND users.role = 'user'
         AND sessions.completed_at >= NOW() - ($2::text || ' days')::interval
+      `,
+      [adminUserid, days],
+    ),
+    sql.query<{ activity_type: ActivityType; count: string | number; average_duration: string | number | null }>(
+      `
+      SELECT sessions.activity_type, COUNT(*) AS count, AVG(sessions.duration_seconds) AS average_duration
+      FROM game_sessions sessions JOIN users ON users.userid = sessions.userid
+      WHERE users.admin_userid = $1
+        AND users.role = 'user'
+        AND sessions.completed_at >= NOW() - ($2::text || ' days')::interval
+      GROUP BY sessions.activity_type
+      ORDER BY average_duration DESC NULLS LAST, sessions.activity_type ASC
+      `,
+      [adminUserid, days],
+    ),
+    sql.query<{ userid: string; display_name: string | null; count: string | number; last_activity_at: Date | string | null }>(
+      `
+      SELECT users.userid, users.display_name, COUNT(sessions.id) AS count, MAX(sessions.completed_at) AS last_activity_at
+      FROM game_sessions sessions JOIN users ON users.userid = sessions.userid
+      WHERE users.admin_userid = $1
+        AND users.role = 'user'
+        AND sessions.completed_at >= NOW() - ($2::text || ' days')::interval
+      GROUP BY users.userid, users.display_name
+      ORDER BY count DESC, last_activity_at DESC NULLS LAST
+      `,
+      [adminUserid, days],
+    ),
+    sql.query<{ activity_type: "collect_bugs" | "catch_fish"; successful_actions: string | number; total_attempts: string | number }>(
+      `
+      SELECT sessions.activity_type,
+        SUM(sessions.successful_actions) AS successful_actions,
+        SUM(sessions.total_attempts) AS total_attempts
+      FROM game_sessions sessions JOIN users ON users.userid = sessions.userid
+      WHERE users.admin_userid = $1
+        AND users.role = 'user'
+        AND sessions.activity_type IN ('collect_bugs', 'catch_fish')
+        AND sessions.successful_actions IS NOT NULL
+        AND sessions.total_attempts IS NOT NULL
+        AND sessions.total_attempts > 0
+        AND sessions.completed_at >= NOW() - ($2::text || ' days')::interval
+      GROUP BY sessions.activity_type
+      ORDER BY sessions.activity_type ASC
       `,
       [adminUserid, days],
     ),
@@ -385,6 +492,27 @@ export async function getAdminAnalytics(adminUserid: string, requestedDays: numb
       activityType: row.activity_type,
       value: number(row.count),
     })),
+    averageDurationByActivity: durationRows.map((row) => ({
+      activityType: row.activity_type,
+      value: nullableRoundedNumber(row.average_duration) ?? 0,
+      averageDurationSeconds: nullableRoundedNumber(row.average_duration),
+    })),
+    sessionsByUser: userRows.map((row) => ({
+      userid: row.userid,
+      userName: row.display_name?.trim() || row.userid,
+      value: number(row.count),
+      lastActivityAt: row.last_activity_at ? iso(row.last_activity_at) : null,
+    })),
+    gameSuccessRates: successRows.map((row) => {
+      const totalAttempts = number(row.total_attempts);
+      const successfulActions = number(row.successful_actions);
+      return {
+        activityType: row.activity_type,
+        successfulActions,
+        totalAttempts,
+        rate: totalAttempts > 0 ? successfulActions / totalAttempts : 0,
+      };
+    }),
   };
 }
 
@@ -474,7 +602,10 @@ function toManagedUser(row: ManagedUserRow): ManagedUser {
     lastLoginAt: row.last_login_at ? iso(row.last_login_at) : null,
     lastActivityAt: row.last_activity_at ? iso(row.last_activity_at) : null,
     sessionCount: number(row.session_count),
+    averageDurationSeconds: nullableRoundedNumber(row.average_duration),
     flowerCount: number(row.flower_count),
+    fruitCount: number(row.fruit_count),
+    fishCount: number(row.fish_count),
     bugCount: number(row.bug_count),
     snapshotCount: number(row.snapshot_count),
   };

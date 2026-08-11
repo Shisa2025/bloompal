@@ -43,7 +43,7 @@ export default async function UsersPage({
             <tbody>{result.items.map((user) => (
               <tr key={user.userid}>
                 <td><div className={styles.personCell}><Avatar name={user.displayName} /><div><strong>{user.displayName}</strong><span>{user.userid} · {user.email}</span></div></div></td>
-                <td>{formatDate(user.createdAt, locale)}</td><td>{user.lastActivityAt ? formatDateTime(user.lastActivityAt, locale) : "—"}</td><td>{number.format(user.sessionCount)}</td><td>{number.format(user.flowerCount + user.bugCount + user.snapshotCount)}</td>
+                <td>{formatDate(user.createdAt, locale)}</td><td>{user.lastActivityAt ? formatDateTime(user.lastActivityAt, locale) : "—"}</td><td>{number.format(user.sessionCount)}</td><td>{number.format(user.flowerCount + user.fruitCount + user.fishCount + user.bugCount + user.snapshotCount)}</td>
                 <td><StatusBadge tone={user.status === "active" ? "success" : "neutral"}>{t(`status.${user.status}`)}</StatusBadge>{user.mustChangePassword ? <small className={styles.inlineHint}>{t("passwordChangeDue")}</small> : null}</td>
                 <td><Link className={styles.tableAction} href={`/admin/dashboard/users/${encodeURIComponent(user.userid)}`}>{t("view")}</Link></td>
               </tr>

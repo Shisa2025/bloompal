@@ -1,41 +1,80 @@
 # Admin dashboard
 
-BloomPal has separate `admin` and `user` account roles. The admin workspace is available at `/admin/dashboard` and is protected on the server by a database-backed session and an admin-role check.
+BloomPal has a working admin dashboard under the existing application. This document explains the current dashboard surface and how it may fit into future product architecture.
+
+## Current scope
+
+- **CURRENT**: Admin dashboard pages exist under `/admin/dashboard` with locale-prefixed routes in the Next.js app.
+- **CURRENT**: Admin data is scoped to the signed-in admin's assigned users.
+- **CURRENT**: The dashboard displays stored activity where available.
+- **PROPOSED**: The dashboard may later become part of a broader clinician/organisation portal, while BloomPal internal privileged administration may justify a separate surface.
+- **FUTURE**: Production role boundaries, institutional workflows, audit trails, and clinical governance require separate design.
 
 ## Account model
 
-- An admin self-registers at `/signup?role=admin` with an organization and `ADMIN_SIGNUP_CODE`.
-- A public user can self-register, optionally choosing an active Admin by ID, name, or organization. Leaving the selection empty creates an unassigned account.
-- An admin can create users from `/admin/dashboard/users/new`. These users are assigned to that admin and must change their temporary password after their first login.
-- A user belongs to zero or one admin; an admin can manage many users.
-- Admin queries always include the signed-in admin ID. An admin cannot read or mutate another admin's users.
-- Disabling a user or resetting their password invalidates all of that user's sessions.
+- Admin accounts can sign in through the existing login flow.
+- Admin signup uses an admin registration code.
+- Users can be assigned to an admin.
+- Admin dashboard operations are scoped to assigned users.
+- The current model is intentionally smaller than the proposed long-term role model.
 
 ## Pages
 
-| Route | Live behavior |
+| Route | Current purpose |
 | --- | --- |
-| `/admin/dashboard` | Assigned-user, recent-session, inactivity, and reward totals |
-| `/admin/dashboard/users` | Search, status filter, pagination, and user management |
+| `/admin/dashboard` | Overview of assigned-user activity, recent sessions, inactivity, and reward totals |
+| `/admin/dashboard/users` | Assigned-user management, search, status filter, pagination, and user status |
 | `/admin/dashboard/users/new` | Create an assigned user with a temporary password |
-| `/admin/dashboard/users/[userid]` | Update profile, enable/disable, reset password, or release the user |
-| `/admin/dashboard/sessions` | Filter and paginate real game sessions |
-| `/admin/dashboard/motion` | Left/right repetition and action metrics recorded by the games |
-| `/admin/dashboard/analytics` | Session, duration, active-user, and activity-popularity aggregates |
-| `/admin/dashboard/reports` | Download assigned-user and session CSV reports |
+| `/admin/dashboard/users/[userid]` | View and manage an assigned user's account and activity |
+| `/admin/dashboard/sessions` | Review completed game sessions |
+| `/admin/dashboard/motion` | Review aggregate game activity metrics, including left/right game actions where recorded |
+| `/admin/dashboard/analytics` | Review aggregate activity, duration, active-user, and game-popularity trends |
+| `/admin/dashboard/reports` | Download available CSV reports |
 
 The previous `/admin/dashboard/players` URLs redirect to the corresponding user pages.
 
+## Current versus future responsibility
+
+### CURRENT
+
+The dashboard is an admin workspace for the current prototype. It helps demonstrate that gameplay data can be reviewed after sessions are completed.
+
+### PROPOSED
+
+Future product planning may separate:
+
+- therapist/clinician workflows,
+- organisation administration,
+- patient-facing programme views,
+- and BloomPal internal platform administration.
+
+### FUTURE
+
+Real healthcare deployment would require additional validation around:
+
+- authorization boundaries,
+- audit trails,
+- clinical data governance,
+- consent and retention,
+- support operations,
+- regulatory pathway,
+- and institution onboarding.
+
 ## Activity data
 
-Watering, bug collection, and snapshot completion are stored atomically with their reward records. Each browser completion uses a UUID for retry-safe, idempotent persistence. BloomPal records completion times, duration, repetitions, successful actions, and attempts; it does not store webcam video or hand landmark streams.
+BloomPal records completed activity data such as completion times, duration, game action counts, successful actions, attempts, and result metadata where supported by the game. The dashboard can currently show assigned users, completed sessions, average duration, recent or last activity, days since last activity, activity breakdown, activity popularity, flowers, fruits, fish, bugs, snapshots, and game-specific attempt success where the underlying game records meaningful attempts.
 
-## Operations
+The dashboard should not imply clinical recovery, biomechanical measurement, raw webcam video storage, or raw MediaPipe landmark history. The snapshot game may store generated garden snapshot image data, so documentation should not claim that BloomPal stores no images of any kind.
 
-Apply safe, idempotent schema updates with:
+## Intentional non-implementation for this foundation task
 
-```bash
-npm run db:migrate
-```
+This task does not add:
 
-`db:reset` is destructive and refuses to run unless `ALLOW_DATABASE_RESET=yes-reset-bloompal` is explicitly set. Do not enable that variable in production.
+- new backend APIs,
+- new authentication logic,
+- new database tables,
+- production RBAC,
+- role separation between therapist and organisation admin,
+- PDF/XLSX export,
+- search or pagination expansion,
+- or deployment changes.

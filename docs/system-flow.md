@@ -1,8 +1,8 @@
 # BloomPal system flow
 
-This document describes the intended high-level flow from player interaction to admin review. It is conceptual only and does not define implementation details.
+This document describes how BloomPal data is expected to move from gameplay to review. It is a product and architecture guide, not a database implementation plan.
 
-## Primary flow
+## Flow diagram
 
 ```txt
 User
@@ -15,10 +15,9 @@ Webcam Hand Tracking
 ↓
 Session Created
 ↓
-Motion Metrics Recorded
+Game Activity Metrics Recorded
 ↓
-Data Stored
-(handled by backend team)
+Data Stored (handled by backend/database layer)
 ↓
 Admin Dashboard
 ↓
@@ -27,51 +26,49 @@ Analytics & Reports
 
 ## Flow explanation
 
-1. User
-   - A user may be a player, employee, or admin.
-   - The current prototype focuses on the admin dashboard experience.
+1. **User**
+   - A player enters BloomPal through the current application.
 
-2. Login
-   - Users enter the system through the login page.
-   - TODO: Real authentication and role-based routing should be implemented later by the responsible team.
+2. **Login**
+   - The user signs in through the existing User/Admin login flow.
+   - CURRENT: Basic role entry exists.
+   - FUTURE: Production authorization and role boundaries would need formal design.
 
-3. Play Gardening Game
-   - A player completes rehabilitation activities through a gardening-themed game.
-   - Example activities include pinching flowers, watering plants, picking fruits, catching butterflies, and arranging bouquets.
+3. **Play Gardening Game**
+   - The player completes a gardening-themed activity such as watering, bug collection, fruit plucking, fish catching, or snapshot capture.
+   - CURRENT: Several game routes already exist.
 
-4. Webcam Hand Tracking
-   - The game uses webcam-based hand tracking to observe motion during activities.
-   - The exact hand-tracking metrics are still being finalized.
+4. **Webcam Hand Tracking**
+   - Webcam-based hand tracking interprets movement during gameplay.
+   - CURRENT: Webcam hand tracking is used by the games.
+   - OPEN QUESTION: Final clinical metric definitions and thresholds still require validation.
 
-5. Session Created
-   - Each gameplay attempt should create a game session.
-   - A session is expected to include player, timing, activity type, duration, completion status, and performance summary.
+5. **Session Created**
+   - A completed activity becomes a game session.
+   - CURRENT: Session persistence exists for completed game activity.
 
-6. Motion Metrics Recorded
-   - Motion-related information is expected to be associated with the session.
-   - Placeholder metrics currently include pinch count, hand open/close count, reaction time, motion accuracy, and left/right hand usage.
+6. **Game Activity Metrics Recorded**
+   - The system stores approved aggregate metrics such as repetitions, attempts, successful actions, duration, and left/right activity.
+   - CURRENT: Raw webcam video history and raw MediaPipe landmark history are not stored for admin dashboard review.
 
-7. Data Stored
-   - Backend and database implementation will be handled separately.
-   - The frontend dashboard should eventually consume this stored data.
+7. **Data Stored**
+   - Backend/database logic stores approved session and account records.
+   - CURRENT: The snapshot game may store generated garden snapshot image data; this is separate from raw webcam video or raw MediaPipe landmark history.
+   - This foundation task does not add database schema, migrations, API routes, or secrets.
 
-8. Admin Dashboard
-   - Admin users review player progress, session history, motion metrics, analytics, and report summaries.
-   - The current dashboard uses mock data to represent this future state.
+8. **Admin Dashboard**
+   - The admin dashboard reads scoped data for assigned users.
+   - CURRENT: Admin pages display assigned-user activity, sessions, game activity metrics, analytics, and reports.
 
-9. Analytics & Reports
-   - Aggregated session and motion data should support progress tracking and reporting.
-   - TODO: Real analytics calculations and export generation should be added after backend data contracts are finalized.
+9. **Analytics & Reports**
+   - Admin users review aggregate trends and export available CSV reports.
+   - FUTURE: PDF/XLSX, scheduled reports, audit trails, and institution-level reporting would require additional design.
 
-## Important boundaries
+## Current route surface mapping
 
-The current frontend prototype does not:
+- Main experience: `/`
+- Documentation foundation: `/docs`
+- Application/portal concept: `/app`
+- Admin dashboard: `/admin/dashboard`
 
-- Store real session data
-- Read from a real database
-- Define backend APIs
-- Generate real reports
-- Enforce user roles
-- Implement real search or pagination
-
-These responsibilities should be added only after the project team finalizes the relevant backend, gameplay, and clinical requirements.
+With locale prefixes enabled, these are served under the active locale, for example `/en-SG/docs` or `/zh-CN/docs`.

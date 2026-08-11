@@ -11,8 +11,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ loc
   const admin = await requireAdmin();
   const users = await listManagedUsers(admin.userid, { pageSize: 10_000 });
   const rows = [
-    [t("userId"), t("name"), t("email"), t("statusHeader"), t("createdAt"), t("lastLoginAt"), t("lastActivityAt"), t("sessions"), t("flowers"), t("bugs"), t("snapshots")],
-    ...users.items.map((user) => [user.userid, user.displayName, user.email, t(`status.${user.status}`), user.createdAt, user.lastLoginAt ?? "", user.lastActivityAt ?? "", user.sessionCount, user.flowerCount, user.bugCount, user.snapshotCount]),
+    [t("userId"), t("name"), t("email"), t("statusHeader"), t("createdAt"), t("lastLoginAt"), t("lastActivityAt"), t("sessions"), t("averageDurationSeconds"), t("flowers"), t("fruits"), t("fish"), t("bugs"), t("snapshots")],
+    ...users.items.map((user) => [user.userid, user.displayName, user.email, t(`status.${user.status}`), user.createdAt, user.lastLoginAt ?? "", user.lastActivityAt ?? "", user.sessionCount, user.averageDurationSeconds ?? "", user.flowerCount, user.fruitCount, user.fishCount, user.bugCount, user.snapshotCount]),
   ];
   return csvDownloadResponse(rows, `bloompal-users-${locale}.csv`);
 }

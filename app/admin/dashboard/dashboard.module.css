@@ -1318,6 +1318,365 @@
   display: none;
 }
 
+@media (min-width: 1600px) {
+  .shell {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    width: 280px;
+    padding: 28px 18px 20px;
+  }
+
+  .brand {
+    gap: 12px;
+  }
+
+  .brandMark {
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+  }
+
+  .brand strong {
+    font-size: 18.5px;
+  }
+
+  .brand small {
+    font-size: 12px;
+  }
+
+  .nav {
+    margin-top: 40px;
+  }
+
+  .navLabel {
+    margin-bottom: 11px;
+    font-size: 10.8px;
+  }
+
+  .navItem {
+    gap: 13px;
+    min-height: 48px;
+    margin: 4px 0;
+    border-radius: 12px;
+    font-size: 14px;
+    padding: 0 14px;
+  }
+
+  .sidebarFooter {
+    gap: 16px;
+  }
+
+  .sidebarHelp {
+    border-radius: 14px;
+    padding: 14px;
+  }
+
+  .helpIcon {
+    width: 33px;
+    height: 33px;
+  }
+
+  .sidebarHelp strong,
+  .userCard strong {
+    font-size: 12px;
+  }
+
+  .sidebarHelp p,
+  .userCard small {
+    font-size: 10.8px;
+  }
+
+  .avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 12px;
+  }
+
+  .topbar {
+    height: 70px;
+    padding: 0 28px;
+  }
+
+  .search {
+    width: min(470px, 48vw);
+    height: 40px;
+    border-radius: 10px;
+    font-size: 12px;
+    padding: 0 13px;
+  }
+
+  .topbarActions {
+    gap: 12px;
+  }
+
+  .iconButton,
+  .topAvatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .topAvatar {
+    font-size: 12px;
+  }
+
+  .main {
+    padding: 28px;
+  }
+
+  .pageHeader {
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+
+  .eyebrow {
+    font-size: 11px !important;
+  }
+
+  .pageHeader h1 {
+    font-size: clamp(27px, 3vw, 35px);
+  }
+
+  .pageHeader > div > p {
+    font-size: 13px;
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .logoutButton {
+    min-height: 42px;
+    border-radius: 10px;
+    font-size: 12px;
+    padding: 0 16px;
+  }
+
+  .statsGrid {
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .statCard {
+    gap: 12px;
+    border-radius: 15px;
+    padding: 16px;
+  }
+
+  .statIcon {
+    width: 37px;
+    height: 37px;
+    border-radius: 11px;
+  }
+
+  .statCopy span {
+    font-size: 9.8px;
+  }
+
+  .statCopy strong {
+    font-size: 22px;
+  }
+
+  .statCopy small {
+    font-size: 9.4px;
+  }
+
+  .contentGrid {
+    grid-template-columns: minmax(0, 1.65fr) minmax(360px, .8fr);
+    gap: 20px;
+  }
+
+  .twoColumn,
+  .profileGrid,
+  .analyticsGrid {
+    gap: 20px;
+  }
+
+  .panel,
+  .profileHero,
+  .reportCard {
+    border-radius: 15px;
+    padding: 20px;
+  }
+
+  .panel + .panel,
+  .sectionGap {
+    margin-top: 20px;
+  }
+
+  .panelHeader {
+    margin-bottom: 17px;
+  }
+
+  .panelHeader h2 {
+    font-size: 15.5px;
+  }
+
+  .panelHeader p,
+  .textLink,
+  .metricRow span,
+  .filterInput,
+  .filterSelect,
+  .adminForm label,
+  .reportNote {
+    font-size: 11px;
+  }
+
+  .table {
+    font-size: 11.5px;
+  }
+
+  .table th {
+    font-size: 9.8px;
+    padding: 0 12px 12px;
+  }
+
+  .table td {
+    padding: 13.5px 12px;
+  }
+
+  .personCell {
+    gap: 10px;
+  }
+
+  .personCell div span {
+    font-size: 10px;
+  }
+
+  .avatarSmall { width: 31px; height: 31px; }
+  .avatarMedium { width: 37px; height: 37px; font-size: 11px; }
+  .avatarLarge { width: 64px; height: 64px; font-size: 17px; }
+
+  .badge {
+    font-size: 9.3px;
+    padding: 5.5px 9px;
+  }
+
+  .filterBar {
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .filterInput,
+  .filterSelect {
+    height: 40px;
+    border-radius: 10px;
+    padding: 0 13px;
+  }
+
+  .adminForm {
+    gap: 16px;
+  }
+
+  .adminForm input {
+    height: 44px;
+    border-radius: 10px;
+    padding: 0 13px;
+  }
+
+  .adminForm small,
+  .inlineHint,
+  .pagination,
+  .reportMeta {
+    font-size: 9.4px;
+  }
+
+  .dangerButton {
+    min-height: 42px;
+    border-radius: 10px;
+    font-size: 11px;
+  }
+
+  .profileHero {
+    gap: 20px;
+    margin-bottom: 18px;
+  }
+
+  .profileIdentity {
+    gap: 17px;
+  }
+
+  .profileIdentity h1 {
+    font-size: 25px;
+  }
+
+  .profileIdentity p {
+    font-size: 12px;
+  }
+
+  .metricList {
+    gap: 14px;
+  }
+
+  .metricRow strong {
+    font-size: 13px;
+  }
+
+  .barChart {
+    height: 236px;
+  }
+
+  .barChartCompact {
+    height: 162px;
+  }
+
+  .lineChart {
+    height: 256px;
+  }
+
+  .lineChart svg {
+    height: 208px;
+  }
+
+  .barValue,
+  .barLabel,
+  .lineLabels {
+    font-size: 9.3px;
+  }
+
+  .lineLabels small {
+    font-size: 8.8px;
+  }
+
+  .horizontalBars {
+    gap: 16px;
+  }
+
+  .horizontalBar > div:first-child {
+    font-size: 11px;
+  }
+
+  .horizontalBar strong {
+    font-size: 10px;
+  }
+
+  .insightStrip,
+  .motionSummary,
+  .reportGrid {
+    gap: 14px;
+  }
+
+  .insight,
+  .motionMetric {
+    border-radius: 13px;
+    padding: 15px;
+  }
+
+  .motionMetric span,
+  .insight span {
+    font-size: 9.4px;
+  }
+
+  .motionMetric strong,
+  .insight strong {
+    font-size: 19px;
+  }
+
+  .motionMetric small,
+  .insight p {
+    font-size: 9px;
+  }
+}
+
 @media (max-width: 1200px) {
   .statsGrid,
   .motionSummary {

@@ -1,44 +1,123 @@
 # BloomPal data model
 
-The implementation uses standard PostgreSQL. `database/migrate.mjs` is the executable, idempotent schema definition.
+This document describes the expected BloomPal data entities conceptually. It is not a database schema, migration plan, API contract, or implementation instruction.
 
-## Relationships
+Database implementation is handled separately. The purpose here is to help future developers understand the domain objects that the frontend and dashboard are likely to discuss.
 
-```text
-users (role=admin)
-  1 ─────── 0..n users (role=user)
-                    │
-                    ├── 0..n auth_sessions
-                    ├── 0..n game_sessions
-                    ├── 0..n user_plants
-                    ├── 0..n user_bugs
-                    ├── 0..n user_snapshots
-                    └── 0..1 user_dashboard_settings
+## Current data maturity
+
+- **CURRENT**: The codebase already contains account, admin, game session, reward, shop economy, and aggregate game-session metric persistence.
+- **PROPOSED**: The following entity names provide a shared vocabulary for future product planning.
+- **OPEN QUESTION**: Final clinical metrics, role boundaries, audit requirements, and retention requirements need validation before production use.
+
+## Conceptual entities
+
+### User
+
+Represents a sign-in account.
+
+In simple terms:
+
+- A user has identity and login information.
+- A user may act as a normal user/player or as an admin account in the current MVP.
+- Future roles should be designed carefully so account role does not automatically grant unrestricted clinical access.
+
+### PlayerProfile
+
+Represents player-specific rehabilitation or engagement context.
+
+In simple terms:
+
+- A player profile belongs to a user.
+- A player profile is the subject of gameplay sessions and activity review.
+- It may eventually include programme assignment, condition category, care goals, or accessibility preferences.
+
+### EmployeeProfile
+
+Represents a staff-facing profile, such as a therapist, clinician, or admin user.
+
+In simple terms:
+
+- An employee profile belongs to a user account.
+- It may be assigned to players.
+- It may write notes or review activity and progress when future clinical requirements are defined.
+
+### GameSession
+
+Represents one completed or attempted gameplay session.
+
+In simple terms:
+
+- A session belongs to a player.
+- A session has timing, activity type, completion status, and summary results.
+- It is the main record that connects gameplay to dashboard review.
+
+### GameTaskResult
+
+Represents detailed task-level results inside a game session.
+
+In simple terms:
+
+- A task result belongs to a game session.
+- It describes how a player performed on a particular activity step or game objective.
+- Final fields depend on the gameplay team's confirmed mechanics.
+
+### MotionRecord
+
+Represents a conceptual future record for approved aggregate hand-tracking or movement-related metrics from gameplay.
+
+In simple terms:
+
+- A motion record belongs to a game session.
+- It should store summarized metrics, not raw webcam video or raw MediaPipe landmark history.
+- Example metrics may include repetitions, attempts, successful actions, duration, left/right usage, and reaction timing.
+- In the current MVP, these ideas are mostly represented by aggregate fields on `game_sessions`, not a separate implemented `MotionRecord` table.
+
+### Current shop and reward entities
+
+The current implementation also includes user-facing shop/economy tables:
+
+- `user_wallets`: user coin balance and wallet state.
+- `user_music`: music tracks owned by a user.
+- `asset_sales`: sold collectible or reward assets from flowers, bugs, fish, or fruit.
+- `coin_transactions`: coin economy transaction history.
+
+The front-house/shop/music layer reads existing inventory tables such as `user_plants`, `user_bugs`, `user_fish`, and `user_fruits`. Snapshot records may store generated garden snapshot image data; this is separate from raw webcam video or raw MediaPipe landmark history.
+
+### EmployeeNote
+
+Represents a staff note about a player.
+
+In simple terms:
+
+- A note belongs to a player profile.
+- A note is written by an employee profile.
+- Future clinical note rules, privacy rules, audit requirements, and edit/delete policies need product and compliance review.
+
+## Relationship summary
+
+```txt
+User
+├── PlayerProfile
+│   ├── GameSession
+│   │   ├── GameTaskResult
+│   │   └── MotionRecord
+│   └── EmployeeNote
+└── EmployeeProfile
+    ├── assigned PlayerProfiles
+    └── EmployeeNotes
 ```
 
-`users.admin_userid` is nullable. A foreign key and trigger ensure that a non-null value references an Admin account, and new assignments are accepted only while that Admin is active. Deleting an admin releases its users by setting this field to null.
+## Intentional non-implementation
 
-## Main tables
+This document does not define:
 
-### `users`
-
-Stores the unique user ID and email, bcrypt password hash, display name, role, optional admin owner, nullable Admin organization, account status, forced-password-change flag, and login/audit timestamps. Database checks prevent User accounts from storing an organization. Plaintext password storage has been removed.
-
-### `auth_sessions`
-
-Stores only SHA-256 hashes of random opaque session tokens. Browser cookies are HttpOnly, SameSite=Lax, and Secure in production. Sessions expire and are checked against the current account status.
-
-### `game_sessions`
-
-Stores one completed activity with its user, activity type, start/end timestamps, validated duration, left/right repetitions, success/attempt counts, source reward record, and compact JSON metadata. The client session UUID and activity/source uniqueness constraints make retries idempotent.
-
-### Reward and dashboard tables
-
-- `user_plants`: seed selection, watering state, and unlocked flower.
-- `user_bugs`: collected bugs and the active garden companion.
-- `user_snapshots`: snapshot metadata and current database image data. `storage_provider` and `storage_key` allow a later move to object storage.
-- `user_dashboard_settings`: the user's selected table flower.
-
-## Data ownership
-
-User game queries are scoped to the authenticated user ID. Admin queries join through `users.admin_userid`, so each admin sees only assigned users and their activity. During public registration, a User may select an active Admin from the public ID, name, and organization directory or continue unassigned.
+- database table names,
+- database field types,
+- migration files,
+- indexes,
+- API routes,
+- authorization rules,
+- clinical thresholds,
+- regulatory retention rules,
+- or production audit requirements.
