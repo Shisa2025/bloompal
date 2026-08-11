@@ -149,7 +149,7 @@ function ensureBugsTable() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           is_active BOOLEAN NOT NULL DEFAULT FALSE,
           CONSTRAINT user_bugs_asset_check CHECK (
-            bug_asset IN ('Bee.glb', 'Beetle.glb', 'Butterfly.glb', 'Dragonfly.glb', 'Ladybug.glb')
+            bug_asset IN ('Bee.glb', 'Beetle.glb', 'Butterfly.glb', 'Dragonfly.glb')
           )
         )
       `);

@@ -70,7 +70,6 @@ export const bugCatalog = [
   { id: "bug-emerald-shell", category: "bug", assetPath: "/meshes/bugs/Beetle.glb", nameKey: "names.bugEmeraldShell", ownable: true, stackable: true, sourceValue: "Beetle.glb", sellPrice: 1 },
   { id: "bug-sunset-butterfly", category: "bug", assetPath: "/meshes/bugs/Butterfly.glb", nameKey: "names.bugSunsetButterfly", ownable: true, stackable: true, sourceValue: "Butterfly.glb", sellPrice: 1 },
   { id: "bug-azure-reed-dragonfly", category: "bug", assetPath: "/meshes/bugs/Dragonfly.glb", nameKey: "names.bugAzureReedDragonfly", ownable: true, stackable: true, sourceValue: "Dragonfly.glb", sellPrice: 1 },
-  { id: "bug-rose-dot-ladybug", category: "bug", assetPath: "/meshes/bugs/Ladybug.glb", nameKey: "names.bugRoseDotLadybug", ownable: true, stackable: true, sourceValue: "Ladybug.glb", sellPrice: 1 },
 ] as const satisfies readonly CatalogAsset[];
 
 export const fishCatalog = [
