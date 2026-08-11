@@ -37,6 +37,47 @@ type Transform = {
 const cameraTarget = new THREE.Vector3(0, 1.7, -2.6);
 const characterPosition = new THREE.Vector3(0.2, 0, 1.25);
 const snapshotCameraTarget = new THREE.Vector3(characterPosition.x, 1.55, characterPosition.z);
+export type DashboardHomeSceneViewMode = "dashboard" | "snapshot" | "portrait";
+
+export function getDashboardHomeSceneViewConfig(
+  viewMode: DashboardHomeSceneViewMode,
+  compact: boolean,
+) {
+  if (viewMode === "dashboard") {
+    return {
+      cameraPosition: [0, compact ? 3.45 : 3.2, compact ? 9.5 : 8.25] as const,
+      fov: compact ? 43 : 38,
+      hemisphereIntensity: 1.2,
+      target: cameraTarget.toArray() as [number, number, number],
+      toneMappingExposure: 1.05,
+      windowLightIntensity: 3.6,
+    };
+  }
+
+  if (viewMode === "snapshot") {
+    return {
+      cameraPosition: [0, compact ? 3.05 : 2.75, compact ? 7.3 : 6.15] as const,
+      fov: compact ? 41 : 36,
+      hemisphereIntensity: 1.2,
+      target: [0, 1.45, -2.25] as [number, number, number],
+      toneMappingExposure: 1.05,
+      windowLightIntensity: 3.6,
+    };
+  }
+
+  return {
+    cameraPosition: [
+      characterPosition.x,
+      compact ? 3.55 : 3.35,
+      compact ? 13.2 : 12.4,
+    ] as const,
+    fov: compact ? 48 : 44,
+    hemisphereIntensity: 0.9,
+    target: snapshotCameraTarget.toArray() as [number, number, number],
+    toneMappingExposure: 0.82,
+    windowLightIntensity: 2.25,
+  };
+}
 export const dashboardTableDisplayPositions = {
   gramophone: [-4.05, 1.19, -3.38],
   flowerPot: [-2.65, 1.2, -3.35],
@@ -57,6 +98,7 @@ type DashboardHomeSceneProps = {
   outfitId?: DashboardOutfitId;
   caughtBugs?: DashboardBug[];
   embedded?: boolean;
+  viewMode?: DashboardHomeSceneViewMode;
   wallSnapshot?: { id: string; imageData: string } | null;
   onSnapshotClick?: () => void;
   tableFlowerAsset?: string | null;
@@ -1257,6 +1299,7 @@ export default function DashboardHomeScene({
   outfitId = defaultDashboardOutfitId,
   caughtBugs = [],
   embedded = false,
+  viewMode,
   wallSnapshot = null,
   onSnapshotClick,
   tableFlowerAsset = null,
@@ -1271,6 +1314,8 @@ export default function DashboardHomeScene({
   onEnterBedroom,
   onSceneReady,
 }: DashboardHomeSceneProps) {
+  const resolvedViewMode =
+    viewMode ?? (embedded ? "portrait" : "dashboard");
   const t = useTranslations("Dashboard");
   const gramophoneHotspotRef = useRef<HTMLButtonElement>(null);
   const courtyardDoorHotspotRef = useRef<HTMLButtonElement>(null);
@@ -1296,10 +1341,12 @@ export default function DashboardHomeScene({
     const { scene, camera, reducedMotion, renderer } = context;
     const root = new THREE.Group();
     const materials = createMaterials();
-    const viewTarget = embedded ? snapshotCameraTarget : cameraTarget;
-    const cameraBase = embedded
-      ? new THREE.Vector3(characterPosition.x, 3.35, 12.4)
-      : new THREE.Vector3(0, 3.2, 8.25);
+    const initialViewConfig = getDashboardHomeSceneViewConfig(
+      resolvedViewMode,
+      false,
+    );
+    const viewTarget = new THREE.Vector3(...initialViewConfig.target);
+    const cameraBase = new THREE.Vector3(...initialViewConfig.cameraPosition);
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const gramophoneAnchor = new THREE.Vector3();
@@ -1317,7 +1364,7 @@ export default function DashboardHomeScene({
     const targetQuaternion = new THREE.Quaternion();
 
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = embedded ? 0.82 : 1.05;
+    renderer.toneMappingExposure = initialViewConfig.toneMappingExposure;
     scene.background = new THREE.Color("#f7ead7");
     scene.fog = new THREE.Fog("#f7ead7", 11, 21);
     scene.add(root);
@@ -1328,11 +1375,11 @@ export default function DashboardHomeScene({
     const hemisphereLight = new THREE.HemisphereLight(
       "#fff7e6",
       "#8c735e",
-      embedded ? 0.9 : 1.2,
+      initialViewConfig.hemisphereIntensity,
     );
     const windowLight = new THREE.DirectionalLight(
       "#fff1c9",
-      embedded ? 2.25 : 3.6,
+      initialViewConfig.windowLightIntensity,
     );
 
     windowLight.position.set(3.8, 6.2, 2.3);
@@ -1565,13 +1612,17 @@ export default function DashboardHomeScene({
 
     const onResize = ({ width, height }: ThreeStageResize) => {
       const compact = width / height < 1.35;
+      const nextViewConfig = getDashboardHomeSceneViewConfig(
+        resolvedViewMode,
+        compact,
+      );
 
-      camera.fov = embedded ? (compact ? 48 : 44) : (compact ? 43 : 38);
-      if (embedded) {
-        cameraBase.set(characterPosition.x, compact ? 3.55 : 3.35, compact ? 13.2 : 12.4);
-      } else {
-        cameraBase.set(0, compact ? 3.45 : 3.2, compact ? 9.5 : 8.25);
-      }
+      camera.fov = nextViewConfig.fov;
+      cameraBase.set(
+        nextViewConfig.cameraPosition[0],
+        nextViewConfig.cameraPosition[1],
+        nextViewConfig.cameraPosition[2],
+      );
       camera.position.copy(cameraBase);
       camera.lookAt(viewTarget);
       camera.updateProjectionMatrix();
@@ -1689,7 +1740,7 @@ export default function DashboardHomeScene({
         disposeObject3D(root);
       },
     };
-  }, [caughtBugs, embedded, fruits, onBugClick, onDoorTransitionStart, onEnterBedroom, onEnterCourtyard, onFruitBasketClick, onGramophoneClick, onSceneReady, onSnapshotClick, onTablePotClick, tableFlowerAsset, wallSnapshot]);
+  }, [caughtBugs, fruits, onBugClick, onDoorTransitionStart, onEnterBedroom, onEnterCourtyard, onFruitBasketClick, onGramophoneClick, onSceneReady, onSnapshotClick, onTablePotClick, resolvedViewMode, tableFlowerAsset, wallSnapshot]);
 
   return (
     <div

@@ -1,6 +1,4 @@
 import {
-  onlineRoomIssuedAtHeader,
-  onlineRoomSessionIdHeader,
   type OnlineRoomErrorCode,
   type OnlineRoomErrorResponse,
   type OnlineRoomSyncRequest,
@@ -32,7 +30,7 @@ export async function requestOnlineRoomTicket(sessionId?: string) {
   const body = (await readJson(response)) as
     | OnlineRoomTicketResponse
     | OnlineRoomErrorResponse;
-  if (!response.ok || !("sessionId" in body) || !("issuedAt" in body)) {
+  if (!response.ok || !("sessionId" in body) || !("ticket" in body)) {
     throw toRequestError(response.status, body);
   }
   return body;
@@ -41,16 +39,15 @@ export async function requestOnlineRoomTicket(sessionId?: string) {
 export async function syncOnlineRoom(
   credentials: Pick<
     OnlineRoomTicketResponse,
-    "endpoint" | "issuedAt" | "sessionId"
+    "endpoint" | "ticket"
   >,
   state: OnlineRoomSyncRequest,
 ) {
   const response = await fetch(`${credentials.endpoint}/sync`, {
     method: "POST",
     headers: {
+      Authorization: `Bearer ${credentials.ticket}`,
       "Content-Type": "application/json",
-      [onlineRoomSessionIdHeader]: credentials.sessionId,
-      [onlineRoomIssuedAtHeader]: String(credentials.issuedAt),
     },
     body: JSON.stringify(state),
     cache: "no-store",
@@ -67,17 +64,14 @@ export async function syncOnlineRoom(
 export async function leaveOnlineRoom(
   credentials: Pick<
     OnlineRoomTicketResponse,
-    "endpoint" | "issuedAt" | "sessionId"
+    "endpoint" | "ticket"
   >,
   keepalive = false,
 ) {
   try {
     await fetch(`${credentials.endpoint}/leave`, {
       method: "POST",
-      headers: {
-        [onlineRoomSessionIdHeader]: credentials.sessionId,
-        [onlineRoomIssuedAtHeader]: String(credentials.issuedAt),
-      },
+      headers: { Authorization: `Bearer ${credentials.ticket}` },
       cache: "no-store",
       keepalive,
     });

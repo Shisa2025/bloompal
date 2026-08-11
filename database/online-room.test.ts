@@ -27,10 +27,95 @@ async function executeQuery(
   const normalized = text.replace(/\s+/g, " ").trim();
   if (
     normalized.startsWith("CREATE TABLE") ||
-    normalized.startsWith("CREATE INDEX") ||
-    normalized.startsWith("SELECT pg_advisory_xact_lock")
+    normalized.startsWith("CREATE INDEX")
   ) {
     return [];
+  }
+  if (normalized.startsWith("WITH room_lock AS MATERIALIZED")) {
+    const roomId = String(values[0]);
+    const userId = String(values[1]);
+    const key = `${roomId}:${userId}`;
+    const now = new Date();
+    state.forEach((row, rowKey) => {
+      if (
+        row.room_id === roomId &&
+        row.userid !== userId &&
+        row.expires_at.getTime() <= now.getTime()
+      ) {
+        state.delete(rowKey);
+      }
+    });
+    const stored = state.get(key);
+    const existing =
+      stored && stored.expires_at.getTime() > now.getTime() ? stored : undefined;
+    const active = activeRows(roomId);
+    const incomingSessionId = String(values[2]);
+    const incomingIssuedAt = Number(values[3]);
+    const sequence = Number(values[10]);
+    const status =
+      existing &&
+      existing.session_id !== incomingSessionId &&
+      incomingIssuedAt <= existing.session_issued_at
+        ? "session_replaced"
+        : existing &&
+            existing.session_id === incomingSessionId &&
+            sequence <= existing.sequence
+          ? "stale_sequence"
+          : !existing && active.length >= Number(values[12])
+            ? "room_full"
+            : "ok";
+
+    if (status === "ok") {
+      const spawnPositions = JSON.parse(String(values[13])) as Array<{
+        x: number;
+        z: number;
+      }>;
+      const spawn =
+        spawnPositions.find((candidate) =>
+          active.every(
+            (row) =>
+              Math.hypot(
+                row.position_x - candidate.x,
+                row.position_z - candidate.z,
+              ) > 0.8,
+          ),
+        ) ?? { x: Number(values[14]), z: Number(values[15]) };
+      state.set(key, {
+        room_id: roomId,
+        userid: userId,
+        session_id: incomingSessionId,
+        session_issued_at: Math.max(
+          existing?.session_issued_at ?? 0,
+          incomingIssuedAt,
+        ),
+        display_name: String(values[4]),
+        outfit_id: values[5] as FakePresence["outfit_id"],
+        position_x: existing ? Number(values[6]) : spawn.x,
+        position_z: existing ? Number(values[7]) : spawn.z,
+        heading: Number(values[8]),
+        movement_state: values[9] as FakePresence["movement_state"],
+        sequence:
+          existing && existing.session_id !== incomingSessionId ? 0 : sequence,
+        connected_at: existing?.connected_at ?? now,
+        last_seen_at: now,
+        expires_at: new Date(now.getTime() + Number(values[11])),
+      });
+    }
+
+    const players =
+      status === "ok"
+        ? activeRows(roomId).map((row) => ({
+            userId: row.userid,
+            displayName: row.display_name,
+            outfitId: row.outfit_id,
+            x: row.position_x,
+            z: row.position_z,
+            heading: row.heading,
+            moving: row.movement_state === "walk",
+            lastSeenAt: row.last_seen_at.toISOString(),
+          }))
+        : [];
+    return [{ status, players }];
   }
   if (
     normalized.startsWith(
@@ -148,6 +233,11 @@ describe("Vercel online room presence", () => {
 
     expect(moved.self).toMatchObject({ x: 1.4, z: -0.5, moving: true });
     expect(joined.players).toHaveLength(2);
+    expect(
+      query.mock.calls.filter(([text]) =>
+        String(text).trim().startsWith("WITH room_lock AS MATERIALIZED"),
+      ),
+    ).toHaveLength(3);
   });
 
   it("caps the room at eight and releases expired capacity", async () => {

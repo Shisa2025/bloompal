@@ -23,8 +23,8 @@ import DashboardOnlineRoomScene, {
 const connection = {
   endpoint: "/api/online-room",
   expiresAt: "2099-01-01T00:00:00.000Z",
-  issuedAt: Date.now(),
   sessionId: "11111111-1111-4111-8111-111111111111",
+  ticket: "ticket",
   sequence: 0,
   initialSnapshot: {
     roomId: "public",

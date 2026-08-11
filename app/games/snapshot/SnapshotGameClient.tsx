@@ -2,12 +2,26 @@
 
 import { Link, useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import DashboardHomeScene from "@/app/dashboard/components/DashboardHomeScene";
+import { setEquippedDashboardOutfit } from "@/app/dashboard/actions";
 import { createMotionTracker } from "@/mediapipe/motion";
 import type { MotionSide, MotionTracker } from "@/mediapipe/types";
+import {
+  defaultDashboardOutfitId,
+  getDashboardOutfitStorageKey,
+  parseDashboardOutfitPreferences,
+  type DashboardOutfitId,
+  type PurchasableDashboardOutfitId,
+} from "@/lib/dashboard-outfits";
 import { getThumbFlexSignals, type ThumbFlexSignals } from "./thumbFlexRules";
 import { saveGardenSnapshot } from "./actions";
+import {
+  drawSnapshotCanvas,
+  snapshotFilterIds,
+  snapshotFilterStyles,
+  type SnapshotFilterId,
+} from "./snapshotFilters";
 
 type Counts = Record<MotionSide, number>;
 type FlexCycle = Record<MotionSide, "extend" | "flex" | "cooldown">;
@@ -19,14 +33,29 @@ const emptySignals: ThumbFlexSignals = {
   left: { detected: false, palmFacing: false, extended: false, flexed: false },
   right: { detected: false, palmFacing: false, extended: false, flexed: false },
 };
+const snapshotFilterLabelKeys: Record<
+  SnapshotFilterId,
+  "filterNatural" | "filterWarm" | "filterCool" | "filterVintage"
+> = {
+  natural: "filterNatural",
+  warm: "filterWarm",
+  cool: "filterCool",
+  vintage: "filterVintage",
+};
 
 export default function SnapshotGameClient({
   caughtBugs,
+  equippedOutfitId,
   fruits,
+  ownedOutfitIds,
+  preferenceOwnerId,
   tableFlowerAsset,
 }: {
   caughtBugs: { id: string; bugAsset: string; isActive: boolean }[];
+  equippedOutfitId: DashboardOutfitId | null;
   fruits: { id: string; fruitKind: string; createdAt: string }[];
+  ownedOutfitIds: PurchasableDashboardOutfitId[];
+  preferenceOwnerId: string;
   tableFlowerAsset: string | null;
 }) {
   const router = useRouter();
@@ -39,7 +68,14 @@ export default function SnapshotGameClient({
   const [cameraRunId, setCameraRunId] = useState(0);
   const [snapshotTaken, setSnapshotTaken] = useState(false);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
+  const [isSnapshotSaving, setIsSnapshotSaving] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
+  const [outfitId, setOutfitId] = useState<DashboardOutfitId>(
+    equippedOutfitId ?? defaultDashboardOutfitId,
+  );
+  const [outfitReady, setOutfitReady] = useState(equippedOutfitId !== null);
+  const [selectedFilterId, setSelectedFilterId] =
+    useState<SnapshotFilterId>("natural");
   const videoRef = useRef<HTMLVideoElement>(null);
   const trackerRef = useRef<MotionTracker | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -52,7 +88,13 @@ export default function SnapshotGameClient({
   const snapshotSavingRef = useRef(false);
   const sessionIdRef = useRef("");
   const runStartedAtRef = useRef(0);
+  const outfitMigrationKeyRef = useRef<string | null>(null);
+  const selectedFilterIdRef = useRef<SnapshotFilterId>("natural");
   const isComplete = counts.left >= requiredReps && counts.right >= requiredReps;
+  const outfitStorageKey = useMemo(
+    () => getDashboardOutfitStorageKey(preferenceOwnerId),
+    [preferenceOwnerId],
+  );
   // Keep this reference stable while the hand-tracking UI updates. Otherwise
   // the embedded Three.js dashboard is torn down and rebuilt every frame.
   const activeBugs = useMemo(() => caughtBugs.filter((bug) => bug.isActive), [caughtBugs]);
@@ -61,6 +103,60 @@ export default function SnapshotGameClient({
   useEffect(() => {
     sessionIdRef.current = crypto.randomUUID();
     runStartedAtRef.current = Date.now();
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (equippedOutfitId !== null) {
+        outfitMigrationKeyRef.current = outfitStorageKey;
+        setOutfitId(equippedOutfitId);
+        setOutfitReady(true);
+        try {
+          window.localStorage.setItem(
+            outfitStorageKey,
+            JSON.stringify({ outfitId: equippedOutfitId }),
+          );
+        } catch {
+          // The database remains the source of truth when browser storage is unavailable.
+        }
+        return;
+      }
+      if (outfitMigrationKeyRef.current === outfitStorageKey) return;
+      outfitMigrationKeyRef.current = outfitStorageKey;
+
+      let legacyOutfitId: DashboardOutfitId = defaultDashboardOutfitId;
+      try {
+        legacyOutfitId = parseDashboardOutfitPreferences(
+          window.localStorage.getItem(outfitStorageKey),
+          ownedOutfitIds,
+        ).outfitId;
+        window.localStorage.setItem(
+          outfitStorageKey,
+          JSON.stringify({ outfitId: legacyOutfitId }),
+        );
+      } catch {
+        // A missing or blocked localStorage falls back to the original outfit.
+      }
+
+      setOutfitId(legacyOutfitId);
+      setOutfitReady(true);
+      startTransition(() => {
+        void setEquippedDashboardOutfit(legacyOutfitId).then((result) => {
+          if (!result.ok) setSnapshotError(tErrors(result.errorCode));
+        });
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [
+    equippedOutfitId,
+    outfitStorageKey,
+    ownedOutfitIds,
+    tErrors,
+  ]);
+
+  const chooseFilter = useCallback((filterId: SnapshotFilterId) => {
+    selectedFilterIdRef.current = filterId;
+    setSelectedFilterId(filterId);
   }, []);
 
   const processSignals = useCallback((nextSignals: ThumbFlexSignals, timestampMs: number) => {
@@ -103,6 +199,7 @@ export default function SnapshotGameClient({
   useEffect(() => {
     if (!isComplete || !sceneReady || snapshotSavingRef.current) return;
     snapshotSavingRef.current = true;
+    setIsSnapshotSaving(true);
     const timer = window.setTimeout(() => {
       const sourceCanvas = stageRef.current?.querySelector("canvas");
       const snapshotCanvas = document.createElement("canvas");
@@ -111,19 +208,38 @@ export default function SnapshotGameClient({
       const context = snapshotCanvas.getContext("2d");
       if (!sourceCanvas || !context) {
         setSnapshotError(tErrors("captureSceneFailed"));
+        snapshotSavingRef.current = false;
+        setIsSnapshotSaving(false);
         return;
       }
-      drawCanvasCover(context, sourceCanvas, snapshotCanvas.width, snapshotCanvas.height);
+      drawSnapshotCanvas(
+        context,
+        sourceCanvas,
+        snapshotCanvas.width,
+        snapshotCanvas.height,
+        selectedFilterIdRef.current,
+      );
       void saveGardenSnapshot(snapshotCanvas.toDataURL("image/jpeg", 0.76), {
         sessionId: sessionIdRef.current,
         durationSeconds: (Date.now() - runStartedAtRef.current) / 1000,
         leftRepetitions: countsRef.current.left,
         rightRepetitions: countsRef.current.right,
-      }).then((result) => {
-        if (!result.ok) { setSnapshotError(tErrors(result.errorCode)); return; }
-        setSnapshotTaken(true);
-        router.replace("/dashboard");
-      });
+      })
+        .then((result) => {
+          if (!result.ok) {
+            snapshotSavingRef.current = false;
+            setIsSnapshotSaving(false);
+            setSnapshotError(tErrors(result.errorCode));
+            return;
+          }
+          setSnapshotTaken(true);
+          router.replace("/dashboard");
+        })
+        .catch(() => {
+          snapshotSavingRef.current = false;
+          setIsSnapshotSaving(false);
+          setSnapshotError(tErrors("saveSnapshotFailed"));
+        });
     }, 250);
     return () => window.clearTimeout(timer);
   }, [isComplete, router, sceneReady, tErrors]);
@@ -200,10 +316,47 @@ export default function SnapshotGameClient({
             {cameraError ? <p className="watering-error">{cameraError}</p> : null}
           </section>
         </div>
-        <section className="watering-sprout-panel">
+        <section className="watering-sprout-panel snapshot-sprout-panel">
           <div className="watering-sprout-heading"><p>{t("liveGrowth")}</p><h2>{snapshotTaken ? t("snapshotTaken") : t("frameGarden")}</h2></div>
-          <div ref={stageRef} className={["watering-sprout-stage-shell", "snapshot-garden-stage", snapshotTaken ? "is-captured" : ""].join(" ")}>
-            <DashboardHomeScene caughtBugs={activeBugs} embedded fruits={fruits} onSceneReady={handleSceneReady} tableFlowerAsset={tableFlowerAsset} />
+          <div className="snapshot-filter-picker">
+            <span>{t("chooseFilter")}</span>
+            <div aria-label={t("chooseFilter")} className="snapshot-filter-options" role="group">
+              {snapshotFilterIds.map((filterId) => (
+                <button
+                  aria-pressed={selectedFilterId === filterId}
+                  className={selectedFilterId === filterId ? "is-selected" : ""}
+                  disabled={isComplete || isSnapshotSaving || snapshotTaken}
+                  key={filterId}
+                  onClick={() => chooseFilter(filterId)}
+                  type="button"
+                >
+                  {t(snapshotFilterLabelKeys[filterId])}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div
+            aria-busy={!outfitReady || isSnapshotSaving}
+            className={["watering-sprout-stage-shell", "snapshot-garden-stage", snapshotTaken ? "is-captured" : ""].join(" ")}
+            ref={stageRef}
+            style={{
+              "--snapshot-canvas-filter": snapshotFilterStyles[selectedFilterId],
+            } as CSSProperties}
+          >
+            {outfitReady ? (
+              <DashboardHomeScene
+                caughtBugs={activeBugs}
+                embedded
+                fruits={fruits}
+                onSceneReady={handleSceneReady}
+                outfitId={outfitId}
+                tableFlowerAsset={tableFlowerAsset}
+                viewMode="snapshot"
+                wallSnapshot={null}
+              />
+            ) : (
+              <div className="snapshot-room-loading">{t("preparingRoom")}</div>
+            )}
             {snapshotTaken ? <div className="snapshot-captured-overlay"><span aria-hidden="true">&#128247;</span><strong>{t("captured")}</strong></div> : null}
           </div>
           {snapshotError ? <p className="watering-error">{snapshotError}</p> : null}
@@ -225,40 +378,6 @@ export default function SnapshotGameClient({
         </div>
       </section>
     </div>
-  );
-}
-
-function drawCanvasCover(
-  context: CanvasRenderingContext2D,
-  source: HTMLCanvasElement,
-  targetWidth: number,
-  targetHeight: number,
-) {
-  const sourceAspect = source.width / source.height;
-  const targetAspect = targetWidth / targetHeight;
-  let sourceWidth = source.width;
-  let sourceHeight = source.height;
-  let sourceX = 0;
-  let sourceY = 0;
-
-  if (sourceAspect > targetAspect) {
-    sourceWidth = source.height * targetAspect;
-    sourceX = (source.width - sourceWidth) / 2;
-  } else if (sourceAspect < targetAspect) {
-    sourceHeight = source.width / targetAspect;
-    sourceY = (source.height - sourceHeight) / 2;
-  }
-
-  context.drawImage(
-    source,
-    sourceX,
-    sourceY,
-    sourceWidth,
-    sourceHeight,
-    0,
-    0,
-    targetWidth,
-    targetHeight,
   );
 }
 

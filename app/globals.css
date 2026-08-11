@@ -1294,11 +1294,27 @@ body {
 .dashboard-online-room-toolbar {
   position: absolute;
   top: 6.6rem;
-  right: 1.5rem;
-  z-index: 3;
+  right: max(1.5rem, calc((100vw - 70rem) / 2));
+  z-index: 4;
   display: flex;
   align-items: stretch;
   gap: 0.65rem;
+}
+
+.dashboard-online-room-active .dashboard-gaming-board {
+  display: none;
+}
+
+@media (max-width: 72rem) {
+  .dashboard-online-room-toolbar {
+    right: 1rem;
+    left: 1rem;
+    justify-content: flex-end;
+  }
+
+  .dashboard-online-room-status {
+    min-width: 0;
+  }
 }
 
 .dashboard-online-room-status {
@@ -4511,8 +4527,77 @@ body {
 }
 
 .snapshot-garden-stage {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
   isolation: isolate;
-  min-height: 24rem;
+  min-height: 0;
+}
+
+.snapshot-sprout-panel {
+  align-content: start;
+  grid-template-rows: auto auto auto;
+}
+
+.snapshot-filter-picker {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.snapshot-filter-picker > span {
+  color: #52735a;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.snapshot-filter-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.snapshot-filter-options button {
+  min-height: 2.25rem;
+  border: 1px solid rgb(82 115 90 / 16%);
+  border-radius: 999px;
+  background: rgb(255 253 247 / 72%);
+  color: #52735a;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 850;
+  padding: 0.35rem 0.5rem;
+}
+
+.snapshot-filter-options button.is-selected {
+  border-color: #52735a;
+  background: #52735a;
+  color: #fffdf7;
+}
+
+.snapshot-filter-options button:focus-visible {
+  outline: 0.2rem solid rgb(107 155 116 / 32%);
+  outline-offset: 0.12rem;
+}
+
+.snapshot-filter-options button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.snapshot-garden-stage canvas {
+  filter: var(--snapshot-canvas-filter, none);
+  transition: filter 180ms ease;
+}
+
+.snapshot-room-loading {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background: #f8efe2;
+  color: #52735a;
+  font-size: 0.86rem;
+  font-weight: 850;
 }
 
 .snapshot-garden-stage .dashboard-three-stage {
@@ -4546,6 +4631,12 @@ body {
   0% { background: rgb(255 255 255 / 96%); opacity: 0; }
   28% { opacity: 1; }
   100% { background: rgb(255 253 247 / 22%); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snapshot-garden-stage canvas {
+    transition: none;
+  }
 }
 
 .collectbugs-reward-error {

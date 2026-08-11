@@ -15,7 +15,10 @@ import { getUserSnapshots } from "@/database/snapshots";
 import { getUserFish } from "@/database/fish";
 import { getUserGameHistory } from "@/database/game-sessions";
 import { getUserFruits } from "@/database/fruits";
-import { getShopState } from "@/database/shop";
+import {
+  getEquippedDashboardOutfit,
+  getShopState,
+} from "@/database/shop";
 import { requireUser } from "@/lib/auth";
 import LocaleSwitcher from "@/app/components/LocaleSwitcher";
 import { getTranslations } from "next-intl/server";
@@ -26,7 +29,7 @@ export default async function DashboardPage() {
   const t = await getTranslations("Dashboard");
   const tAssets = await getTranslations("Assets");
   const account = await requireUser();
-  const [latestPlant, ownedFlowerAssets, tableFlowerAsset, caughtBugs, snapshots, caughtFish, gameHistory, fruits, shopState] =
+  const [latestPlant, ownedFlowerAssets, tableFlowerAsset, caughtBugs, snapshots, caughtFish, gameHistory, fruits, shopState, equippedOutfitId] =
     await Promise.all([
       getLatestUserPlant(account.userid),
       getOwnedFlowerAssets(account.userid),
@@ -37,6 +40,7 @@ export default async function DashboardPage() {
       getUserGameHistory(account.userid),
       getUserFruits(account.userid),
       getShopState(account.userid),
+      getEquippedDashboardOutfit(account.userid),
     ]);
   const boardState = getBoardState(latestPlant, t, tAssets);
 
@@ -44,6 +48,7 @@ export default async function DashboardPage() {
     <DesktopOnly>
       <main className="dashboard-shell font-sans text-[#1d2b22]">
         <DashboardGardenClient
+          equippedOutfitId={equippedOutfitId}
           preferenceOwnerId={account.userid}
           ownedFlowerAssets={ownedFlowerAssets}
           tableFlowerAsset={tableFlowerAsset}

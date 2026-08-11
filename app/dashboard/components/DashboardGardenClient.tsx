@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { deleteUserBug, deleteUserSnapshot, setActiveBug, setActiveSnapshot, setTableFlowerAsset, throwAwayUserFruit } from "../actions";
+import { deleteUserBug, deleteUserSnapshot, setActiveBug, setActiveSnapshot, setEquippedDashboardOutfit, setTableFlowerAsset, throwAwayUserFruit } from "../actions";
 import DashboardHomeScene from "./DashboardHomeScene";
 import { BasketArt, FruitArt, type FruitArtKind } from "@/app/components/FruitArt";
 import DashboardMusicPlayer from "./DashboardMusicPlayer";
@@ -41,6 +41,7 @@ import {
 } from "@/lib/asset-catalog";
 
 type DashboardGardenClientProps = {
+  equippedOutfitId: DashboardOutfitId | null;
   preferenceOwnerId: string;
   ownedFlowerAssets: string[];
   tableFlowerAsset: string | null;
@@ -57,6 +58,7 @@ type JourneyTarget = "room" | "courtyard" | "bedroom" | "online-room";
 type PendingDestination = { location: SceneLocation; focusId: string };
 
 export default function DashboardGardenClient({
+  equippedOutfitId,
   preferenceOwnerId,
   ownedFlowerAssets,
   tableFlowerAsset,
@@ -96,7 +98,10 @@ export default function DashboardGardenClient({
     useState<OnlineRoomErrorCode | null>(null);
   const [isOnlineRoomEntryPending, setIsOnlineRoomEntryPending] = useState(false);
   const [selectedOutfitId, setSelectedOutfitId] =
-    useState<DashboardOutfitId>(defaultDashboardOutfitId);
+    useState<DashboardOutfitId>(
+      equippedOutfitId ?? defaultDashboardOutfitId,
+    );
+  const [outfitSaveError, setOutfitSaveError] = useState<string | null>(null);
   const [previewTrackId, setPreviewTrackId] = useState<MusicTrackId | null>(null);
   const [previewError, setPreviewError] = useState(false);
   const pendingDestinationRef = useRef<PendingDestination | null>(null);
@@ -104,13 +109,29 @@ export default function DashboardGardenClient({
   const sceneFallbackTimerRef = useRef<number | null>(null);
   const sceneRevealTimerRef = useRef<number | null>(null);
   const selectedOutfitIdRef = useRef<DashboardOutfitId>(
-    defaultDashboardOutfitId,
+    equippedOutfitId ?? defaultDashboardOutfitId,
   );
-  const activeOutfitStorageKeyRef = useRef<string | null>(null);
+  const outfitMigrationKeyRef = useRef<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isOutfitPending, startOutfitTransition] = useTransition();
   const outfitStorageKey = useMemo(
     () => getDashboardOutfitStorageKey(preferenceOwnerId),
     [preferenceOwnerId],
+  );
+  const applyOutfitSelection = useCallback(
+    (outfitId: DashboardOutfitId) => {
+      selectedOutfitIdRef.current = outfitId;
+      setSelectedOutfitId(outfitId);
+      try {
+        window.localStorage.setItem(
+          outfitStorageKey,
+          JSON.stringify({ outfitId }),
+        );
+      } catch {
+        // The database remains the source of truth when browser storage is unavailable.
+      }
+    },
+    [outfitStorageKey],
   );
   const selectedAsset =
     localSelection.serverAsset === tableFlowerAsset
@@ -139,44 +160,50 @@ export default function DashboardGardenClient({
   }, []);
 
   useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle(
+      "dashboard-online-room-active",
+      sceneLocation === "online-room",
+    );
+    return () => root.classList.remove("dashboard-online-room-active");
+  }, [sceneLocation]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
-      if (activeOutfitStorageKeyRef.current !== outfitStorageKey) {
-        activeOutfitStorageKeyRef.current = outfitStorageKey;
-        selectedOutfitIdRef.current = defaultDashboardOutfitId;
+      if (equippedOutfitId !== null) {
+        outfitMigrationKeyRef.current = outfitStorageKey;
+        applyOutfitSelection(equippedOutfitId);
+        return;
       }
-      const sessionOutfitId = selectedOutfitIdRef.current;
-      const sessionOutfitIsAvailable =
-        sessionOutfitId === defaultDashboardOutfitId ||
-        (isPurchasableDashboardOutfitId(sessionOutfitId) &&
-          shopState.ownedOutfitIds.includes(sessionOutfitId));
+      if (outfitMigrationKeyRef.current === outfitStorageKey) return;
+      outfitMigrationKeyRef.current = outfitStorageKey;
+
+      let legacyOutfitId: DashboardOutfitId = defaultDashboardOutfitId;
       try {
-        const storedPreferences = window.localStorage.getItem(outfitStorageKey);
-        const preferences = storedPreferences
-          ? parseDashboardOutfitPreferences(
-              storedPreferences,
-              shopState.ownedOutfitIds,
-            )
-          : {
-              outfitId: sessionOutfitIsAvailable
-                ? sessionOutfitId
-                : defaultDashboardOutfitId,
-            };
-        selectedOutfitIdRef.current = preferences.outfitId;
-        setSelectedOutfitId(preferences.outfitId);
-        window.localStorage.setItem(
-          outfitStorageKey,
-          JSON.stringify(preferences),
-        );
+        legacyOutfitId = parseDashboardOutfitPreferences(
+          window.localStorage.getItem(outfitStorageKey),
+          shopState.ownedOutfitIds,
+        ).outfitId;
       } catch {
-        const outfitId = sessionOutfitIsAvailable
-          ? sessionOutfitId
-          : defaultDashboardOutfitId;
-        selectedOutfitIdRef.current = outfitId;
-        setSelectedOutfitId(outfitId);
+        // A missing or blocked localStorage falls back to the original outfit.
       }
+      applyOutfitSelection(legacyOutfitId);
+
+      startOutfitTransition(async () => {
+        const result = await setEquippedDashboardOutfit(legacyOutfitId);
+        if (!result.ok) {
+          setOutfitSaveError(tErrors(result.errorCode));
+        }
+      });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [outfitStorageKey, shopState.ownedOutfitIds]);
+  }, [
+    applyOutfitSelection,
+    equippedOutfitId,
+    outfitStorageKey,
+    shopState.ownedOutfitIds,
+    tErrors,
+  ]);
 
   const revealDestination = useCallback(() => {
     const pending = pendingDestinationRef.current;
@@ -249,7 +276,10 @@ export default function DashboardGardenClient({
   }, []);
   const endShopPreview = useCallback(() => setPreviewTrackId(null), []);
   const reportShopPreviewError = useCallback(() => setPreviewError(true), []);
-  const openWardrobe = useCallback(() => setIsWardrobeOpen(true), []);
+  const openWardrobe = useCallback(() => {
+    setOutfitSaveError(null);
+    setIsWardrobeOpen(true);
+  }, []);
   const closeWardrobe = useCallback(() => {
     setIsWardrobeOpen(false);
     window.setTimeout(
@@ -257,21 +287,6 @@ export default function DashboardGardenClient({
       0,
     );
   }, []);
-  const equipOutfit = useCallback(
-    (outfitId: DashboardOutfitId) => {
-      selectedOutfitIdRef.current = outfitId;
-      setSelectedOutfitId(outfitId);
-      try {
-        window.localStorage.setItem(
-          outfitStorageKey,
-          JSON.stringify({ outfitId }),
-        );
-      } catch {
-        // The selection still applies for this session when storage is unavailable.
-      }
-    },
-    [outfitStorageKey],
-  );
   const chooseOutfit = useCallback(
     (outfitId: DashboardOutfitId) => {
       if (
@@ -281,14 +296,38 @@ export default function DashboardGardenClient({
       ) {
         return;
       }
-      equipOutfit(outfitId);
-      closeWardrobe();
+      if (outfitId === selectedOutfitIdRef.current) {
+        closeWardrobe();
+        return;
+      }
+
+      const previousOutfitId = selectedOutfitIdRef.current;
+      setOutfitSaveError(null);
+      applyOutfitSelection(outfitId);
+      startOutfitTransition(async () => {
+        const result = await setEquippedDashboardOutfit(outfitId);
+        if (!result.ok) {
+          applyOutfitSelection(previousOutfitId);
+          setOutfitSaveError(tErrors(result.errorCode));
+          return;
+        }
+        applyOutfitSelection(result.outfitId);
+        closeWardrobe();
+      });
     },
-    [closeWardrobe, equipOutfit, shopState.ownedOutfitIds],
+    [
+      applyOutfitSelection,
+      closeWardrobe,
+      shopState.ownedOutfitIds,
+      tErrors,
+    ],
   );
   const equipPurchasedOutfit = useCallback(
-    (outfitId: PurchasableDashboardOutfitId) => equipOutfit(outfitId),
-    [equipOutfit],
+    (outfitId: PurchasableDashboardOutfitId) => {
+      setOutfitSaveError(null);
+      applyOutfitSelection(outfitId);
+    },
+    [applyOutfitSelection],
   );
   const beginRoomJourney = useCallback(
     (destination: "courtyard" | "bedroom") => beginSceneJourney(destination),
@@ -595,7 +634,9 @@ export default function DashboardGardenClient({
         shopState={shopState}
       />
       <DashboardWardrobePreview
+        error={outfitSaveError}
         isOpen={isWardrobeOpen}
+        isPending={isOutfitPending}
         onClose={closeWardrobe}
         onSelectOutfit={chooseOutfit}
         ownedOutfitIds={shopState.ownedOutfitIds}

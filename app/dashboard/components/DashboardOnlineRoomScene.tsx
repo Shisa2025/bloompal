@@ -203,8 +203,8 @@ export default function DashboardOnlineRoomScene({
     let credentials = {
       endpoint: connection.endpoint,
       expiresAt: connection.expiresAt,
-      issuedAt: connection.issuedAt,
       sessionId: connection.sessionId,
+      ticket: connection.ticket,
     };
     let sequence = connection.sequence;
 
@@ -225,6 +225,7 @@ export default function DashboardOnlineRoomScene({
         schedule(1000);
         return;
       }
+      const syncStartedAt = performance.now();
       try {
         if (new Date(credentials.expiresAt).getTime() - Date.now() <= 120_000) {
           await refreshTicket();
@@ -239,11 +240,10 @@ export default function DashboardOnlineRoomScene({
         failureCount = 0;
         setStatus("connected");
         setPlayers(snapshot.players);
-        schedule(
-          localPoseRef.current.moving
-            ? onlineRoomContract.movingSyncMs
-            : onlineRoomContract.idleSyncMs,
-        );
+        const interval = localPoseRef.current.moving
+          ? onlineRoomContract.movingSyncMs
+          : onlineRoomContract.idleSyncMs;
+        schedule(Math.max(0, interval - (performance.now() - syncStartedAt)));
       } catch (error) {
         if (cancelled) return;
         if (error instanceof OnlineRoomRequestError) {

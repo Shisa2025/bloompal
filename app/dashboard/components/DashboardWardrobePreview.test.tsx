@@ -58,4 +58,22 @@ describe("DashboardWardrobePreview", () => {
     expect(markup).toContain("outfitHoneyRaincoat");
     expect(markup).not.toContain("outfitMossCardigan");
   });
+
+  it("locks the wardrobe and exposes a save error while persistence is pending", () => {
+    const markup = renderToStaticMarkup(
+      <DashboardWardrobePreview
+        error="Could not save outfit"
+        isOpen
+        isPending
+        onClose={vi.fn()}
+        onSelectOutfit={vi.fn()}
+        ownedOutfitIds={[]}
+        selectedOutfitId="base"
+      />,
+    );
+
+    expect(markup).toContain("Could not save outfit");
+    expect(markup).toContain('role="alert"');
+    expect(markup.match(/disabled=""/g)?.length).toBeGreaterThanOrEqual(2);
+  });
 });

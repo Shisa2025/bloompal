@@ -1,16 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getCurrentAccount } = vi.hoisted(() => ({
+const { getCurrentAccount, getCurrentSessionSigningSecret } = vi.hoisted(() => ({
   getCurrentAccount: vi.fn(),
+  getCurrentSessionSigningSecret: vi.fn(),
 }));
 
-vi.mock("@/lib/auth", () => ({ getCurrentAccount }));
+vi.mock("@/lib/auth", () => ({
+  getCurrentAccount,
+  getCurrentSessionSigningSecret,
+}));
 
+import { verifyOnlineRoomTicket } from "@/lib/online-room-ticket";
 import { POST } from "./route";
+
+const sessionSecret = "session-derived-secret-with-at-least-thirty-two-characters";
 
 describe("online room ticket route", () => {
   beforeEach(() => {
     process.env.ONLINE_ROOM_ENABLED = "1";
+    getCurrentSessionSigningSecret.mockResolvedValue(sessionSecret);
     getCurrentAccount.mockResolvedValue({
       userid: "user-1",
       displayName: "Garden Friend",
@@ -38,8 +46,11 @@ describe("online room ticket route", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(body.endpoint).toBe("/api/online-room");
     expect(body.sessionId).toBe("11111111-1111-4111-8111-111111111111");
-    expect(body.issuedAt).toEqual(expect.any(Number));
-    expect(new Date(body.expiresAt).getTime()).toBeGreaterThan(body.issuedAt);
+    expect(verifyOnlineRoomTicket(body.ticket, sessionSecret)).toMatchObject({
+      sub: "user-1",
+      name: "Garden Friend",
+      sid: body.sessionId,
+    });
   });
 
   it("is enabled by default when no feature flag is configured", async () => {

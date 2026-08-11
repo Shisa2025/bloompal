@@ -1,18 +1,18 @@
 import "server-only";
 
 import { OnlineRoomPresenceError } from "@/database/online-room";
-import { getCurrentAccount } from "@/lib/auth";
+import { getCurrentSessionSigningSecret } from "@/lib/auth";
 import { isOnlineRoomEnabled } from "@/lib/online-room-config";
 import {
   isOnlineRoomOutfitId,
   onlineRoomBounds,
-  onlineRoomContract,
-  onlineRoomIssuedAtHeader,
-  onlineRoomSessionIdHeader,
   type OnlineRoomErrorCode,
   type OnlineRoomSyncRequest,
 } from "@/lib/online-room-protocol";
-import { isOnlineRoomSessionId } from "@/lib/online-room-ticket";
+import {
+  isOnlineRoomSessionId,
+  verifyOnlineRoomTicket,
+} from "@/lib/online-room-ticket";
 
 const bodyLimitBytes = 8 * 1024;
 
@@ -31,29 +31,23 @@ export async function getOnlineRoomIdentity(request: Request) {
   }
   validateSameOrigin(request);
 
-  const account = await getCurrentAccount();
-  if (!account || account.role !== "user" || account.mustChangePassword) {
-    throw new OnlineRoomServerError(401, "unauthorized");
-  }
-
-  const sessionId = request.headers.get(onlineRoomSessionIdHeader);
-  const issuedAt = Number(request.headers.get(onlineRoomIssuedAtHeader));
-  const now = Date.now();
-  if (
-    !isOnlineRoomSessionId(sessionId) ||
-    !Number.isSafeInteger(issuedAt) ||
-    issuedAt <= 0 ||
-    issuedAt > now + 30_000 ||
-    issuedAt < now - onlineRoomContract.ticketLifetimeSeconds * 1000
-  ) {
+  const signingSecret = await getCurrentSessionSigningSecret();
+  const authorization = request.headers.get("authorization");
+  const ticket = authorization?.startsWith("Bearer ")
+    ? authorization.slice("Bearer ".length).trim()
+    : "";
+  const payload = signingSecret
+    ? verifyOnlineRoomTicket(ticket, signingSecret)
+    : null;
+  if (!payload || !isOnlineRoomSessionId(payload.sid)) {
     throw new OnlineRoomServerError(401, "invalid_ticket");
   }
 
   return {
-    displayName: account.displayName,
-    issuedAt,
-    sessionId,
-    userId: account.userid,
+    displayName: payload.name,
+    issuedAt: payload.iat,
+    sessionId: payload.sid,
+    userId: payload.sub,
   };
 }
 

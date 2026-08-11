@@ -25,6 +25,16 @@ export async function getCurrentAccount(): Promise<AuthenticatedAccount | null> 
   return getSessionAccount(hashToken(rawToken));
 }
 
+export async function getCurrentSessionSigningSecret() {
+  const rawToken = (await cookies()).get(sessionCookieName)?.value;
+  if (!rawToken) return null;
+
+  return createHash("sha256")
+    .update("bloompal-online-room-v1\0")
+    .update(rawToken)
+    .digest("base64url");
+}
+
 export async function createLoginSession(userid: string, remember: boolean) {
   const rawToken = randomBytes(32).toString("base64url");
   const lifetime = remember ? rememberedSessionSeconds : standardSessionSeconds;
