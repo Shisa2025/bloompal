@@ -3,7 +3,7 @@ import styles from "../_foundation/foundation.module.css";
 
 const currentPortal = [
   "Users can sign in and access the current BloomPal garden dashboard.",
-  "Gardening activities can collect motion results from hand-tracking gameplay.",
+  "Gardening activities can record game activity and session data from hand-tracking gameplay.",
   "Admins can review assigned-user activity through the existing admin dashboard.",
 ];
 
@@ -63,7 +63,7 @@ export default function ApplicationSurfacePage() {
           <aside className={styles.notice}>
             <strong>Current MVP scope</strong>
             <p>
-              BloomPal currently uses a simpler User and Admin/Therapist model. The role model below is
+              BloomPal currently uses a simpler User and Admin model. The role model below is
               documentation for future product direction, not a production RBAC implementation.
             </p>
           </aside>
