@@ -196,7 +196,7 @@ export const docsPages: Record<string, DocsPage> = {
               items: ["Product vision", "Prototype status", "High-level architecture", "Public roadmap", "Safe security/privacy principles"],
             },
             {
-              title: "Private governance docs",
+              title: "Internal governance material",
               status: "PROPOSED",
               items: ["Detailed authority model", "Internal risk categories", "Technical operations", "Database and security architecture notes"],
             },
@@ -222,7 +222,7 @@ export const docsPages: Record<string, DocsPage> = {
             "Public entry, login, signup, password-change, user dashboard, game routes, docs, app concept, and admin dashboard surfaces.",
             "Gardening-themed gameplay routes for watering, plucking fruit, catching fish, collecting bugs, and snapshots.",
             "MediaPipe/vision assets and hand-tracking related code are present in the project.",
-            "Database access is implemented through PostgreSQL using DATABASE_URL with NEONDBAPIKEY as a legacy fallback.",
+            "Database access is implemented through PostgreSQL using DATABASE_URL.",
             "The user dashboard includes a front-house/courtyard shop and music layer backed by wallet, music ownership, asset sale, and coin transaction records.",
             "Admin dashboard routes exist for overview, users, players, sessions, motion, analytics, reports, and CSV report route handlers.",
           ]),
@@ -725,7 +725,7 @@ export const docsPages: Record<string, DocsPage> = {
             {
               title: "Current",
               status: "CURRENT",
-              items: ["Next.js application", "PostgreSQL connection through DATABASE_URL or NEONDBAPIKEY", "Local environment variables", "Prototype database scripts"],
+              items: ["Next.js application", "PostgreSQL connection through DATABASE_URL", "Local environment variables", "Prototype database scripts"],
             },
             {
               title: "Proposed cloud direction",
@@ -808,7 +808,6 @@ export const docsPages: Record<string, DocsPage> = {
         blocks: [
           table(["Variable", "Used for", "Notes"], [
             ["DATABASE_URL", "Primary PostgreSQL connection string", "Preferred current name. Do not expose the value."],
-            ["NEONDBAPIKEY", "Legacy database connection fallback", "Despite the name, code treats it as a database URL fallback. Do not expose the value."],
             ["DATABASE_SSL_MODE", "Optional database SSL behaviour", "Read by database connection helpers."],
             ["DATABASE_POOL_MAX", "Optional database pool size", "Defaults are handled in code."],
             ["DATABASE_CA_CERT", "Optional CA certificate content", "Value should remain private."],

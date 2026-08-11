@@ -9,7 +9,7 @@ This document separates what exists today from the architecture BloomPal may gro
 BloomPal keeps public-facing product documentation separate from private team-only governance material:
 
 - **Public product documentation**: rendered at `/docs` for safe product, architecture, roadmap, and maturity communication.
-- **Private product/governance documentation**: kept under `docs-internal/product-governance` for team-only authority, security, privacy, clinical, AI, and operations design notes.
+- **Internal governance material**: maintained separately for team-only authority, security, privacy, clinical, AI, and operations design notes.
 
 ## Maturity labels
 
