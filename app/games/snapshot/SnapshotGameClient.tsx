@@ -351,7 +351,7 @@ export default function SnapshotGameClient({
                 onSceneReady={handleSceneReady}
                 outfitId={outfitId}
                 tableFlowerAsset={tableFlowerAsset}
-                viewMode="dashboard"
+                viewMode="snapshot"
                 wallSnapshot={null}
               />
             ) : (

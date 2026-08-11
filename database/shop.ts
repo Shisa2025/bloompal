@@ -230,11 +230,15 @@ export async function setEquippedDashboardOutfit({
   const rows = await sql.query<{ equipped_outfit_id: string }>(
     `
       INSERT INTO user_dashboard_settings (userid, equipped_outfit_id)
-      SELECT $1, $2
-      WHERE $2 = 'base'
+      SELECT requested.userid, requested.outfit_id
+      FROM (
+        VALUES ($1::VARCHAR(120), $2::VARCHAR(80))
+      ) AS requested(userid, outfit_id)
+      WHERE requested.outfit_id = 'base'
         OR EXISTS (
           SELECT 1 FROM user_outfits
-          WHERE userid = $1 AND outfit_id = $2
+          WHERE userid = requested.userid
+            AND outfit_id = requested.outfit_id
         )
       ON CONFLICT (userid) DO UPDATE
       SET equipped_outfit_id = EXCLUDED.equipped_outfit_id,

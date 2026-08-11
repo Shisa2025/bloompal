@@ -112,6 +112,9 @@ describe("shop database operations", () => {
         outfitId: "moss-cardigan",
       }),
     ).resolves.toBeNull();
+    expect(
+      callsContaining("VALUES ($1::VARCHAR(120), $2::VARCHAR(80))"),
+    ).not.toHaveLength(0);
     await expect(
       setEquippedDashboardOutfit({
         userid: "user-1",

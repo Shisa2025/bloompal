@@ -37,7 +37,7 @@ type Transform = {
 const cameraTarget = new THREE.Vector3(0, 1.7, -2.6);
 const characterPosition = new THREE.Vector3(0.2, 0, 1.25);
 const snapshotCameraTarget = new THREE.Vector3(characterPosition.x, 1.55, characterPosition.z);
-export type DashboardHomeSceneViewMode = "dashboard" | "portrait";
+export type DashboardHomeSceneViewMode = "dashboard" | "snapshot" | "portrait";
 
 export function getDashboardHomeSceneViewConfig(
   viewMode: DashboardHomeSceneViewMode,
@@ -49,6 +49,17 @@ export function getDashboardHomeSceneViewConfig(
       fov: compact ? 43 : 38,
       hemisphereIntensity: 1.2,
       target: cameraTarget.toArray() as [number, number, number],
+      toneMappingExposure: 1.05,
+      windowLightIntensity: 3.6,
+    };
+  }
+
+  if (viewMode === "snapshot") {
+    return {
+      cameraPosition: [0, compact ? 3.05 : 2.75, compact ? 7.3 : 6.15] as const,
+      fov: compact ? 41 : 36,
+      hemisphereIntensity: 1.2,
+      target: [0, 1.45, -2.25] as [number, number, number],
       toneMappingExposure: 1.05,
       windowLightIntensity: 3.6,
     };

@@ -26,7 +26,7 @@ import {
 import { dashboardBedroomDoorStyle } from "./dashboardBedroomDoor";
 
 describe("dashboard room capture view", () => {
-  it("uses the normal dashboard camera and lighting for wide snapshots", () => {
+  it("keeps the normal dashboard camera and lighting unchanged", () => {
     expect(getDashboardHomeSceneViewConfig("dashboard", false)).toEqual({
       cameraPosition: [0, 3.2, 8.25],
       fov: 38,
@@ -35,6 +35,23 @@ describe("dashboard room capture view", () => {
       toneMappingExposure: 1.05,
       windowLightIntensity: 3.6,
     });
+  });
+
+  it("moves the snapshot camera closer while keeping the full room lighting", () => {
+    const dashboardView = getDashboardHomeSceneViewConfig("dashboard", false);
+    const snapshotView = getDashboardHomeSceneViewConfig("snapshot", false);
+
+    expect(snapshotView.cameraPosition).toEqual([0, 2.75, 6.15]);
+    expect(snapshotView.cameraPosition[2]).toBeLessThan(
+      dashboardView.cameraPosition[2],
+    );
+    expect(snapshotView.target).toEqual([0, 1.45, -2.25]);
+    expect(snapshotView.toneMappingExposure).toBe(
+      dashboardView.toneMappingExposure,
+    );
+    expect(snapshotView.windowLightIntensity).toBe(
+      dashboardView.windowLightIntensity,
+    );
   });
 
   it("keeps the old portrait framing available independently of embedding", () => {
