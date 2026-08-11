@@ -200,11 +200,6 @@ export const docsPages: Record<string, DocsPage> = {
               status: "PROPOSED",
               items: ["Detailed authority model", "Internal risk categories", "Technical operations", "Database and security architecture notes"],
             },
-            {
-              title: "Private pitch strategy",
-              status: "OPEN QUESTION",
-              items: ["Judge preparation", "Competition tactics", "Confidential commercial assumptions", "Evidence-bank working notes"],
-            },
           ]),
         ],
       },
@@ -770,7 +765,6 @@ export const docsPages: Record<string, DocsPage> = {
             ["app/[locale]/docs", "Public documentation site foundation."],
             ["database", "PostgreSQL connection, migrations, auth sessions, users, and game persistence helpers."],
             ["mediapipe / public/mediapipe", "Hand-tracking related code and browser assets."],
-            ["docs-internal", "Private repo-only product governance and competition documentation."],
           ]),
         ],
       },
@@ -1370,7 +1364,7 @@ export const docsPages: Record<string, DocsPage> = {
         id: "partners",
         title: "Potential partner categories",
         blocks: [
-          p("BloomPal may be relevant to physiotherapy clinics, rehabilitation centres, community care settings, eldercare organisations, and healthcare innovation partners. Specific commercial terms and pitch strategy belong in private documentation."),
+          p("BloomPal may be relevant to physiotherapy clinics, rehabilitation centres, community care settings, eldercare organisations, and healthcare innovation partners."),
         ],
       },
     ],
