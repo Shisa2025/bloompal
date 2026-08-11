@@ -34,3 +34,11 @@ Current snapshot image data remains in PostgreSQL for compatibility with the exi
 - Keep RDS private and restrict its security group to the application runtime.
 - Use a separate database and registration code for each environment.
 - Back up and rehearse restore before the final cutover.
+
+## Public online room
+
+The public multiplayer room now uses same-origin Next.js APIs on Vercel and the
+main PostgreSQL connection. Deployment steps are documented in
+[online-room-vercel.md](online-room-vercel.md). The older paid APIG/FunctionGraph
+option remains in [online-room-functiongraph.md](online-room-functiongraph.md)
+only as an alternative architecture.

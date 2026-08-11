@@ -20,6 +20,7 @@ import { requireUser } from "@/lib/auth";
 import LocaleSwitcher from "@/app/components/LocaleSwitcher";
 import { getTranslations } from "next-intl/server";
 import { getCatalogAssetBySource } from "@/lib/asset-catalog";
+import { isOnlineRoomEnabled } from "@/lib/online-room-config";
 
 export default async function DashboardPage() {
   const t = await getTranslations("Dashboard");
@@ -51,6 +52,7 @@ export default async function DashboardPage() {
           fruits={fruits}
           caughtFish={caughtFish}
           shopState={shopState}
+          onlineRoomEnabled={isOnlineRoomEnabled()}
         />
 
         <header className="dashboard-topbar" aria-label={t("accountBar")}>

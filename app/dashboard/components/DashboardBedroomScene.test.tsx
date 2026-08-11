@@ -19,6 +19,7 @@ import DashboardBedroomScene, {
   addBedroomDoor,
   addBedroomEnvironment,
   bedroomBedInteraction,
+  bedroomComputerInteraction,
   bedroomPositions,
 } from "./DashboardBedroomScene";
 import {
@@ -37,6 +38,9 @@ describe("dashboard bedroom", () => {
     expect(environment.bed.position.toArray()).toEqual(bedroomPositions.bed);
     expect(environment.wardrobe.position.toArray()).toEqual(
       bedroomPositions.wardrobe,
+    );
+    expect(environment.computer.position.toArray()).toEqual(
+      bedroomPositions.computer,
     );
     expect(bedroomPositions.bed[0]).toBeLessThan(0);
     expect(bedroomPositions.wardrobe[0]).toBeGreaterThan(0);
@@ -97,6 +101,7 @@ describe("dashboard bedroom", () => {
     const bedBox = new THREE.Box3().setFromObject(environment.bed);
     const doorBox = new THREE.Box3().setFromObject(door.object);
     const nightstandBox = new THREE.Box3().setFromObject(nightstand);
+    const computerBox = new THREE.Box3().setFromObject(environment.computer);
 
     expect(plant.position.toArray()).toEqual(bedroomPositions.plant);
     expect(plantBox.intersectsBox(wardrobeBox)).toBe(false);
@@ -104,8 +109,25 @@ describe("dashboard bedroom", () => {
     expect(plantBox.intersectsBox(doorBox)).toBe(false);
     expect(nightstand.position.toArray()).toEqual(bedroomPositions.nightstand);
     expect(nightstandBox.intersectsBox(bedBox)).toBe(false);
+    expect(computerBox.intersectsBox(bedBox)).toBe(false);
+    expect(computerBox.intersectsBox(plantBox)).toBe(false);
+    expect(computerBox.intersectsBox(wardrobeBox)).toBe(false);
     expect(bedBox.min.x).toBeGreaterThan(-6.04);
     expect(bedBox.min.z).toBeGreaterThan(-5.19);
+  });
+
+  it("keeps the computer approach point in front of the desk", () => {
+    const parent = new THREE.Group();
+    const environment = addBedroomEnvironment(parent);
+    parent.updateMatrixWorld(true);
+    const computerBox = new THREE.Box3().setFromObject(environment.computer);
+    const approach = new THREE.Vector3(...bedroomComputerInteraction.approach);
+
+    expect(computerBox.containsPoint(approach)).toBe(false);
+    expect(approach.z).toBeGreaterThan(computerBox.max.z);
+    expect(
+      environment.computer.getObjectByName("dashboard-bedroom-computer-screen"),
+    ).toBeTruthy();
   });
 
   it("uses separate approach and raised bed-edge sitting positions", () => {
@@ -156,10 +178,11 @@ describe("dashboard bedroom", () => {
     expect(leaf?.rotation.y).toBeCloseTo(-dashboardBedroomDoorOpenAngle);
   });
 
-  it("renders keyboard hotspots for returning, resting, and the future wardrobe", () => {
+  it("renders keyboard hotspots for returning, resting, the wardrobe, and computer", () => {
     const markup = renderToStaticMarkup(
       <DashboardBedroomScene
         onReturnComplete={vi.fn()}
+        onComputerClick={vi.fn(async () => true)}
         onWardrobeClick={vi.fn()}
       />,
     );
@@ -167,8 +190,10 @@ describe("dashboard bedroom", () => {
     expect(markup).toContain('id="dashboard-bedroom-door-trigger"');
     expect(markup).toContain('id="dashboard-bedroom-bed-trigger"');
     expect(markup).toContain('id="dashboard-bedroom-wardrobe-trigger"');
+    expect(markup).toContain('id="dashboard-bedroom-computer-trigger"');
     expect(markup).toContain('aria-pressed="false"');
     expect(markup).toContain("restOnBed");
     expect(markup).toContain("openWardrobe");
+    expect(markup).toContain("enterOnlineRoom");
   });
 });

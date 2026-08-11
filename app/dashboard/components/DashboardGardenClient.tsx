@@ -12,6 +12,7 @@ import DashboardCourtyardScene from "./DashboardCourtyardScene";
 import DashboardPond from "./DashboardPond";
 import DashboardShopPreview from "./DashboardShopPreview";
 import DashboardBedroomScene from "./DashboardBedroomScene";
+import DashboardOnlineRoomScene from "./DashboardOnlineRoomScene";
 import DashboardWardrobePreview from "./DashboardWardrobePreview";
 import {
   defaultDashboardOutfitId,
@@ -22,6 +23,16 @@ import {
   type PurchasableDashboardOutfitId,
 } from "./dashboardOutfits";
 import type { FishKind } from "@/lib/fish-assets";
+import {
+  onlineRoomContract,
+  type OnlineRoomErrorCode,
+} from "@/lib/online-room-protocol";
+import {
+  OnlineRoomRequestError,
+  requestOnlineRoomTicket,
+  syncOnlineRoom,
+  type OnlineRoomConnection,
+} from "../online-room-client";
 import {
   getCatalogAssetBySource,
   type AssetCategory,
@@ -38,10 +49,11 @@ type DashboardGardenClientProps = {
   fruits: { id: string; fruitKind: string; createdAt: string }[];
   caughtFish: { id: string; fishKind: FishKind }[];
   shopState: ShopState;
+  onlineRoomEnabled?: boolean;
 };
 
-type SceneLocation = "room" | "courtyard" | "bedroom";
-type JourneyTarget = "room" | "courtyard" | "bedroom";
+type SceneLocation = "room" | "courtyard" | "bedroom" | "online-room";
+type JourneyTarget = "room" | "courtyard" | "bedroom" | "online-room";
 type PendingDestination = { location: SceneLocation; focusId: string };
 
 export default function DashboardGardenClient({
@@ -53,6 +65,7 @@ export default function DashboardGardenClient({
   fruits,
   caughtFish,
   shopState,
+  onlineRoomEnabled = true,
 }: DashboardGardenClientProps) {
   const router = useRouter();
   const t = useTranslations("Dashboard");
@@ -77,6 +90,11 @@ export default function DashboardGardenClient({
   const [isPondOpen, setIsPondOpen] = useState(false);
   const [isShopOpen, setIsShopOpen] = useState(false);
   const [isWardrobeOpen, setIsWardrobeOpen] = useState(false);
+  const [onlineRoomConnection, setOnlineRoomConnection] =
+    useState<OnlineRoomConnection | null>(null);
+  const [onlineRoomError, setOnlineRoomError] =
+    useState<OnlineRoomErrorCode | null>(null);
+  const [isOnlineRoomEntryPending, setIsOnlineRoomEntryPending] = useState(false);
   const [selectedOutfitId, setSelectedOutfitId] =
     useState<DashboardOutfitId>(defaultDashboardOutfitId);
   const [previewTrackId, setPreviewTrackId] = useState<MusicTrackId | null>(null);
@@ -296,6 +314,42 @@ export default function DashboardGardenClient({
     () => switchScene("room", "dashboard-room-bedroom-door-trigger"),
     [switchScene],
   );
+  const enterOnlineRoom = useCallback(async () => {
+    if (!onlineRoomEnabled) return false;
+    setOnlineRoomError(null);
+    setIsOnlineRoomEntryPending(true);
+    try {
+      const credentials = await requestOnlineRoomTicket();
+      const spawn = onlineRoomContract.spawnPositions[0];
+      const initialSnapshot = await syncOnlineRoom(credentials, {
+        sequence: 0,
+        x: spawn.x,
+        z: spawn.z,
+        heading: 0,
+        moving: false,
+        outfitId: selectedOutfitIdRef.current,
+      });
+      setOnlineRoomConnection({
+        ...credentials,
+        initialSnapshot,
+        sequence: 0,
+      });
+      beginSceneJourney("online-room");
+      switchScene("online-room", "dashboard-online-room-exit-trigger");
+      return true;
+    } catch (error) {
+      const code =
+        error instanceof OnlineRoomRequestError ? error.code : "database_unavailable";
+      setOnlineRoomError(code);
+      return false;
+    } finally {
+      setIsOnlineRoomEntryPending(false);
+    }
+  }, [beginSceneJourney, onlineRoomEnabled, switchScene]);
+  const exitOnlineRoom = useCallback(() => {
+    beginSceneJourney("bedroom");
+    switchScene("bedroom", "dashboard-bedroom-computer-trigger");
+  }, [beginSceneJourney, switchScene]);
 
   const openSelector = useCallback(() => {
     setActionError(null);
@@ -339,6 +393,21 @@ export default function DashboardGardenClient({
   );
   const activeBugs = useMemo(() => caughtBugs.filter((bug) => bug.isActive), [caughtBugs]);
   const activeSnapshot = useMemo(() => snapshots.find((snapshot) => snapshot.isActive) ?? null, [snapshots]);
+  const onlineRoomErrorMessage = onlineRoomError
+    ? {
+        already_left: t("onlineRoomError.already_left"),
+        database_unavailable: t("onlineRoomError.database_unavailable"),
+        feature_disabled: t("onlineRoomError.feature_disabled"),
+        invalid_origin: t("onlineRoomError.invalid_origin"),
+        invalid_request: t("onlineRoomError.invalid_request"),
+        invalid_ticket: t("onlineRoomError.invalid_ticket"),
+        missing_configuration: t("onlineRoomError.missing_configuration"),
+        room_full: t("onlineRoomError.room_full"),
+        session_replaced: t("onlineRoomError.session_replaced"),
+        stale_sequence: t("onlineRoomError.stale_sequence"),
+        unauthorized: t("onlineRoomError.unauthorized"),
+      }[onlineRoomError]
+    : null;
   const openFruitBasket = useCallback(() => {
     setActionError(null);
     setIsFruitBasketOpen(true);
@@ -448,15 +517,24 @@ export default function DashboardGardenClient({
           onReturnTransitionStart={beginReturnJourney}
           onSceneReady={revealDestination}
         />
-      ) : (
+      ) : sceneLocation === "bedroom" ? (
         <DashboardBedroomScene
           outfitId={selectedOutfitId}
+          onComputerClick={onlineRoomEnabled ? enterOnlineRoom : undefined}
           onReturnComplete={returnFromBedroom}
           onReturnTransitionStart={beginReturnJourney}
           onSceneReady={revealDestination}
           onWardrobeClick={openWardrobe}
         />
-      )}
+      ) : onlineRoomConnection ? (
+        <DashboardOnlineRoomScene
+          connection={onlineRoomConnection}
+          key={onlineRoomConnection.sessionId}
+          outfitId={selectedOutfitId}
+          onExit={exitOnlineRoom}
+          onSceneReady={revealDestination}
+        />
+      ) : null}
 
       <div
         aria-hidden="true"
@@ -473,9 +551,26 @@ export default function DashboardGardenClient({
             ? t("goingToCourtyard")
             : journeyTarget === "bedroom"
               ? t("goingToBedroom")
+              : journeyTarget === "online-room"
+                ? t("goingToOnlineRoom")
               : t("returningToRoom")
           : ""}
       </p>
+
+      {onlineRoomErrorMessage ? (
+        <div className="dashboard-online-room-entry-error" role="alert">
+          <span>{onlineRoomErrorMessage}</span>
+          <button onClick={() => setOnlineRoomError(null)} type="button">
+            {t("dismiss")}
+          </button>
+        </div>
+      ) : null}
+      {isOnlineRoomEntryPending ? (
+        <div className="dashboard-online-room-entry-status" role="status">
+          <span aria-hidden="true" />
+          {t("onlineRoomConnecting")}
+        </div>
+      ) : null}
 
       <DashboardMusicPlayer
         isOpen={isMusicPlayerOpen}

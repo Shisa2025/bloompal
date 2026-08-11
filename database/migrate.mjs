@@ -164,6 +164,37 @@ try {
   await client.query("CREATE INDEX IF NOT EXISTS auth_sessions_expires_idx ON auth_sessions(expires_at)");
 
   await client.query(`
+    CREATE TABLE IF NOT EXISTS online_room_presence (
+      room_id VARCHAR(40) NOT NULL,
+      userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
+      session_id VARCHAR(64) NOT NULL,
+      session_issued_at BIGINT NOT NULL,
+      display_name VARCHAR(120) NOT NULL,
+      outfit_id VARCHAR(80) NOT NULL,
+      position_x DOUBLE PRECISION NOT NULL,
+      position_z DOUBLE PRECISION NOT NULL,
+      heading DOUBLE PRECISION NOT NULL,
+      movement_state VARCHAR(12) NOT NULL,
+      sequence BIGINT NOT NULL DEFAULT 0,
+      connected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      PRIMARY KEY (room_id, userid),
+      CONSTRAINT online_room_presence_outfit_check CHECK (
+        outfit_id IN ('base', 'moss-cardigan', 'honey-raincoat')
+      ),
+      CONSTRAINT online_room_presence_movement_check CHECK (
+        movement_state IN ('idle', 'walk')
+      ),
+      CONSTRAINT online_room_presence_sequence_check CHECK (sequence >= 0)
+    )
+  `);
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS online_room_presence_expiry_idx
+    ON online_room_presence(room_id, expires_at)
+  `);
+
+  await client.query(`
     CREATE TABLE IF NOT EXISTS user_plants (
       id TEXT PRIMARY KEY,
       userid VARCHAR(120) NOT NULL REFERENCES users(userid) ON DELETE CASCADE,

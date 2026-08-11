@@ -1,0 +1,27 @@
+{
+  "roomId": "public",
+  "maxPlayers": 8,
+  "presenceTtlMs": 5000,
+  "movingSyncMs": 250,
+  "idleSyncMs": 1000,
+  "movementSpeed": 2.2,
+  "ticketLifetimeSeconds": 600,
+  "ticketRefreshSeconds": 480,
+  "bounds": {
+    "minX": -4.8,
+    "maxX": 4.8,
+    "minZ": -3,
+    "maxZ": 3.5
+  },
+  "outfitIds": ["base", "moss-cardigan", "honey-raincoat"],
+  "spawnPositions": [
+    { "x": -3.6, "z": 2.4 },
+    { "x": -1.2, "z": 2.7 },
+    { "x": 1.2, "z": 2.7 },
+    { "x": 3.6, "z": 2.4 },
+    { "x": -3.6, "z": -1.7 },
+    { "x": -1.2, "z": -2 },
+    { "x": 1.2, "z": -2 },
+    { "x": 3.6, "z": -1.7 }
+  ]
+}

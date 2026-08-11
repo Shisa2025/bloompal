@@ -32,6 +32,7 @@ export type ThreeStageLifecycle = {
 
 export type ThreeStageProps = {
   setup: (context: ThreeStageContext) => ThreeStageLifecycle | void;
+  animateWhenReducedMotion?: boolean;
   className?: string;
   fallback?: ReactNode;
   ariaLabel?: string;
@@ -99,6 +100,7 @@ export function disposeObject3D(object: THREE.Object3D) {
 }
 
 export default function ThreeStage({
+  animateWhenReducedMotion = false,
   setup,
   className,
   fallback,
@@ -200,7 +202,7 @@ export default function ThreeStage({
       resize();
       setStageStatus("ready", "");
 
-      if (reducedMotion) {
+      if (reducedMotion && !animateWhenReducedMotion) {
         lifecycle?.onFrame?.({
           ...context,
           delta: 0,
@@ -248,7 +250,7 @@ export default function ThreeStage({
         renderer.domElement.remove();
       }
     };
-  }, [preserveDrawingBuffer, setup, t]);
+  }, [animateWhenReducedMotion, preserveDrawingBuffer, setup, t]);
 
   return (
     <div

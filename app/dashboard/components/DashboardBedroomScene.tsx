@@ -27,8 +27,13 @@ export const bedroomPositions = {
   nightstand: [-5.25, 0, -4.42],
   plant: [0.55, 0, -4.45],
   wardrobe: [3.25, 0, -4.48],
+  computer: [-1.15, 0, -4.48],
   characterEntry: [5.68, 0, -2.85],
   characterRest: [0.35, 0, 0.3],
+} as const;
+
+export const bedroomComputerInteraction = {
+  approach: [-1.15, 0, -3.05],
 } as const;
 
 export const bedroomBedInteraction = {
@@ -43,6 +48,7 @@ type DashboardBedroomSceneProps = {
   onReturnTransitionStart?: () => void;
   onSceneReady?: () => void;
   onWardrobeClick?: () => void;
+  onComputerClick?: () => Promise<boolean>;
 };
 
 type BedroomDoor = {
@@ -53,6 +59,7 @@ type BedroomDoor = {
 type BedroomEnvironment = {
   object: THREE.Group;
   bed: THREE.Group;
+  computer: THREE.Group;
   wardrobe: THREE.Group;
 };
 
@@ -162,6 +169,44 @@ export function addBedroomEnvironment(parent: THREE.Group): BedroomEnvironment {
   );
   room.add(bed);
 
+  const computer = new THREE.Group();
+  computer.name = "dashboard-bedroom-computer";
+  computer.position.set(...bedroomPositions.computer);
+  const screen = new THREE.MeshStandardMaterial({
+    color: "#b9dfd2",
+    emissive: "#8bcbb9",
+    emissiveIntensity: 0.72,
+    roughness: 0.28,
+  });
+  computer.add(
+    box([1.6, 0.16, 0.68], darkWood, [0, 0.84, 0], {
+      castShadow: true,
+      receiveShadow: true,
+    }),
+    box([0.13, 0.78, 0.13], darkWood, [-0.66, 0.4, -0.22], { castShadow: true }),
+    box([0.13, 0.78, 0.13], darkWood, [0.66, 0.4, -0.22], { castShadow: true }),
+    box([0.13, 0.78, 0.13], darkWood, [-0.66, 0.4, 0.22], { castShadow: true }),
+    box([0.13, 0.78, 0.13], darkWood, [0.66, 0.4, 0.22], { castShadow: true }),
+    box([0.92, 0.62, 0.1], darkWood, [0, 1.42, -0.12], { castShadow: true }),
+    (() => {
+      const computerScreen = box([0.76, 0.46, 0.025], screen, [0, 1.42, -0.058]);
+      computerScreen.name = "dashboard-bedroom-computer-screen";
+      return computerScreen;
+    })(),
+    box([0.1, 0.42, 0.1], darkWood, [0, 1.07, -0.12], { castShadow: true }),
+    box([0.52, 0.06, 0.25], darkWood, [0, 0.94, 0.16], { castShadow: true }),
+    box([0.68, 0.055, 0.23], linen, [0, 0.94, 0.34], {
+      castShadow: true,
+      rotation: [-0.08, 0, 0],
+    }),
+    box([0.74, 0.12, 0.52], wood, [0, 0.5, 0.84], { castShadow: true }),
+    box([0.12, 0.55, 0.12], darkWood, [0, 0.22, 0.84], { castShadow: true }),
+  );
+  const computerGlow = new THREE.PointLight("#9fe3d0", 0.72, 3.1, 2);
+  computerGlow.position.set(0, 1.42, 0.45);
+  computer.add(computerGlow);
+  room.add(computer);
+
   const nightstand = new THREE.Group();
   nightstand.name = "dashboard-bedroom-nightstand";
   nightstand.position.set(...bedroomPositions.nightstand);
@@ -200,7 +245,7 @@ export function addBedroomEnvironment(parent: THREE.Group): BedroomEnvironment {
   room.add(plant);
 
   parent.add(room);
-  return { object: room, bed, wardrobe };
+  return { object: room, bed, computer, wardrobe };
 }
 
 export function addBedroomDoor(parent: THREE.Group): BedroomDoor {
@@ -289,6 +334,7 @@ export function addBedroomDoor(parent: THREE.Group): BedroomDoor {
 
 export default function DashboardBedroomScene({
   outfitId = defaultDashboardOutfitId,
+  onComputerClick,
   onReturnComplete,
   onReturnTransitionStart,
   onSceneReady,
@@ -298,8 +344,10 @@ export default function DashboardBedroomScene({
   const doorHotspotRef = useRef<HTMLButtonElement>(null);
   const bedHotspotRef = useRef<HTMLButtonElement>(null);
   const wardrobeHotspotRef = useRef<HTMLButtonElement>(null);
+  const computerHotspotRef = useRef<HTMLButtonElement>(null);
   const returnActionRef = useRef<(() => void) | null>(null);
   const bedActionRef = useRef<(() => void) | null>(null);
+  const computerActionRef = useRef<(() => void) | null>(null);
   const outfitActionRef = useRef<
     ((outfitId: DashboardOutfitId) => void) | null
   >(null);
@@ -313,6 +361,7 @@ export default function DashboardBedroomScene({
 
   const setup = useCallback((context: ThreeStageContext) => {
     const { camera, reducedMotion, renderer, scene } = context;
+    const requestOnlineRoom = onComputerClick ?? (async () => false);
     const root = new THREE.Group();
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
@@ -326,9 +375,13 @@ export default function DashboardBedroomScene({
     const bedSeatedPosition = new THREE.Vector3(
       ...bedroomBedInteraction.seated,
     );
+    const computerApproachPosition = new THREE.Vector3(
+      ...bedroomComputerInteraction.approach,
+    );
     const doorAnchor = new THREE.Vector3();
     const bedAnchor = new THREE.Vector3();
     const wardrobeAnchor = new THREE.Vector3();
+    const computerAnchor = new THREE.Vector3();
 
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.03;
@@ -357,6 +410,8 @@ export default function DashboardBedroomScene({
       | "entering"
       | "idle"
       | "walking-to-bed"
+      | "walking-to-computer"
+      | "connecting-online"
       | "resting"
       | "leaving-bed"
       | "returning";
@@ -370,9 +425,19 @@ export default function DashboardBedroomScene({
     let returnStandStart = restPosition.clone();
     let returnFromBed = false;
     let characterUnavailable = false;
+    let bedWalkStart = restPosition.clone();
+    let computerRequestStarted = false;
+    let computerStandDelay = 0;
+    let computerWalking = false;
+    let computerStart = restPosition.clone();
 
     const setHotspotsDisabled = (disabled: boolean) => {
-      [doorHotspotRef.current, bedHotspotRef.current, wardrobeHotspotRef.current].forEach(
+      [
+        doorHotspotRef.current,
+        bedHotspotRef.current,
+        wardrobeHotspotRef.current,
+        computerHotspotRef.current,
+      ].forEach(
         (hotspot) => {
           if (disabled) hotspot?.setAttribute("disabled", "");
           else hotspot?.removeAttribute("disabled");
@@ -402,6 +467,7 @@ export default function DashboardBedroomScene({
       characterState = "idle";
       setHotspotsDisabled(false);
       bedHotspotRef.current?.setAttribute("disabled", "");
+      computerHotspotRef.current?.setAttribute("disabled", "");
       reportSceneReady();
     };
     const character = loadDashboardCharacter({
@@ -446,11 +512,45 @@ export default function DashboardBedroomScene({
         character.play("idle", { fadeDuration: 0.28 });
         setIsResting(false);
       } else {
+        const object = character.getObject();
+        if (object) bedWalkStart = object.position.clone();
         characterState = "walking-to-bed";
         character.play("walk", { fadeDuration: 0.2 });
       }
     };
     bedActionRef.current = beginBedAction;
+
+    const beginComputerAction = () => {
+      if (!onComputerClick || characterUnavailable || !character.isReady()) return;
+      if (characterState !== "idle" && characterState !== "resting") return;
+      const object = character.getObject();
+      if (!object) return;
+
+      setHotspotsDisabled(true);
+      computerRequestStarted = false;
+      computerWalking = false;
+      computerStandDelay = characterState === "resting" ? 0.42 : 0;
+      computerStart = characterState === "resting"
+        ? bedApproachPosition.clone()
+        : object.position.clone();
+      setIsResting(false);
+      if (reducedMotion) {
+        object.position.copy(computerApproachPosition);
+        characterState = "connecting-online";
+        character.play("idle", { fadeDuration: 0 });
+        void requestOnlineRoom().then((entered) => {
+          if (entered) return;
+          characterState = "idle";
+          setHotspotsDisabled(false);
+          character.faceCamera(camera);
+        });
+        return;
+      }
+      characterState = "walking-to-computer";
+      stateElapsed = 0;
+      character.play(computerStandDelay ? "idle" : "walk", { fadeDuration: 0.2 });
+    };
+    computerActionRef.current = beginComputerAction;
 
     const beginReturn = () => {
       if (!onReturnComplete || characterState === "entering" || characterState === "returning" || returnCompleted) return;
@@ -491,9 +591,12 @@ export default function DashboardBedroomScene({
     const isDoorHit = () => raycaster.intersectObject(bedroomDoor.object, true).length > 0;
     const isBedHit = () => raycaster.intersectObject(environment.bed, true).length > 0;
     const isWardrobeHit = () => raycaster.intersectObject(environment.wardrobe, true).length > 0;
+    const isComputerHit = () => raycaster.intersectObject(environment.computer, true).length > 0;
     const isBusy = () =>
       characterState === "entering" ||
       characterState === "walking-to-bed" ||
+      characterState === "walking-to-computer" ||
+      characterState === "connecting-online" ||
       characterState === "leaving-bed" ||
       characterState === "returning";
 
@@ -506,7 +609,8 @@ export default function DashboardBedroomScene({
       renderer.domElement.style.cursor =
         (onReturnComplete && isDoorHit()) ||
         (!characterUnavailable && isBedHit()) ||
-        (onWardrobeClick && isWardrobeHit())
+        (onWardrobeClick && isWardrobeHit()) ||
+        (onComputerClick && !characterUnavailable && isComputerHit())
           ? "pointer"
           : "";
     };
@@ -522,6 +626,9 @@ export default function DashboardBedroomScene({
       } else if (onWardrobeClick && isWardrobeHit()) {
         event.preventDefault();
         onWardrobeClick();
+      } else if (onComputerClick && !characterUnavailable && isComputerHit()) {
+        event.preventDefault();
+        beginComputerAction();
       }
     };
     renderer.domElement.addEventListener("pointermove", onPointerMove);
@@ -548,6 +655,7 @@ export default function DashboardBedroomScene({
       positionHotspot(doorHotspotRef.current, bedroomDoor.object, doorAnchor, new THREE.Vector3(0, 1.35, 0.2));
       positionHotspot(bedHotspotRef.current, environment.bed, bedAnchor, new THREE.Vector3(0, 0.85, 0.72));
       positionHotspot(wardrobeHotspotRef.current, environment.wardrobe, wardrobeAnchor, new THREE.Vector3(0, 1.8, 0.5));
+      positionHotspot(computerHotspotRef.current, environment.computer, computerAnchor, new THREE.Vector3(0, 1.45, 0.42));
     };
 
     const onResize = ({ height, width }: ThreeStageResize) => {
@@ -581,7 +689,7 @@ export default function DashboardBedroomScene({
           }
         } else if (characterState === "walking-to-bed") {
           const progress = THREE.MathUtils.smoothstep(stateElapsed / 1.55, 0, 1);
-          object.position.lerpVectors(restPosition, bedApproachPosition, progress);
+          object.position.lerpVectors(bedWalkStart, bedApproachPosition, progress);
           character.facePoint(bedApproachPosition);
           if (progress >= 1) {
             object.position.copy(bedSeatedPosition);
@@ -591,6 +699,54 @@ export default function DashboardBedroomScene({
             character.faceCamera(camera);
             setIsResting(true);
             setHotspotsDisabled(false);
+          }
+        } else if (characterState === "walking-to-computer") {
+          if (computerStandDelay && stateElapsed < computerStandDelay) {
+            const standProgress = THREE.MathUtils.smoothstep(
+              stateElapsed / computerStandDelay,
+              0,
+              1,
+            );
+            object.position.lerpVectors(
+              bedSeatedPosition,
+              bedApproachPosition,
+              standProgress,
+            );
+            character.faceCamera(camera);
+          }
+          if (!computerWalking && stateElapsed >= computerStandDelay) {
+            computerWalking = true;
+            character.play("walk", { fadeDuration: 0.18 });
+          }
+          const travelDuration = Math.max(
+            0.8,
+            computerStart.distanceTo(computerApproachPosition) / 2.2,
+          );
+          const progress = THREE.MathUtils.smoothstep(
+            (stateElapsed - computerStandDelay) / travelDuration,
+            0,
+            1,
+          );
+          if (stateElapsed >= computerStandDelay) {
+            object.position.lerpVectors(computerStart, computerApproachPosition, progress);
+            character.facePoint(computerApproachPosition);
+          }
+          if (progress >= 1 && !computerRequestStarted) {
+            computerRequestStarted = true;
+            characterState = "connecting-online";
+            character.play("idle", { fadeDuration: 0.2 });
+            character.facePoint(new THREE.Vector3(
+              bedroomPositions.computer[0],
+              0,
+              bedroomPositions.computer[2],
+            ));
+            void requestOnlineRoom().then((entered) => {
+              if (entered) return;
+              characterState = "idle";
+              stateElapsed = 0;
+              setHotspotsDisabled(false);
+              character.faceCamera(camera);
+            });
           }
         } else if (characterState === "leaving-bed") {
           const standProgress = THREE.MathUtils.smoothstep(
@@ -664,13 +820,14 @@ export default function DashboardBedroomScene({
         renderer.domElement.removeEventListener("pointerdown", onPointerDown);
         if (returnActionRef.current === beginReturn) returnActionRef.current = null;
         if (bedActionRef.current === beginBedAction) bedActionRef.current = null;
+        if (computerActionRef.current === beginComputerAction) computerActionRef.current = null;
         scene.remove(root, ambient, sunlight);
         disposeObject3D(root);
       },
       onFrame,
       onResize,
     };
-  }, [onReturnComplete, onReturnTransitionStart, onSceneReady, onWardrobeClick]);
+  }, [onComputerClick, onReturnComplete, onReturnTransitionStart, onSceneReady, onWardrobeClick]);
 
   return (
     <div className="dashboard-three-layer dashboard-three-layer-interactive">
@@ -710,6 +867,18 @@ export default function DashboardBedroomScene({
           type="button"
         >
           <span>{t("openWardrobe")}</span>
+        </button>
+      ) : null}
+      {onComputerClick ? (
+        <button
+          aria-label={t("enterOnlineRoom")}
+          className="dashboard-scene-hotspot dashboard-bedroom-computer-hotspot"
+          id="dashboard-bedroom-computer-trigger"
+          onClick={() => computerActionRef.current?.()}
+          ref={computerHotspotRef}
+          type="button"
+        >
+          <span>{t("enterOnlineRoom")}</span>
         </button>
       ) : null}
       <p aria-live="polite" className="sr-only" role="status">

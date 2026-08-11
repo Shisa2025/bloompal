@@ -84,6 +84,17 @@ The current implementation also includes user-facing shop/economy tables:
 
 The front-house/shop/music layer reads existing inventory tables such as `user_plants`, `user_bugs`, `user_fish`, and `user_fruits`. Snapshot records may store generated garden snapshot image data; this is separate from raw webcam video or raw MediaPipe landmark history.
 
+### Current transient online-room presence
+
+`online_room_presence` stores the short-lived state needed to render the public
+multiplayer room. One row represents one signed-in player in a logical room and
+contains only the current position, facing direction, movement state, selected
+outfit, display name, session ordering data, and expiry time.
+
+Presence is operational state rather than activity history: explicit exits delete
+it immediately, missing heartbeats expire after five seconds, and it must not be
+used for rehabilitation reporting or historical movement analysis.
+
 ### EmployeeNote
 
 Represents a staff note about a player.
