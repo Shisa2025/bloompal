@@ -6,13 +6,10 @@ This document separates what exists today from the architecture BloomPal may gro
 
 ## Documentation classes
 
-BloomPal now keeps three documentation/content classes separate:
+BloomPal keeps public-facing product documentation separate from private team-only governance material:
 
 - **Public product documentation**: rendered at `/docs` for safe product, architecture, roadmap, and maturity communication.
 - **Private product/governance documentation**: kept under `docs-internal/product-governance` for team-only authority, security, privacy, clinical, AI, and operations design notes.
-- **Private competition/pitch strategy**: kept under `docs-internal/competition` and not rendered as product documentation.
-
-Competition strategy may inform product thinking, but competition tactics should not appear in the public documentation site.
 
 ## Maturity labels
 
