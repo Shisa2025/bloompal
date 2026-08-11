@@ -13,10 +13,12 @@ vi.mock("./connection", () => ({
 
 import {
   ensureShopTables,
+  getEquippedDashboardOutfit,
   getShopState,
   purchaseMusic,
   purchaseOutfit,
   sellResource,
+  setEquippedDashboardOutfit,
 } from "./shop";
 
 describe("shop database operations", () => {
@@ -67,6 +69,55 @@ describe("shop database operations", () => {
       purchaseOutfit({ userid: "user-1", outfitId: "made-up-outfit" }),
     ).resolves.toEqual({ ok: false, reason: "invalid" });
     expect(queryMock).not.toHaveBeenCalled();
+  });
+
+  it("returns only a valid equipped outfit that the user owns", async () => {
+    queryMock.mockResolvedValue([
+      { equipped_outfit_id: "moss-cardigan" },
+    ]);
+
+    await expect(getEquippedDashboardOutfit("user-1")).resolves.toBe(
+      "moss-cardigan",
+    );
+
+    queryMock.mockResolvedValue([{ equipped_outfit_id: "retired-outfit" }]);
+    await expect(getEquippedDashboardOutfit("user-1")).resolves.toBeNull();
+  });
+
+  it("saves base or an owned outfit and rejects unknown outfits", async () => {
+    queryMock.mockImplementation(async (text: string, values?: unknown[]) => {
+      if (text.includes("INSERT INTO user_dashboard_settings")) {
+        return values?.[1] === "honey-raincoat" || values?.[1] === "base"
+          ? [{ equipped_outfit_id: values[1] }]
+          : [];
+      }
+      return [];
+    });
+
+    await expect(
+      setEquippedDashboardOutfit({
+        userid: "user-1",
+        outfitId: "honey-raincoat",
+      }),
+    ).resolves.toBe("honey-raincoat");
+    await expect(
+      setEquippedDashboardOutfit({
+        userid: "user-1",
+        outfitId: "base",
+      }),
+    ).resolves.toBe("base");
+    await expect(
+      setEquippedDashboardOutfit({
+        userid: "user-1",
+        outfitId: "moss-cardigan",
+      }),
+    ).resolves.toBeNull();
+    await expect(
+      setEquippedDashboardOutfit({
+        userid: "user-1",
+        outfitId: "made-up-outfit",
+      }),
+    ).resolves.toBeNull();
   });
 
   it("does not debit an insufficient wallet for an outfit", async () => {
@@ -123,6 +174,7 @@ describe("shop database operations", () => {
     });
     expect(callsContaining("FOR UPDATE")).toHaveLength(1);
     expect(callsContaining("INSERT INTO user_outfits")).toHaveLength(1);
+    expect(callsContaining("INSERT INTO user_dashboard_settings")).toHaveLength(1);
     expect(callsContaining("'purchase_outfit'")[0]?.[1]).toEqual(
       expect.arrayContaining(["user-1", -10, 4, "honey-raincoat"]),
     );

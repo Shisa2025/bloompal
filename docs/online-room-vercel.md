@@ -12,6 +12,10 @@ online-room signing secret.
   player's short-lived PostgreSQL presence, and returns the active room snapshot.
 - `POST /api/online-room/leave` removes the matching presence immediately.
 - Presence expires after five seconds when a browser disappears without leaving.
+- Moving clients poll every 250 ms and idle clients every 500 ms; request time is
+  subtracted from the next delay so database latency does not compound polling.
+- Room sync uses one atomic PostgreSQL statement after the per-instance schema
+  check, and the short-lived credential avoids a login-session query per poll.
 - The first sync runs idempotent `CREATE TABLE IF NOT EXISTS` statements, while
   `npm run db:migrate` remains the preferred deployment migration.
 

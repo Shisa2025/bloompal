@@ -1,18 +1,31 @@
-import { getCurrentAccount } from "@/lib/auth";
+import {
+  getCurrentAccount,
+  getCurrentSessionSigningSecret,
+} from "@/lib/auth";
 import {
   isOnlineRoomEnabled,
   onlineRoomApiEndpoint,
 } from "@/lib/online-room-config";
-import { onlineRoomContract } from "@/lib/online-room-protocol";
-import { normalizeOnlineRoomSessionId } from "@/lib/online-room-ticket";
+import {
+  createOnlineRoomTicket,
+  normalizeOnlineRoomSessionId,
+} from "@/lib/online-room-ticket";
 
 export async function POST(request: Request) {
   if (!isOnlineRoomEnabled()) {
     return Response.json({ error: "feature_disabled" }, { status: 404 });
   }
 
-  const account = await getCurrentAccount();
-  if (!account || account.role !== "user" || account.mustChangePassword) {
+  const [account, signingSecret] = await Promise.all([
+    getCurrentAccount(),
+    getCurrentSessionSigningSecret(),
+  ]);
+  if (
+    !account ||
+    account.role !== "user" ||
+    account.mustChangePassword ||
+    !signingSecret
+  ) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -25,17 +38,19 @@ export async function POST(request: Request) {
   }
 
   const sessionId = normalizeOnlineRoomSessionId(requestedSessionId);
-  const issuedAt = Date.now();
-  const expiresAt = new Date(
-    issuedAt + onlineRoomContract.ticketLifetimeSeconds * 1000,
-  );
+  const { expiresAt, ticket } = createOnlineRoomTicket({
+    displayName: account.displayName,
+    secret: signingSecret,
+    sessionId,
+    userId: account.userid,
+  });
 
   return Response.json(
     {
       endpoint: onlineRoomApiEndpoint,
       expiresAt: expiresAt.toISOString(),
-      issuedAt,
       sessionId,
+      ticket,
     },
     { headers: { "Cache-Control": "no-store" } },
   );

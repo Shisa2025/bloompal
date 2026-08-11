@@ -21,8 +21,34 @@ import {
   dashboardBedroomExitPath,
   dashboardRoomDoorPosition,
   dashboardTableDisplayPositions,
+  getDashboardHomeSceneViewConfig,
 } from "./DashboardHomeScene";
 import { dashboardBedroomDoorStyle } from "./dashboardBedroomDoor";
+
+describe("dashboard room capture view", () => {
+  it("uses the normal dashboard camera and lighting for wide snapshots", () => {
+    expect(getDashboardHomeSceneViewConfig("dashboard", false)).toEqual({
+      cameraPosition: [0, 3.2, 8.25],
+      fov: 38,
+      hemisphereIntensity: 1.2,
+      target: [0, 1.7, -2.6],
+      toneMappingExposure: 1.05,
+      windowLightIntensity: 3.6,
+    });
+  });
+
+  it("keeps the old portrait framing available independently of embedding", () => {
+    const dashboardView = getDashboardHomeSceneViewConfig("dashboard", false);
+    const portraitView = getDashboardHomeSceneViewConfig("portrait", false);
+
+    expect(portraitView.cameraPosition).not.toEqual(
+      dashboardView.cameraPosition,
+    );
+    expect(portraitView.toneMappingExposure).toBeLessThan(
+      dashboardView.toneMappingExposure,
+    );
+  });
+});
 
 describe("dashboard gramophone", () => {
   it("mounts at the left side of the rear table and spins both record layers", () => {

@@ -8,6 +8,11 @@ import {
 } from "./online-room-protocol";
 
 describe("online room protocol", () => {
+  it("keeps active and idle polling responsive for remote movement", () => {
+    expect(onlineRoomContract.movingSyncMs).toBe(250);
+    expect(onlineRoomContract.idleSyncMs).toBeLessThanOrEqual(500);
+  });
+
   it("clamps click targets to the shared walkable bounds", () => {
     expect(clampOnlineRoomPosition({ x: -20, z: 20 })).toEqual({
       x: onlineRoomContract.bounds.minX,

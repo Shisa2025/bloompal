@@ -14,7 +14,9 @@ import {
 } from "../lib/asset-catalog";
 import {
   getPurchasableDashboardOutfit,
+  isDashboardOutfitId,
   isPurchasableDashboardOutfitId,
+  type DashboardOutfitId,
   type PurchasableDashboardOutfitId,
 } from "../lib/dashboard-outfits";
 import { sql, withTransaction, type DatabaseClient } from "./connection";
@@ -48,6 +50,29 @@ export function ensureShopTables() {
           outfit_id VARCHAR(80) NOT NULL,
           purchased_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           PRIMARY KEY (userid, outfit_id)
+        )
+      `);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS user_dashboard_settings (
+          userid VARCHAR(120) PRIMARY KEY REFERENCES users(userid) ON DELETE CASCADE,
+          table_flower_asset VARCHAR(120),
+          equipped_outfit_id VARCHAR(80),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+      await client.query(`
+        ALTER TABLE user_dashboard_settings
+        ADD COLUMN IF NOT EXISTS equipped_outfit_id VARCHAR(80)
+      `);
+      await client.query(
+        "ALTER TABLE user_dashboard_settings DROP CONSTRAINT IF EXISTS user_dashboard_settings_equipped_outfit_check",
+      );
+      await client.query(`
+        ALTER TABLE user_dashboard_settings
+        ADD CONSTRAINT user_dashboard_settings_equipped_outfit_check
+        CHECK (
+          equipped_outfit_id IS NULL OR
+          equipped_outfit_id IN ('base', 'moss-cardigan', 'honey-raincoat')
         )
       `);
       await client.query(`
@@ -166,6 +191,62 @@ export async function getShopState(userid: string): Promise<ShopState> {
   };
 }
 
+export async function getEquippedDashboardOutfit(
+  userid: string,
+): Promise<DashboardOutfitId | null> {
+  await ensureShopTables();
+  const rows = await sql.query<{ equipped_outfit_id: string | null }>(
+    `
+      SELECT settings.equipped_outfit_id
+      FROM user_dashboard_settings settings
+      WHERE settings.userid = $1
+        AND (
+          settings.equipped_outfit_id = 'base'
+          OR EXISTS (
+            SELECT 1
+            FROM user_outfits outfits
+            WHERE outfits.userid = settings.userid
+              AND outfits.outfit_id = settings.equipped_outfit_id
+          )
+        )
+      LIMIT 1
+    `,
+    [userid],
+  );
+  const outfitId = rows[0]?.equipped_outfit_id;
+  return isDashboardOutfitId(outfitId) ? outfitId : null;
+}
+
+export async function setEquippedDashboardOutfit({
+  userid,
+  outfitId,
+}: {
+  userid: string;
+  outfitId: string;
+}): Promise<DashboardOutfitId | null> {
+  if (!isDashboardOutfitId(outfitId)) return null;
+
+  await ensureShopTables();
+  const rows = await sql.query<{ equipped_outfit_id: string }>(
+    `
+      INSERT INTO user_dashboard_settings (userid, equipped_outfit_id)
+      SELECT $1, $2
+      WHERE $2 = 'base'
+        OR EXISTS (
+          SELECT 1 FROM user_outfits
+          WHERE userid = $1 AND outfit_id = $2
+        )
+      ON CONFLICT (userid) DO UPDATE
+      SET equipped_outfit_id = EXCLUDED.equipped_outfit_id,
+          updated_at = NOW()
+      RETURNING equipped_outfit_id
+    `,
+    [userid, outfitId],
+  );
+  const savedOutfitId = rows[0]?.equipped_outfit_id;
+  return isDashboardOutfitId(savedOutfitId) ? savedOutfitId : null;
+}
+
 export async function purchaseOutfit({
   userid,
   outfitId,
@@ -206,6 +287,14 @@ export async function purchaseOutfit({
 
     await client.query(
       "INSERT INTO user_outfits (userid, outfit_id) VALUES ($1, $2)",
+      [userid, outfit.id],
+    );
+    await client.query(
+      `INSERT INTO user_dashboard_settings (userid, equipped_outfit_id)
+       VALUES ($1, $2)
+       ON CONFLICT (userid) DO UPDATE
+       SET equipped_outfit_id = EXCLUDED.equipped_outfit_id,
+           updated_at = NOW()`,
       [userid, outfit.id],
     );
     const balanceRows = await client.query<{ balance: number }>(

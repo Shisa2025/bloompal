@@ -6,7 +6,7 @@
 > browser endpoint and is not needed for the recommended deployment.
 
 BloomPal's first online room uses HTTPS polling instead of WebSocket. The browser
-updates movement every 250 ms while walking and every second while idle. Presence
+updates movement every 250 ms while walking and every 500 ms while idle. Presence
 expires after five seconds, and the public room is capped at eight players.
 
 This is a prototype deployment runbook. It does not provision or modify cloud

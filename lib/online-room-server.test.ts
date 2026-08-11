@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getCurrentAccount } = vi.hoisted(() => ({
-  getCurrentAccount: vi.fn(),
+const { getCurrentSessionSigningSecret } = vi.hoisted(() => ({
+  getCurrentSessionSigningSecret: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/auth", () => ({ getCurrentAccount }));
+vi.mock("@/lib/auth", () => ({ getCurrentSessionSigningSecret }));
 
+import { createOnlineRoomTicket } from "@/lib/online-room-ticket";
 import {
   getOnlineRoomIdentity,
   OnlineRoomServerError,
@@ -14,16 +15,22 @@ import {
 } from "@/lib/online-room-server";
 
 const sessionId = "11111111-1111-4111-8111-111111111111";
+const sessionSecret = "request-test-session-secret-with-at-least-thirty-two-characters";
 
 function createRequest(body = "{}", origin = "http://localhost") {
+  const { ticket } = createOnlineRoomTicket({
+    displayName: "Garden Friend",
+    secret: sessionSecret,
+    sessionId,
+    userId: "user-1",
+  });
   return new Request("http://localhost/api/online-room/sync", {
     method: "POST",
     body,
     headers: {
       "Content-Type": "application/json",
       Origin: origin,
-      "X-Online-Room-Issued-At": String(Date.now()),
-      "X-Online-Room-Session-Id": sessionId,
+      Authorization: `Bearer ${ticket}`,
     },
   });
 }
@@ -31,12 +38,7 @@ function createRequest(body = "{}", origin = "http://localhost") {
 describe("online room server request validation", () => {
   beforeEach(() => {
     delete process.env.ONLINE_ROOM_ENABLED;
-    getCurrentAccount.mockResolvedValue({
-      userid: "user-1",
-      displayName: "Garden Friend",
-      role: "user",
-      mustChangePassword: false,
-    });
+    getCurrentSessionSigningSecret.mockResolvedValue(sessionSecret);
   });
 
   afterEach(() => {
@@ -51,15 +53,15 @@ describe("online room server request validation", () => {
     });
   });
 
-  it("rejects cross-origin and unauthenticated requests", async () => {
+  it("rejects cross-origin requests and requests without a login session", async () => {
     await expect(
       getOnlineRoomIdentity(createRequest("{}", "https://attacker.example")),
     ).rejects.toMatchObject({ status: 403, code: "invalid_origin" });
 
-    getCurrentAccount.mockResolvedValue(null);
+    getCurrentSessionSigningSecret.mockResolvedValue(null);
     await expect(getOnlineRoomIdentity(createRequest())).rejects.toMatchObject({
       status: 401,
-      code: "unauthorized",
+      code: "invalid_ticket",
     });
   });
 

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { sql, withTransaction } from "@/database/connection";
+import { sql } from "@/database/connection";
 import {
   onlineRoomContract,
   type OnlineRoomErrorCode,
@@ -16,26 +16,9 @@ export type OnlineRoomIdentity = {
   userId: string;
 };
 
-type ExistingPresenceRow = {
-  position_x: number | string;
-  position_z: number | string;
-  sequence: number | string;
-  session_id: string;
-  session_issued_at: number | string;
-};
-
-type ActivePositionRow = {
-  position_x: number | string;
-  position_z: number | string;
-  userid: string;
-};
-
-type PlayerRow = ActivePositionRow & {
-  display_name: string;
-  heading: number | string;
-  last_seen_at: Date | string;
-  movement_state: "idle" | "walk";
-  outfit_id: OnlineRoomPlayer["outfitId"];
+type SyncResultRow = {
+  players: OnlineRoomPlayer[];
+  status: "ok" | "room_full" | "session_replaced" | "stale_sequence";
 };
 
 export class OnlineRoomPresenceError extends Error {
@@ -80,69 +63,108 @@ export async function syncOnlineRoomPresence({
     ),
   );
 
-  return withTransaction(async (client) => {
-    await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [roomId]);
-    await client.query(
-      "DELETE FROM online_room_presence WHERE room_id = $1 AND expires_at <= NOW()",
-      [roomId],
-    );
-
-    const existingRows = await client.query<ExistingPresenceRow>(
-      `SELECT session_id, session_issued_at, sequence, position_x, position_z
-       FROM online_room_presence
-       WHERE room_id = $1 AND userid = $2
-       LIMIT 1`,
-      [roomId, identity.userId],
-    );
-    const existing = existingRows[0];
-    const isNewSession = Boolean(
-      existing && existing.session_id !== identity.sessionId,
-    );
-
-    if (
-      isNewSession &&
-      identity.issuedAt <= Number(existing.session_issued_at)
-    ) {
-      throw new OnlineRoomPresenceError(409, "session_replaced");
-    }
-    if (
-      existing &&
-      !isNewSession &&
-      input.sequence <= Number(existing.sequence)
-    ) {
-      throw new OnlineRoomPresenceError(409, "stale_sequence");
-    }
-
-    const activeRows = await client.query<ActivePositionRow>(
-      `SELECT userid, position_x, position_z
-       FROM online_room_presence
-       WHERE room_id = $1 AND expires_at > NOW()
-       ORDER BY connected_at ASC`,
-      [roomId],
-    );
-    if (!existing && activeRows.length >= maxPlayers) {
-      throw new OnlineRoomPresenceError(409, "room_full");
-    }
-
-    const spawn = chooseSpawn(activeRows);
-    const position = existing
-      ? { x: input.x, z: input.z }
-      : { x: spawn.x, z: spawn.z };
-    const nextSequence = isNewSession ? 0 : input.sequence;
-
-    await client.query(
-      `INSERT INTO online_room_presence (
+  const firstSpawn = onlineRoomContract.spawnPositions[0];
+  const resultRows = await sql.query<SyncResultRow>(
+    `WITH room_lock AS MATERIALIZED (
+       SELECT pg_advisory_xact_lock(hashtext($1::text)) AS locked
+     ),
+     expired AS (
+       DELETE FROM online_room_presence AS presence
+       USING room_lock
+       WHERE presence.room_id = $1
+         AND presence.userid <> $2
+         AND presence.expires_at <= NOW()
+       RETURNING presence.userid
+     ),
+     existing AS MATERIALIZED (
+       SELECT presence.userid, presence.session_id,
+              presence.session_issued_at, presence.sequence
+       FROM online_room_presence AS presence, room_lock
+       WHERE presence.room_id = $1
+         AND presence.userid = $2
+         AND presence.expires_at > NOW()
+       LIMIT 1
+     ),
+     active AS MATERIALIZED (
+       SELECT presence.userid, presence.display_name, presence.outfit_id,
+              presence.position_x, presence.position_z, presence.heading,
+              presence.movement_state, presence.last_seen_at,
+              presence.connected_at
+       FROM online_room_presence AS presence, room_lock
+       WHERE presence.room_id = $1
+         AND presence.expires_at > NOW()
+       ORDER BY presence.connected_at ASC
+     ),
+     decision AS MATERIALIZED (
+       SELECT existing.userid IS NOT NULL AS has_existing,
+              existing.session_id,
+              existing.session_issued_at,
+              existing.sequence,
+              (SELECT COUNT(*)::int FROM active) AS active_count,
+              CASE
+                WHEN existing.userid IS NOT NULL
+                  AND existing.session_id <> $3
+                  AND $4::bigint <= existing.session_issued_at
+                  THEN 'session_replaced'
+                WHEN existing.userid IS NOT NULL
+                  AND existing.session_id = $3
+                  AND $11::bigint <= existing.sequence
+                  THEN 'stale_sequence'
+                WHEN existing.userid IS NULL
+                  AND (SELECT COUNT(*) FROM active) >= $13::int
+                  THEN 'room_full'
+                ELSE 'ok'
+              END AS status
+       FROM room_lock
+       LEFT JOIN existing ON TRUE
+     ),
+     upserted AS (
+       INSERT INTO online_room_presence (
          room_id, userid, session_id, session_issued_at, display_name,
          outfit_id, position_x, position_z, heading, movement_state,
          sequence, connected_at, last_seen_at, expires_at
-       ) VALUES (
-         $1, $2, $3, $4, $5,
-         $6, $7, $8, $9, $10,
-         $11, NOW(), NOW(), NOW() + ($12::int * INTERVAL '1 millisecond')
        )
+       SELECT $1, $2, $3, $4, $5,
+              $6,
+              CASE WHEN decision.has_existing
+                THEN $7::double precision
+                ELSE COALESCE(spawn.x, $15::double precision)
+              END,
+              CASE WHEN decision.has_existing
+                THEN $8::double precision
+                ELSE COALESCE(spawn.z, $16::double precision)
+              END,
+              $9, $10,
+              CASE WHEN decision.has_existing AND decision.session_id <> $3
+                THEN 0
+                ELSE $11::bigint
+              END,
+              NOW(), NOW(), NOW() + ($12::int * INTERVAL '1 millisecond')
+       FROM decision
+       LEFT JOIN LATERAL (
+         SELECT candidate.x, candidate.z
+         FROM ROWS FROM (
+           jsonb_to_recordset($14::jsonb)
+             AS (x double precision, z double precision)
+         ) WITH ORDINALITY AS candidate(x, z, ordinal)
+         WHERE NOT EXISTS (
+           SELECT 1
+           FROM active
+           WHERE SQRT(
+             POWER(active.position_x - candidate.x, 2) +
+             POWER(active.position_z - candidate.z, 2)
+           ) <= 0.8
+         )
+         ORDER BY candidate.ordinal
+         LIMIT 1
+       ) AS spawn ON TRUE
+       WHERE decision.status = 'ok'
        ON CONFLICT (room_id, userid) DO UPDATE SET
          session_id = EXCLUDED.session_id,
-         session_issued_at = GREATEST(online_room_presence.session_issued_at, EXCLUDED.session_issued_at),
+         session_issued_at = GREATEST(
+           online_room_presence.session_issued_at,
+           EXCLUDED.session_issued_at
+         ),
          display_name = EXCLUDED.display_name,
          outfit_id = EXCLUDED.outfit_id,
          position_x = EXCLUDED.position_x,
@@ -150,44 +172,75 @@ export async function syncOnlineRoomPresence({
          heading = EXCLUDED.heading,
          movement_state = EXCLUDED.movement_state,
          sequence = EXCLUDED.sequence,
+         connected_at = CASE
+           WHEN online_room_presence.expires_at <= NOW() THEN NOW()
+           ELSE online_room_presence.connected_at
+         END,
          last_seen_at = NOW(),
-         expires_at = EXCLUDED.expires_at`,
-      [
-        roomId,
-        identity.userId,
-        identity.sessionId,
-        identity.issuedAt,
-        identity.displayName.trim().slice(0, 120) || identity.userId,
-        input.outfitId,
-        position.x,
-        position.z,
-        input.heading,
-        input.moving ? "walk" : "idle",
-        nextSequence,
-        ttlMs,
-      ],
-    );
-
-    const playerRows = await client.query<PlayerRow>(
-      `SELECT userid, display_name, outfit_id, position_x, position_z,
-              heading, movement_state, last_seen_at
-       FROM online_room_presence
-       WHERE room_id = $1 AND expires_at > NOW()
-       ORDER BY connected_at ASC`,
-      [roomId],
-    );
-    const players = playerRows.map(mapPlayer);
-    const self = players.find((player) => player.userId === identity.userId);
-    if (!self) throw new Error("Online room presence was not persisted.");
-
-    return {
+         expires_at = EXCLUDED.expires_at
+       RETURNING userid, display_name, outfit_id, position_x, position_z,
+                 heading, movement_state, last_seen_at, connected_at
+     ),
+     players AS (
+       SELECT * FROM active WHERE active.userid <> $2
+       UNION ALL
+       SELECT * FROM upserted
+     )
+     SELECT decision.status,
+            COALESCE(
+              JSONB_AGG(
+                JSONB_BUILD_OBJECT(
+                  'userId', players.userid,
+                  'displayName', players.display_name,
+                  'outfitId', players.outfit_id,
+                  'x', players.position_x,
+                  'z', players.position_z,
+                  'heading', players.heading,
+                  'moving', players.movement_state = 'walk',
+                  'lastSeenAt', players.last_seen_at
+                ) ORDER BY players.connected_at
+              ) FILTER (WHERE players.userid IS NOT NULL),
+              '[]'::jsonb
+            ) AS players
+     FROM decision
+     LEFT JOIN players ON decision.status = 'ok'
+     GROUP BY decision.status`,
+    [
       roomId,
-      serverTime: new Date().toISOString(),
-      capacity: maxPlayers,
-      self,
-      players,
-    };
-  });
+      identity.userId,
+      identity.sessionId,
+      identity.issuedAt,
+      identity.displayName.trim().slice(0, 120) || identity.userId,
+      input.outfitId,
+      input.x,
+      input.z,
+      input.heading,
+      input.moving ? "walk" : "idle",
+      input.sequence,
+      ttlMs,
+      maxPlayers,
+      JSON.stringify(onlineRoomContract.spawnPositions),
+      firstSpawn.x,
+      firstSpawn.z,
+    ],
+  );
+  const result = resultRows[0];
+  if (!result) throw new Error("Online room sync returned no result.");
+  if (result.status !== "ok") {
+    throw new OnlineRoomPresenceError(409, result.status);
+  }
+
+  const players = result.players.map(normalizePlayer);
+  const self = players.find((player) => player.userId === identity.userId);
+  if (!self) throw new Error("Online room presence was not persisted.");
+
+  return {
+    roomId,
+    serverTime: new Date().toISOString(),
+    capacity: maxPlayers,
+    self,
+    players,
+  };
 }
 
 export async function leaveOnlineRoomPresence(identity: OnlineRoomIdentity) {
@@ -201,33 +254,13 @@ export async function leaveOnlineRoomPresence(identity: OnlineRoomIdentity) {
   return { left: deletedRows.length > 0 };
 }
 
-function chooseSpawn(activeRows: ActivePositionRow[]) {
-  return (
-    onlineRoomContract.spawnPositions.find((candidate) =>
-      activeRows.every(
-        (row) =>
-          Math.hypot(
-            Number(row.position_x) - candidate.x,
-            Number(row.position_z) - candidate.z,
-          ) > 0.8,
-      ),
-    ) ||
-    onlineRoomContract.spawnPositions[
-      activeRows.length % onlineRoomContract.spawnPositions.length
-    ]
-  );
-}
-
-function mapPlayer(row: PlayerRow): OnlineRoomPlayer {
+function normalizePlayer(player: OnlineRoomPlayer): OnlineRoomPlayer {
   return {
-    userId: row.userid,
-    displayName: row.display_name,
-    outfitId: row.outfit_id,
-    x: Number(row.position_x),
-    z: Number(row.position_z),
-    heading: Number(row.heading),
-    moving: row.movement_state === "walk",
-    lastSeenAt: new Date(row.last_seen_at).toISOString(),
+    ...player,
+    x: Number(player.x),
+    z: Number(player.z),
+    heading: Number(player.heading),
+    lastSeenAt: new Date(player.lastSeenAt).toISOString(),
   };
 }
 

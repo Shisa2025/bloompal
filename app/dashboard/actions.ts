@@ -19,8 +19,13 @@ import {
   purchaseOutfit as purchaseOutfitRecord,
   purchaseMusic as purchaseMusicRecord,
   sellResource as sellResourceRecord,
+  setEquippedDashboardOutfit as saveEquippedDashboardOutfit,
 } from "@/database/shop";
-import type { PurchasableDashboardOutfitId } from "@/lib/dashboard-outfits";
+import {
+  isDashboardOutfitId,
+  type DashboardOutfitId,
+  type PurchasableDashboardOutfitId,
+} from "@/lib/dashboard-outfits";
 
 export type TableFlowerActionResult =
   | { ok: true; tableFlowerAsset: string | null }
@@ -168,6 +173,35 @@ export async function buyDashboardOutfit(
     return result;
   } catch (error) {
     console.error("Failed to purchase dashboard outfit.", error);
+    return { ok: false, errorCode: "shopTransactionFailed" };
+  }
+}
+
+export async function setEquippedDashboardOutfit(
+  outfitId: string,
+): Promise<
+  | { ok: true; outfitId: DashboardOutfitId }
+  | { ok: false; errorCode: ErrorCode }
+> {
+  const { userid } = await requireUser();
+  if (!isDashboardOutfitId(outfitId)) {
+    return { ok: false, errorCode: "outfitUnavailable" };
+  }
+
+  try {
+    const savedOutfitId = await saveEquippedDashboardOutfit({
+      userid,
+      outfitId,
+    });
+    if (!savedOutfitId) {
+      return { ok: false, errorCode: "outfitUnavailable" };
+    }
+
+    revalidatePath(await getLocalizedPath("/dashboard"));
+    revalidatePath(await getLocalizedPath("/games/snapshot"));
+    return { ok: true, outfitId: savedOutfitId };
+  } catch (error) {
+    console.error("Failed to equip dashboard outfit.", error);
     return { ok: false, errorCode: "shopTransactionFailed" };
   }
 }

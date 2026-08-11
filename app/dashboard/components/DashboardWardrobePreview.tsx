@@ -9,7 +9,9 @@ import {
 } from "./dashboardOutfits";
 
 type DashboardWardrobePreviewProps = {
+  error?: string | null;
   isOpen: boolean;
+  isPending?: boolean;
   onClose: () => void;
   onSelectOutfit: (outfitId: DashboardOutfitId) => void;
   ownedOutfitIds: readonly PurchasableDashboardOutfitId[];
@@ -17,7 +19,9 @@ type DashboardWardrobePreviewProps = {
 };
 
 export default function DashboardWardrobePreview({
+  error = null,
   isOpen,
+  isPending = false,
   onClose,
   onSelectOutfit,
   ownedOutfitIds,
@@ -37,7 +41,7 @@ export default function DashboardWardrobePreview({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        if (!isPending) onClose();
         return;
       }
       if (event.key !== "Tab") return;
@@ -67,12 +71,12 @@ export default function DashboardWardrobePreview({
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, isPending, onClose]);
 
   if (!isOpen) return null;
 
   const closeFromBackdrop = (event: MouseEvent<HTMLDivElement>) => {
-    if (event.target === event.currentTarget) onClose();
+    if (event.target === event.currentTarget && !isPending) onClose();
   };
 
   return (
@@ -115,6 +119,7 @@ export default function DashboardWardrobePreview({
                   .filter(Boolean)
                   .join(" ")}
                 key={outfit.id}
+                disabled={isPending}
                 onClick={() => onSelectOutfit(outfit.id)}
                 type="button"
               >
@@ -137,9 +142,15 @@ export default function DashboardWardrobePreview({
             );
             })}
         </div>
+        {error ? (
+          <p className="dashboard-table-flower-error" role="alert">
+            {error}
+          </p>
+        ) : null}
         <div className="dashboard-table-flower-actions">
           <button
             className="dashboard-table-flower-secondary"
+            disabled={isPending}
             onClick={onClose}
             type="button"
           >

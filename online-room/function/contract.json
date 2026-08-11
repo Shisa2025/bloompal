@@ -3,7 +3,7 @@
   "maxPlayers": 8,
   "presenceTtlMs": 5000,
   "movingSyncMs": 250,
-  "idleSyncMs": 1000,
+  "idleSyncMs": 500,
   "movementSpeed": 2.2,
   "ticketLifetimeSeconds": 600,
   "ticketRefreshSeconds": 480,

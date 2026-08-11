@@ -212,7 +212,23 @@ try {
     CREATE TABLE IF NOT EXISTS user_dashboard_settings (
       userid VARCHAR(120) PRIMARY KEY REFERENCES users(userid) ON DELETE CASCADE,
       table_flower_asset VARCHAR(120),
+      equipped_outfit_id VARCHAR(80),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await client.query(`
+    ALTER TABLE user_dashboard_settings
+    ADD COLUMN IF NOT EXISTS equipped_outfit_id VARCHAR(80)
+  `);
+  await client.query(
+    "ALTER TABLE user_dashboard_settings DROP CONSTRAINT IF EXISTS user_dashboard_settings_equipped_outfit_check",
+  );
+  await client.query(`
+    ALTER TABLE user_dashboard_settings
+    ADD CONSTRAINT user_dashboard_settings_equipped_outfit_check
+    CHECK (
+      equipped_outfit_id IS NULL OR
+      equipped_outfit_id IN ('base', 'moss-cardigan', 'honey-raincoat')
     )
   `);
   await client.query(`

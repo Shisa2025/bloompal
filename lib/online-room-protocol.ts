@@ -3,8 +3,6 @@ import type { DashboardOutfitId } from "@/app/dashboard/components/dashboardOutf
 
 export const onlineRoomContract = contract;
 export const onlineRoomBounds = contract.bounds;
-export const onlineRoomSessionIdHeader = "X-Online-Room-Session-Id";
-export const onlineRoomIssuedAtHeader = "X-Online-Room-Issued-At";
 
 export type OnlineRoomMovementState = "idle" | "walk";
 
@@ -38,8 +36,8 @@ export type OnlineRoomSyncResponse = {
 
 export type OnlineRoomTicketResponse = {
   endpoint: string;
+  ticket: string;
   expiresAt: string;
-  issuedAt: number;
   sessionId: string;
 };
 
