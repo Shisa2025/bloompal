@@ -89,6 +89,7 @@ export const docsNavigation: DocsNavGroup[] = [
     items: [
       navItem("Project Structure", "project-structure", "Current repository and application organisation."),
       navItem("Local Environment", "local-environment", "Local development setup notes."),
+      navItem("Prototype System Requirements", "prototype-system-requirements", "Indicative recommended environment for the browser prototype."),
       navItem("Environment Variables", "environment-variables", "Environment variable names and handling without exposing values."),
       navItem("API", "api", "Currently observable route handlers and future API documentation boundary."),
       navItem("Database Schema & Data Dictionary", "database-schema-data-dictionary", "Current tables from migrations plus future modelling notes."),
@@ -136,6 +137,7 @@ export const docsNavigation: DocsNavGroup[] = [
       navItem("Public Product Roadmap", "public-product-roadmap", "Prototype-to-institutional-readiness roadmap."),
       navItem("Pilot Readiness", "pilot-readiness", "What BloomPal would need before a responsible pilot."),
       navItem("Partnership Direction", "partnership-direction", "High-level partner categories for future validation."),
+      navItem("Business Model Direction", "business-model-direction", "B2B commercial hypotheses requiring validation."),
     ],
   },
 ];
@@ -223,7 +225,9 @@ export const docsPages: Record<string, DocsPage> = {
             "Gardening-themed gameplay routes for watering, plucking fruit, catching fish, collecting bugs, and snapshots.",
             "MediaPipe/vision assets and hand-tracking related code are present in the project.",
             "Database access is implemented through PostgreSQL using DATABASE_URL.",
-            "The user dashboard includes a front-house/courtyard shop and music layer backed by wallet, music ownership, asset sale, and coin transaction records.",
+            "The user dashboard includes garden/home, bedroom, courtyard/front-house, pond/shop, wardrobe/outfit, music, merchant/shop, and coin/wallet engagement features inside the current dashboard experience.",
+            "The current shared online room lets signed-in users enter a prototype shared-space experience where active users can see present users, represented by names, avatars, outfits, and synchronised movement/presence.",
+            "Shop and customisation features are backed by wallet, music ownership, outfit ownership, asset sale, and coin transaction records.",
             "Admin dashboard routes exist for overview, users, players, sessions, motion, analytics, reports, and CSV report route handlers.",
           ]),
         ],
@@ -281,6 +285,8 @@ export const docsPages: Record<string, DocsPage> = {
           table(["Term", "Working meaning"], [
             ["Activity", "A playable gardening task such as watering, fruit plucking, bug catching, fish catching, or snapshot tasks."],
             ["Game activity metric", "A current aggregate session/activity value, such as game action counts, attempts, successful actions, duration, or left/right game actions where recorded."],
+            ["Shared online room", "A current prototype shared-presence space where active users can see other present users and synchronised movement/presence. It is not full cooperative rehabilitation gameplay or chat."],
+            ["Coin economy", "A prototype engagement and customisation currency used for shop, music, outfit, and selling interactions. It has no real-money value in the current prototype."],
             ["Programme", "A future clinician-authorised set of activities and targets for a patient."],
             ["Progress", "A future longitudinal interpretation of activity and validated measurement data, not just a single score."],
             ["Admin dashboard", "The current review surface for admin accounts in the prototype."],
@@ -604,7 +610,7 @@ export const docsPages: Record<string, DocsPage> = {
         id: "important-routes",
         title: "Important current routes",
         blocks: [
-          code("/\n/login\n/signup\n/change-password\n/dashboard\n/games/watering\n/games/pluckfruit\n/games/catchfish\n/games/collectbugs\n/games/snapshot\n/games/takesnapshot\n/admin/dashboard\n/docs\n/app\n/api/health"),
+          code("/\n/login\n/signup\n/change-password\n/dashboard\n/games/watering\n/games/pluckfruit\n/games/catchfish\n/games/collectbugs\n/games/snapshot\n/games/takesnapshot\n/admin/dashboard\n/docs\n/app\n/api/health\n/api/online-room/ticket\n/api/online-room/sync\n/api/online-room/leave"),
         ],
       },
     ],
@@ -663,6 +669,23 @@ export const docsPages: Record<string, DocsPage> = {
             "Admin dashboard pages read assigned-user activity, session, game activity metric, analytics, and report data for review.",
           ]),
           code("User -> Login -> Gardening Game -> Webcam Hand Tracking -> Session/Result Stored -> Admin Dashboard -> Analytics & Reports"),
+          comparison([
+            {
+              title: "Gameplay/session data",
+              status: "CURRENT",
+              items: ["Completed game_sessions", "Activity rewards and result records", "Duration, attempts, successful actions, and game action counts where supported"],
+            },
+            {
+              title: "Engagement/economy/customisation data",
+              status: "CURRENT",
+              items: ["Wallet and coin balance", "Owned music and outfits", "Equipped outfit", "Sales of collected flowers, bugs, fish, and fruits"],
+            },
+            {
+              title: "Shared-room presence data",
+              status: "CURRENT",
+              items: ["Short-lived online_room_presence state", "Current room position, movement state, display name, outfit, and expiry", "Not a clinical or historical activity record"],
+            },
+          ]),
         ],
       },
       {
@@ -763,7 +786,8 @@ export const docsPages: Record<string, DocsPage> = {
             ["app/admin/dashboard", "Shared admin dashboard components, actions, and styling."],
             ["app/[locale]/admin/dashboard", "Locale route pages for admin dashboard surfaces."],
             ["app/[locale]/docs", "Public documentation site foundation."],
-            ["database", "PostgreSQL connection, migrations, auth sessions, users, and game persistence helpers."],
+            ["app/api/online-room", "Current route handlers for shared-room ticket, sync, and leave actions."],
+            ["database", "PostgreSQL connection, migrations, auth sessions, users, game persistence helpers, shop/economy helpers, and shared-room presence helpers."],
             ["mediapipe / public/mediapipe", "Hand-tracking related code and browser assets."],
           ]),
         ],
@@ -789,6 +813,36 @@ export const docsPages: Record<string, DocsPage> = {
             ["npm run db:migrate", "Run database migration script."],
             ["npm run db:seed", "Insert seed data."],
             ["npm run db:reset", "Reset/initialize database only when explicitly allowed by safety env."],
+          ]),
+        ],
+      },
+    ],
+  },
+
+  "prototype-system-requirements": {
+    slug: "prototype-system-requirements",
+    title: "Prototype System Requirements",
+    eyebrow: "Developer guide",
+    description: "Indicative recommended environment for using the current browser-based prototype.",
+    status: "CURRENT",
+    sections: [
+      {
+        id: "recommended-environment",
+        title: "Recommended prototype environment",
+        blocks: [
+          callout("CURRENT", "Indicative guidance, not benchmarked minimums", [
+            "These are prototype recommendations, not formally benchmarked minimum hardware specifications.",
+            "Actual performance varies with browser, camera quality, lighting, device capability, and concurrent workload.",
+          ]),
+          table(["Area", "Guidance"], [
+            ["Device / OS", "Modern Windows 10/11, macOS, or equivalent desktop/laptop environment. Laptop or desktop use is recommended for the current prototype."],
+            ["Browser", "Current Chromium-based browser such as Chrome or Edge recommended, with JavaScript, WebAssembly support, hardware-accelerated graphics, and camera permissions enabled."],
+            ["Processor", "A modern dual-core or better processor is recommended; quad-core or better may provide smoother camera tracking and 3D rendering."],
+            ["Memory", "4 GB RAM is practical lower-end guidance; 8 GB RAM is recommended for smoother general use."],
+            ["Graphics", "Integrated graphics should generally be sufficient for the prototype. Browser WebGL/hardware acceleration is recommended; a discrete GPU is not required."],
+            ["Camera", "A working webcam is required for hand-tracking activities. A 720p-class webcam or better, adequate lighting, and unobstructed hand visibility are recommended."],
+            ["Display", "Approximately 1280x720 or higher is recommended. A larger laptop or desktop display may provide better usability."],
+            ["Network", "A stable internet connection is required for hosted application access and shared online-room functionality."],
           ]),
         ],
       },
@@ -836,6 +890,9 @@ export const docsPages: Record<string, DocsPage> = {
         blocks: [
           bullets([
             "app/api/health/route.ts provides a health endpoint.",
+            "app/api/online-room/ticket/route.ts provides a short-lived ticket for the current shared online room.",
+            "app/api/online-room/sync/route.ts updates and reads polling-based shared-room presence.",
+            "app/api/online-room/leave/route.ts removes the current user's shared-room presence.",
             "app/[locale]/admin/dashboard/reports/sessions.csv/route.ts provides a CSV report route.",
             "app/[locale]/admin/dashboard/reports/users.csv/route.ts provides a CSV report route.",
           ]),
@@ -862,16 +919,22 @@ export const docsPages: Record<string, DocsPage> = {
             ["users", "Accounts, roles, admin assignment, status, locale, and password hash."],
             ["auth_sessions", "Session token hashes and expiry."],
             ["user_plants", "Watering/garden plant records."],
-            ["user_dashboard_settings", "User dashboard display settings."],
+            ["user_dashboard_settings", "User dashboard display settings, including selected/equipped dashboard customisation where supported."],
             ["user_bugs", "Collected bug records."],
             ["user_snapshots", "Snapshot records, generated garden snapshot image data, and storage metadata."],
             ["user_fish", "Caught fish records."],
             ["user_fruits", "Plucked fruit records."],
             ["game_sessions", "Unified game session records for supported activity types."],
-            ["user_wallets", "User coin balance and wallet state for the current shop/music layer."],
+            ["user_wallets", "User coin balance and wallet state for the current shop, music, outfit, and selling layer."],
             ["user_music", "Music tracks owned by a user."],
+            ["user_outfits", "Outfits owned by a user for current dashboard customisation."],
             ["asset_sales", "Records sold collectible or reward assets from flowers, bugs, fish, or fruit."],
             ["coin_transactions", "Coin economy transaction history."],
+            ["online_room_presence", "Short-lived shared-room presence state, including room, display name, outfit, movement state, position, and expiry."],
+          ]),
+          callout("CURRENT", "Session metrics vary by activity", [
+            "Available session metrics vary by game. Some activities record attempts and successful actions, some record left/right game actions, and newer watering sessions may store watering momentum percentage information in result metadata.",
+            "These fields should not be described as validated clinical motion measurements.",
           ]),
           callout("PROPOSED", "Future data dictionary", [
             "Future clinical entities such as PlayerProfile, EmployeeProfile, GameTaskResult, MotionRecord, and EmployeeNote should be reconciled with the actual schema before implementation.",
@@ -1112,9 +1175,12 @@ export const docsPages: Record<string, DocsPage> = {
         id: "pipeline",
         title: "Conceptual pipeline",
         blocks: [
-          code("Webcam frames -> Hand landmarks -> Game interaction events -> Session record -> Game activity metrics -> Dashboard review -> Future clinician interpretation"),
+          code("Webcam frames -> Hand landmarks -> Game interaction events -> Session record -> Activity-specific session data -> Dashboard review -> Future clinician interpretation"),
           callout("OPEN QUESTION", "Metric validity", [
             "The team still needs to define which metrics are reliable, useful, and safe to show for each activity and patient context.",
+          ]),
+          callout("CURRENT", "Activity-specific telemetry", [
+            "Available session metrics vary by activity. Some activities record attempts/successful actions, some record left/right game actions, and newer watering sessions may store watering momentum percentages in result metadata.",
           ]),
         ],
       },
@@ -1364,6 +1430,35 @@ export const docsPages: Record<string, DocsPage> = {
         title: "Potential partner categories",
         blocks: [
           p("BloomPal may be relevant to physiotherapy clinics, rehabilitation centres, community care settings, eldercare organisations, and healthcare innovation partners."),
+        ],
+      },
+    ],
+  },
+
+  "business-model-direction": {
+    slug: "business-model-direction",
+    title: "Business Model Direction",
+    eyebrow: "Roadmap & pilots",
+    description: "A public-facing B2B commercial hypothesis for future validation.",
+    status: "PROPOSED",
+    sections: [
+      {
+        id: "commercial-hypothesis",
+        title: "Business model hypothesis",
+        blocks: [
+          callout("PROPOSED", "B2B direction", [
+            "BloomPal's current business-model direction is business-to-business, focused on organisations that support elderly users, rehabilitation users, or patients.",
+            "This is a hypothesis for validation, not a claim of current customers, partners, procurement approval, or pricing evidence.",
+          ]),
+          table(["Audience", "Examples"], [
+            ["Direct users", "Elderly users, rehabilitation users, and patients using BloomPal as a guided engagement and practice experience."],
+            ["Potential buyers / deployers", "Physiotherapy clinics, rehabilitation centres, hospitals, community care or active-ageing settings, therapy centres, and relevant care organisations."],
+            ["Possible revenue components", "Recurring software licensing, institutional access to administration/analytics capabilities, and deployment/support/maintenance services."],
+          ]),
+          callout("OPEN QUESTION", "Commercial validation still required", [
+            "Future work needs validation of buyer, payer, procurement model, pricing unit, willingness to pay, deployment requirements, and support expectations.",
+            "Possible pricing structures such as per organisation/site, per clinician seat, per active user/patient, or bundled service models remain open questions.",
+          ]),
         ],
       },
     ],

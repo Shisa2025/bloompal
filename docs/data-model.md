@@ -79,21 +79,27 @@ The current implementation also includes user-facing shop/economy tables:
 
 - `user_wallets`: user coin balance and wallet state.
 - `user_music`: music tracks owned by a user.
+- `user_outfits`: outfits owned by a user for dashboard customisation.
+- `user_dashboard_settings.equipped_outfit_id`: selected outfit used by the current dashboard and shared-room appearance.
 - `asset_sales`: sold collectible or reward assets from flowers, bugs, fish, or fruit.
 - `coin_transactions`: coin economy transaction history.
 
-The front-house/shop/music layer reads existing inventory tables such as `user_plants`, `user_bugs`, `user_fish`, and `user_fruits`. Snapshot records may store generated garden snapshot image data; this is separate from raw webcam video or raw MediaPipe landmark history.
+The front-house/shop/music/outfit layer reads existing inventory tables such as `user_plants`, `user_bugs`, `user_fish`, and `user_fruits`. Selling a collectible records the sale and coin transaction; it should not be described as deleting the underlying historical activity record. Coins are a prototype engagement currency and should not be described as real-money value or payment.
+
+Snapshot records may store generated garden snapshot image data; this is separate from raw webcam video or raw MediaPipe landmark history.
 
 ### Current transient online-room presence
 
 `online_room_presence` stores the short-lived state needed to render the public
-multiplayer room. One row represents one signed-in player in a logical room and
+shared online room. One row represents one signed-in player in a logical room and
 contains only the current position, facing direction, movement state, selected
 outfit, display name, session ordering data, and expiry time.
 
 Presence is operational state rather than activity history: explicit exits delete
 it immediately, missing heartbeats expire after five seconds, and it must not be
 used for rehabilitation reporting or historical movement analysis.
+
+The current shared online room supports multi-user presence and synchronised movement/presence. It should not be documented as chat, therapist interaction, cooperative rehabilitation gameplay, or production-ready multiplayer.
 
 ### EmployeeNote
 

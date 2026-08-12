@@ -2,8 +2,10 @@ import { Link } from "@/i18n/navigation";
 import styles from "../_foundation/foundation.module.css";
 
 const currentPortal = [
-  "Users can sign in and access the current BloomPal garden dashboard.",
+  "Users can sign in and access the current BloomPal dashboard experience, including garden/home, bedroom, courtyard/front-house, pond/shop, wardrobe/outfit, music, and merchant/shop interactions.",
   "Gardening activities can record game activity and session data from hand-tracking gameplay.",
+  "The current prototype includes wallet/coin, owned music, owned outfit, equipped outfit, and collectible-selling engagement features.",
+  "Users can enter a prototype shared online room where present users can see names, avatars, outfits, and synchronised movement/presence.",
   "Admins can review assigned-user activity through the existing admin dashboard.",
 ];
 

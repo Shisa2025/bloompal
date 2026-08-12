@@ -62,7 +62,9 @@ Real healthcare deployment would require additional validation around:
 
 ## Activity data
 
-BloomPal records completed activity data such as completion times, duration, game action counts, successful actions, attempts, and result metadata where supported by the game. The dashboard can currently show assigned users, completed sessions, average duration, recent or last activity, days since last activity, activity breakdown, activity popularity, flowers, fruits, fish, bugs, snapshots, and game-specific attempt success where the underlying game records meaningful attempts.
+BloomPal records completed activity data such as completion times, duration, game action counts, successful actions, attempts, and result metadata where supported by the game. Available session metrics vary by activity: some activities record attempts and successful actions, some record left/right game actions, and newer watering sessions may store watering momentum percentage information in result metadata rather than meaningful left/right action counts.
+
+The dashboard can currently show assigned users, completed sessions, average duration, recent or last activity, days since last activity, activity breakdown, activity popularity, flowers, fruits, fish, bugs, snapshots, and game-specific attempt success where the underlying game records meaningful attempts.
 
 The dashboard should not imply clinical recovery, biomechanical measurement, raw webcam video storage, or raw MediaPipe landmark history. The snapshot game may store generated garden snapshot image data, so documentation should not claim that BloomPal stores no images of any kind.
 

@@ -38,6 +38,13 @@ BloomPal keeps public-facing product documentation separate from private team-on
 - Webcam hand tracking is used inside gameplay experiences.
 - Session and reward persistence already exists for completed activities.
 
+### CURRENT: User dashboard and engagement space
+
+- The current user dashboard includes multiple scenes inside the dashboard experience: garden/home, bedroom, courtyard/front-house, pond/shop, wardrobe/outfit, music, merchant/shop, and coin/wallet interactions.
+- These are engagement and personalisation features that support the garden experience. They should not be presented as clinical outcomes.
+- The shared online room is a current prototype shared-presence space where active signed-in users can see present users represented by names, avatars, outfits, and synchronised movement/presence.
+- The shared online room should not be described as full cooperative rehabilitation gameplay, chat, messaging, therapist sessions, or production-ready multiplayer.
+
 ### CURRENT: Admin dashboard
 
 - The admin dashboard is located at `app/[locale]/admin/dashboard`.
@@ -84,10 +91,18 @@ Role does not equal website. Patients, clinicians, and organisation administrato
 2. A player starts a gardening activity.
 3. Webcam hand tracking interprets hand movement during gameplay.
 4. The game creates a session record.
-5. Task results and aggregate game-session metrics are attached to that session.
-6. Backend storage saves approved data.
-7. Admin dashboard pages read scoped activity data.
+5. Task results and activity-specific game-session metrics are attached to that session where supported.
+6. Backend storage saves approved session, reward, engagement/economy, customisation, and short-lived shared-room presence data.
+7. Admin dashboard pages read scoped activity data for assigned users.
 8. Admin users review activity trends, sessions, game activity metrics, analytics, and reports.
+
+## Current data categories
+
+| Category | Current examples | Boundary |
+| --- | --- | --- |
+| Gameplay/session data | `game_sessions`, game rewards, duration, attempts, successful actions, left/right game actions where recorded | Used for activity review, not validated clinical recovery claims |
+| Engagement/economy/customisation data | wallet/coins, owned music, owned outfits, equipped outfit, sales of collected flowers, bugs, fish, and fruits | Prototype engagement currency only, not real-money payments |
+| Shared-room presence data | `online_room_presence` | Short-lived operational presence state, not a clinical record or historical movement analysis |
 
 ## Out of scope for this foundation task
 
